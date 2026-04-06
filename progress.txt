@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T12:12:00-04:00
-ITERATION: 8
-SPEC_COMPLETED: 008-autoconfiguration.md
-WHAT_WAS_DONE: Created OdysseyProperties (@ConfigurationProperties with nested Redis/TTL classes, sensible defaults) and OdysseyAutoConfiguration (@AutoConfiguration conditional on RedisConnectionFactory). Auto-config creates two distinct Lettuce connections (pub/sub + shared), PubSubNotificationListener wrapped as SmartLifecycle, and RedisOdysseyStreamRegistry. Made PubSubNotificationListener and RedisOdysseyStreamRegistry public to allow cross-package instantiation. Created odyssey-spring-boot-starter as dependency-only POM. Registered auto-configuration via META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (64 tests total, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T12:17:00-04:00
+ITERATION: 9
+SPEC_COMPLETED: 009-example-app.md
+WHAT_WAS_DONE: Created odyssey-example Spring Boot application module with three REST controllers (BroadcastController, NotifyController, TaskController) demonstrating all three stream types, a static HTML demo page with EventSource subscriptions, application.yml config, and a docker-compose.yml for Redis. The example depends solely on odyssey-spring-boot-starter.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (64 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS (4 files clean)
 STATUS: MORE_WORK
-NEXT_SPEC: 009-example-app.md
-NOTES: Package is org.jwcarman.odyssey.autoconfigure (not io.odyssey.autoconfigure — matched project convention). StatefulRedisPubSubConnection extends StatefulRedisConnection, so @Qualifier annotations are needed to disambiguate injection. LettuceConnectionFactory mock also implements SmartLifecycle, requiring bean-name lookups in tests. PubSubNotificationListener and RedisOdysseyStreamRegistry were changed from package-private to public (class + constructor + start/stop methods) to support cross-package autoconfiguration.
+NEXT_SPEC: 010-integration-tests.md
+NOTES: TaskController stores ephemeral stream references in a ConcurrentHashMap keyed by streamKey, since registry.ephemeral() generates a new stream each call and there's no API to retrieve an existing stream by key. The map entry is cleaned up when the task completes and calls stream.close(). The HTML uses named event listeners (e.g., addEventListener('message'), addEventListener('notification'), addEventListener('progress'/'complete')) matching the event types published by each controller.

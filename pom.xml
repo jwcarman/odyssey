@@ -26,6 +26,7 @@
         <module>odyssey-redis</module>
         <module>odyssey-autoconfigure</module>
         <module>odyssey-spring-boot-starter</module>
+        <module>odyssey-example</module>
     </modules>
 
     <dependencyManagement>

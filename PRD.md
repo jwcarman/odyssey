@@ -553,13 +553,13 @@ The event storage and notification concerns are orthogonal. Currently both are p
 Redis (Streams + Pub/Sub), but the architecture supports extracting two SPIs:
 
 ```java
-public interface EventLog {
+public interface OdysseyEventLog {
     String append(String streamKey, OdysseyEvent event);
     Stream<OdysseyEvent> readAfter(String streamKey, String lastId);
     Stream<OdysseyEvent> readLast(String streamKey, int count);
 }
 
-public interface NotificationBus {
+public interface OdysseyStreamNotifier {
     void notify(String streamKey, String eventId);
     void subscribe(String pattern, NotificationHandler handler);
 }
@@ -568,10 +568,8 @@ public interface NotificationBus {
 The core coordination machinery (`SubscriberOutbox`, `TopicFanout`) is already
 backend-agnostic. Possible future implementations:
 
-- Cassandra + NATS
-- PostgreSQL + LISTEN/NOTIFY
-- Kafka (both log and notification in one)
-- DynamoDB + SNS
+- `OdysseyEventLog`: Redis Streams, Cassandra, PostgreSQL, Kafka, DynamoDB
+- `OdysseyStreamNotifier`: Redis Pub/Sub, NATS, PostgreSQL LISTEN/NOTIFY, SNS, Kafka
 
 The public consumer API (`OdysseyStream`, `OdysseyStreamRegistry`, `OdysseyEvent`) would
 not change — consumers would just swap a starter dependency.
