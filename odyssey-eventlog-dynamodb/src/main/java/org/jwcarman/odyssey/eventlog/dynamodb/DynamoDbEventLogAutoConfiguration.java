@@ -36,7 +36,7 @@ public class DynamoDbEventLogAutoConfiguration {
         new DynamoDbOdysseyEventLog(
             dynamoDbClient,
             properties.tableName(),
-            properties.ttlSeconds(),
+            properties.ttl(),
             properties.ephemeralPrefix(),
             properties.channelPrefix(),
             properties.broadcastPrefix());

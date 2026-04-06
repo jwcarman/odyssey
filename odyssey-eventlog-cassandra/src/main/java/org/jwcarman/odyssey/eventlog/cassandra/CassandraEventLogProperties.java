@@ -15,6 +15,7 @@
  */
 package org.jwcarman.odyssey.eventlog.cassandra;
 
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "odyssey.eventlog.cassandra")
@@ -22,5 +23,5 @@ public record CassandraEventLogProperties(
     String ephemeralPrefix,
     String channelPrefix,
     String broadcastPrefix,
-    int defaultTtlSeconds,
+    Duration defaultTtl,
     boolean autoCreateSchema) {}

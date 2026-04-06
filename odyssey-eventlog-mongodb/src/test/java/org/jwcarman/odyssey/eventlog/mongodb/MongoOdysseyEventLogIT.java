@@ -17,6 +17,7 @@ package org.jwcarman.odyssey.eventlog.mongodb;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +45,7 @@ class MongoOdysseyEventLogIT {
 
     eventLog =
         new MongoOdysseyEventLog(
-            mongoTemplate, "odyssey_events", 0, "ephemeral:", "channel:", "broadcast:");
+            mongoTemplate, "odyssey_events", Duration.ZERO, "ephemeral:", "channel:", "broadcast:");
     eventLog.ensureIndexes();
   }
 
@@ -181,7 +182,12 @@ class MongoOdysseyEventLogIT {
 
     MongoOdysseyEventLog ttlLog =
         new MongoOdysseyEventLog(
-            mongoTemplate, "odyssey_events", 3600, "ephemeral:", "channel:", "broadcast:");
+            mongoTemplate,
+            "odyssey_events",
+            Duration.ofHours(1),
+            "ephemeral:",
+            "channel:",
+            "broadcast:");
     ttlLog.ensureIndexes();
 
     String streamKey = "ephemeral:ttl-test";

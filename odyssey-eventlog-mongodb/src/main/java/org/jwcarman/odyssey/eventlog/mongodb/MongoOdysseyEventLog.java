@@ -15,6 +15,7 @@
  */
 package org.jwcarman.odyssey.eventlog.mongodb;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,7 +38,7 @@ public class MongoOdysseyEventLog extends AbstractOdysseyEventLog {
 
   private final MongoTemplate mongoTemplate;
   private final String collectionName;
-  private final long ttlSeconds;
+  private final Duration ttl;
 
   private long lastMillis = -1;
   private final AtomicInteger sequence = new AtomicInteger(0);
@@ -45,14 +46,14 @@ public class MongoOdysseyEventLog extends AbstractOdysseyEventLog {
   public MongoOdysseyEventLog(
       MongoTemplate mongoTemplate,
       String collectionName,
-      long ttlSeconds,
+      Duration ttl,
       String ephemeralPrefix,
       String channelPrefix,
       String broadcastPrefix) {
     super(ephemeralPrefix, channelPrefix, broadcastPrefix);
     this.mongoTemplate = mongoTemplate;
     this.collectionName = collectionName;
-    this.ttlSeconds = ttlSeconds;
+    this.ttl = ttl;
   }
 
   public void ensureIndexes() {
@@ -63,7 +64,7 @@ public class MongoOdysseyEventLog extends AbstractOdysseyEventLog {
         new CompoundIndexDefinition(new Document("streamKey", 1).append("eventId", 1)));
 
     // TTL index for automatic expiration
-    if (ttlSeconds > 0) {
+    if (!ttl.isZero()) {
       indexOps.ensureIndex(new Index().on("expireAt", Sort.Direction.ASC).expire(0));
     }
   }
@@ -84,8 +85,8 @@ public class MongoOdysseyEventLog extends AbstractOdysseyEventLog {
       doc.put("metadata", new Document(new HashMap<>(event.metadata())));
     }
 
-    if (ttlSeconds > 0) {
-      doc.put("expireAt", Instant.now().plusSeconds(ttlSeconds));
+    if (!ttl.isZero()) {
+      doc.put("expireAt", Instant.now().plus(ttl));
     }
 
     mongoTemplate.insert(doc, collectionName);

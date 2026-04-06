@@ -51,6 +51,6 @@ public class SnsNotifierAutoConfiguration {
       topicArn = snsClient.createTopic(request -> request.name("odyssey-notifications")).topicArn();
     }
     return new SnsOdysseyStreamNotifier(
-        snsClient, sqsClient, topicArn, properties.sqsMessageRetentionSeconds());
+        snsClient, sqsClient, topicArn, (int) properties.sqsMessageRetention().toSeconds());
   }
 }

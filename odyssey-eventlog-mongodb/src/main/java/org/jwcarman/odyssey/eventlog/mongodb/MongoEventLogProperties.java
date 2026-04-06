@@ -15,6 +15,7 @@
  */
 package org.jwcarman.odyssey.eventlog.mongodb;
 
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "odyssey.eventlog.mongodb")
@@ -23,4 +24,4 @@ public record MongoEventLogProperties(
     String channelPrefix,
     String broadcastPrefix,
     String collectionName,
-    long ttlSeconds) {}
+    Duration ttl) {}

@@ -15,6 +15,7 @@
  */
 package org.jwcarman.odyssey.eventlog.rabbitmq;
 
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "odyssey.eventlog.rabbitmq")
@@ -24,5 +25,5 @@ public record RabbitMqEventLogProperties(
     String broadcastPrefix,
     String host,
     int port,
-    long maxAgeSeconds,
+    Duration maxAge,
     long maxLengthBytes) {}

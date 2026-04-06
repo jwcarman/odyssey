@@ -20,6 +20,7 @@ import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.uuid.Uuids;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,7 +34,7 @@ import org.jwcarman.odyssey.spi.AbstractOdysseyEventLog;
 public class CassandraOdysseyEventLog extends AbstractOdysseyEventLog {
 
   private final CqlSession session;
-  private final int defaultTtlSeconds;
+  private final Duration defaultTtl;
 
   private final PreparedStatement insertStatement;
   private final PreparedStatement insertWithTtlStatement;
@@ -43,13 +44,13 @@ public class CassandraOdysseyEventLog extends AbstractOdysseyEventLog {
 
   public CassandraOdysseyEventLog(
       CqlSession session,
-      int defaultTtlSeconds,
+      Duration defaultTtl,
       String ephemeralPrefix,
       String channelPrefix,
       String broadcastPrefix) {
     super(ephemeralPrefix, channelPrefix, broadcastPrefix);
     this.session = session;
-    this.defaultTtlSeconds = defaultTtlSeconds;
+    this.defaultTtl = defaultTtl;
 
     this.insertStatement =
         session.prepare(
@@ -81,7 +82,7 @@ public class CassandraOdysseyEventLog extends AbstractOdysseyEventLog {
     Map<String, String> metadata =
         event.metadata() != null ? new HashMap<>(event.metadata()) : new HashMap<>();
 
-    if (defaultTtlSeconds > 0) {
+    if (!defaultTtl.isZero()) {
       session.execute(
           insertWithTtlStatement.bind(
               streamKey,
@@ -90,7 +91,7 @@ public class CassandraOdysseyEventLog extends AbstractOdysseyEventLog {
               event.payload(),
               event.timestamp(),
               metadata,
-              defaultTtlSeconds));
+              (int) defaultTtl.toSeconds()));
     } else {
       session.execute(
           insertStatement.bind(

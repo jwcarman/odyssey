@@ -15,6 +15,7 @@
  */
 package org.jwcarman.odyssey.eventlog.nats;
 
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "odyssey.eventlog.nats")
@@ -24,5 +25,5 @@ public record NatsEventLogProperties(
     String broadcastPrefix,
     String url,
     String streamName,
-    long maxAgeSeconds,
+    Duration maxAge,
     long maxMessages) {}

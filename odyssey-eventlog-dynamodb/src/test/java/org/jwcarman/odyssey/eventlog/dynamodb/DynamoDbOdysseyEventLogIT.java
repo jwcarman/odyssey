@@ -18,6 +18,7 @@ package org.jwcarman.odyssey.eventlog.dynamodb;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -70,7 +71,7 @@ class DynamoDbOdysseyEventLogIT {
 
     eventLog =
         new DynamoDbOdysseyEventLog(
-            client, "odyssey_events", 0, "ephemeral:", "channel:", "broadcast:");
+            client, "odyssey_events", Duration.ZERO, "ephemeral:", "channel:", "broadcast:");
     eventLog.createTable();
   }
 
@@ -203,7 +204,7 @@ class DynamoDbOdysseyEventLogIT {
   void appendWithTtlDoesNotError() {
     DynamoDbOdysseyEventLog ttlLog =
         new DynamoDbOdysseyEventLog(
-            client, "odyssey_events", 3600, "ephemeral:", "channel:", "broadcast:");
+            client, "odyssey_events", Duration.ofHours(1), "ephemeral:", "channel:", "broadcast:");
 
     String streamKey = "ephemeral:ttl-test";
     String id = ttlLog.append(streamKey, buildEvent(streamKey, "msg", "ttl-event"));

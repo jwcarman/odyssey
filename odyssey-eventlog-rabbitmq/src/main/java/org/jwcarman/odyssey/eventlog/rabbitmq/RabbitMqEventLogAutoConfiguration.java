@@ -16,7 +16,6 @@
 package org.jwcarman.odyssey.eventlog.rabbitmq;
 
 import com.rabbitmq.stream.Environment;
-import java.time.Duration;
 import org.jwcarman.odyssey.autoconfigure.OdysseyAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -40,7 +39,7 @@ public class RabbitMqEventLogAutoConfiguration {
       Environment environment, RabbitMqEventLogProperties properties) {
     return new RabbitMqOdysseyEventLog(
         environment,
-        Duration.ofSeconds(properties.maxAgeSeconds()),
+        properties.maxAge(),
         properties.maxLengthBytes(),
         properties.ephemeralPrefix(),
         properties.channelPrefix(),

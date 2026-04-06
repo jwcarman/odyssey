@@ -37,7 +37,7 @@ public class MongoEventLogAutoConfiguration {
         new MongoOdysseyEventLog(
             mongoTemplate,
             properties.collectionName(),
-            properties.ttlSeconds(),
+            properties.ttl(),
             properties.ephemeralPrefix(),
             properties.channelPrefix(),
             properties.broadcastPrefix());

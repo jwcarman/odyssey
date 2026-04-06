@@ -15,6 +15,7 @@
  */
 package org.jwcarman.odyssey.eventlog.dynamodb;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -47,7 +48,7 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
 
   private final DynamoDbClient client;
   private final String tableName;
-  private final long ttlSeconds;
+  private final Duration ttl;
 
   private long lastMillis = -1;
   private final AtomicInteger sequence = new AtomicInteger(0);
@@ -55,14 +56,14 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
   public DynamoDbOdysseyEventLog(
       DynamoDbClient client,
       String tableName,
-      long ttlSeconds,
+      Duration ttl,
       String ephemeralPrefix,
       String channelPrefix,
       String broadcastPrefix) {
     super(ephemeralPrefix, channelPrefix, broadcastPrefix);
     this.client = client;
     this.tableName = tableName;
-    this.ttlSeconds = ttlSeconds;
+    this.ttl = ttl;
   }
 
   public void createTable() {
@@ -116,8 +117,8 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
       item.put("metadata", AttributeValue.builder().m(metadataMap).build());
     }
 
-    if (ttlSeconds > 0) {
-      long ttlEpoch = Instant.now().plusSeconds(ttlSeconds).getEpochSecond();
+    if (!ttl.isZero()) {
+      long ttlEpoch = Instant.now().plus(ttl).getEpochSecond();
       item.put("ttl", AttributeValue.builder().n(String.valueOf(ttlEpoch)).build());
     }
 

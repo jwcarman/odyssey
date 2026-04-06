@@ -35,6 +35,6 @@ public class PostgresNotifierAutoConfiguration {
       DataSource dataSource, PostgresNotifierProperties properties) {
     JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
     return new PostgresOdysseyStreamNotifier(
-        jdbcTemplate, dataSource, properties.channel(), properties.pollTimeoutMillis());
+        jdbcTemplate, dataSource, properties.channel(), (int) properties.pollTimeout().toMillis());
   }
 }

@@ -46,7 +46,7 @@ public class CassandraEventLogAutoConfiguration {
 
     return new CassandraOdysseyEventLog(
         cqlSession,
-        properties.defaultTtlSeconds(),
+        properties.defaultTtl(),
         properties.ephemeralPrefix(),
         properties.channelPrefix(),
         properties.broadcastPrefix());

@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.datastax.oss.driver.api.core.CqlSession;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +65,9 @@ class CassandraOdysseyEventLogIT {
             + " AND default_time_to_live = 86400");
     session.execute("TRUNCATE odyssey_events");
 
-    eventLog = new CassandraOdysseyEventLog(session, 0, "ephemeral:", "channel:", "broadcast:");
+    eventLog =
+        new CassandraOdysseyEventLog(
+            session, Duration.ZERO, "ephemeral:", "channel:", "broadcast:");
   }
 
   @Test
@@ -200,7 +203,8 @@ class CassandraOdysseyEventLogIT {
   @Test
   void appendWithTtlDoesNotError() {
     CassandraOdysseyEventLog ttlLog =
-        new CassandraOdysseyEventLog(session, 3600, "ephemeral:", "channel:", "broadcast:");
+        new CassandraOdysseyEventLog(
+            session, Duration.ofHours(1), "ephemeral:", "channel:", "broadcast:");
 
     String streamKey = "ephemeral:ttl-test";
     String id = ttlLog.append(streamKey, buildEvent(streamKey, "msg", "ttl-event"));

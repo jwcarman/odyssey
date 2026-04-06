@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T16:49:00-04:00
-ITERATION: 32
-SPEC_COMPLETED: 029-cleanup-and-consistency.md
-WHAT_WAS_DONE: Comprehensive cleanup pass — added publishJson API with Jackson 3 ObjectMapper, renamed publish→publishRaw across all call sites (interface, impl, example app, tests), made SNS SQS message retention configurable via odyssey.notifier.sns.sqs-message-retention-seconds property, added named constants for SQS polling params, verified all event log implementations extend AbstractOdysseyEventLog, confirmed no @ConditionalOnProperty on any auto-config, confirmed all properties classes are records with defaults files, applied license headers and spotless formatting.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all 15 modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS; ./mvnw -Plicense license:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T16:58:00-04:00
+ITERATION: 33
+SPEC_COMPLETED: 030-duration-properties.md
+WHAT_WAS_DONE: Converted all time-based properties from raw numeric types to java.time.Duration across 7 modules — Cassandra (defaultTtlSeconds→defaultTtl), DynamoDB (ttlSeconds→ttl), MongoDB (ttlSeconds→ttl), RabbitMQ (maxAgeSeconds→maxAge), NATS (maxAgeSeconds→maxAge), PostgreSQL notifier (pollTimeoutMillis→pollTimeout), SNS notifier (sqsMessageRetentionSeconds→sqsMessageRetention). Updated properties records, defaults files (using Duration format like 24h, 1h, 500ms, 5m), auto-configuration classes, implementation classes, and integration tests.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all 15 modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: DONE
 NEXT_SPEC: none
-NOTES: Jackson 3 (tools.jackson.databind.ObjectMapper) added as required compile dependency in odyssey-core. All auto-config IT tests and unit tests that use ApplicationContextRunner with OdysseyAutoConfiguration now provide an ObjectMapper bean via .withBean(ObjectMapper.class, ObjectMapper::new). LocalStack Testcontainers import change was attempted (org.testcontainers.containers.localstack → org.testcontainers.localstack) but the new package's LocalStackContainer class lacks the Service enum, so the old import was kept — the backward-compat package works fine with TC 2.x artifacts. GenericContainer<?> kept as-is for NATS tests since GenericContainer still requires the type parameter in TC 2.x. All other Testcontainers imports already used 2.x packages (postgresql, cassandra, mongodb, rabbitmq).
+NOTES: The Redis event log and core OdysseyProperties already used Duration and were left unchanged. Implementation classes that need raw numeric values (e.g., Cassandra's TTL as int seconds, PostgreSQL's poll timeout as int millis) now convert internally using Duration.toSeconds() or Duration.toMillis(). Unused Duration imports were removed from RabbitMQ and NATS auto-config classes where the conversion was previously done at the auto-config layer.

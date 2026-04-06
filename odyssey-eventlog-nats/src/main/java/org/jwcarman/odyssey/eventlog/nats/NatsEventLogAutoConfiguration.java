@@ -19,7 +19,6 @@ import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 import java.io.IOException;
-import java.time.Duration;
 import org.jwcarman.odyssey.autoconfigure.OdysseyAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -48,7 +47,7 @@ public class NatsEventLogAutoConfiguration {
     return new NatsOdysseyEventLog(
         connection,
         properties.streamName(),
-        Duration.ofSeconds(properties.maxAgeSeconds()),
+        properties.maxAge(),
         properties.maxMessages(),
         properties.ephemeralPrefix(),
         properties.channelPrefix(),

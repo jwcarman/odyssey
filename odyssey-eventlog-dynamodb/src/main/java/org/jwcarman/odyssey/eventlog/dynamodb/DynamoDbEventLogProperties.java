@@ -15,6 +15,7 @@
  */
 package org.jwcarman.odyssey.eventlog.dynamodb;
 
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "odyssey.eventlog.dynamodb")
@@ -24,4 +25,4 @@ public record DynamoDbEventLogProperties(
     String broadcastPrefix,
     String tableName,
     boolean autoCreateTable,
-    long ttlSeconds) {}
+    Duration ttl) {}

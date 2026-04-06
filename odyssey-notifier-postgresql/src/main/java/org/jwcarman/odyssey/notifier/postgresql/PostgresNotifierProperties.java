@@ -15,7 +15,8 @@
  */
 package org.jwcarman.odyssey.notifier.postgresql;
 
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "odyssey.notifier.postgresql")
-public record PostgresNotifierProperties(String channel, int pollTimeoutMillis) {}
+public record PostgresNotifierProperties(String channel, Duration pollTimeout) {}
