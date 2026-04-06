@@ -22,7 +22,9 @@ class RedisEventLogPropertiesTest {
     contextRunner.run(
         context -> {
           RedisEventLogProperties properties = context.getBean(RedisEventLogProperties.class);
-          assertEquals("odyssey:", properties.getStreamPrefix());
+          assertEquals("odyssey:ephemeral:", properties.getEphemeralPrefix());
+          assertEquals("odyssey:channel:", properties.getChannelPrefix());
+          assertEquals("odyssey:broadcast:", properties.getBroadcastPrefix());
           assertEquals(100_000, properties.getMaxLen());
           assertEquals(500, properties.getMaxLastN());
           assertEquals(Duration.ofMinutes(5), properties.getEphemeralTtl());
@@ -35,7 +37,9 @@ class RedisEventLogPropertiesTest {
   void customValues() {
     contextRunner
         .withPropertyValues(
-            "odyssey.eventlog.redis.stream-prefix=custom:",
+            "odyssey.eventlog.redis.ephemeral-prefix=custom:temp:",
+            "odyssey.eventlog.redis.channel-prefix=custom:chan:",
+            "odyssey.eventlog.redis.broadcast-prefix=custom:bcast:",
             "odyssey.eventlog.redis.max-len=50000",
             "odyssey.eventlog.redis.max-last-n=100",
             "odyssey.eventlog.redis.ephemeral-ttl=2m",
@@ -44,7 +48,9 @@ class RedisEventLogPropertiesTest {
         .run(
             context -> {
               RedisEventLogProperties properties = context.getBean(RedisEventLogProperties.class);
-              assertEquals("custom:", properties.getStreamPrefix());
+              assertEquals("custom:temp:", properties.getEphemeralPrefix());
+              assertEquals("custom:chan:", properties.getChannelPrefix());
+              assertEquals("custom:bcast:", properties.getBroadcastPrefix());
               assertEquals(50_000, properties.getMaxLen());
               assertEquals(100, properties.getMaxLastN());
               assertEquals(Duration.ofMinutes(2), properties.getEphemeralTtl());

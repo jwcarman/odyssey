@@ -33,7 +33,16 @@ class RedisOdysseyEventLogTest {
 
   @BeforeEach
   void setUp() {
-    eventLog = new RedisOdysseyEventLog(commands, 100_000, "odyssey:", 300, 3600, 86400);
+    eventLog =
+        new RedisOdysseyEventLog(
+            commands,
+            100_000,
+            "odyssey:ephemeral:",
+            "odyssey:channel:",
+            "odyssey:broadcast:",
+            300,
+            3600,
+            86400);
   }
 
   @Test

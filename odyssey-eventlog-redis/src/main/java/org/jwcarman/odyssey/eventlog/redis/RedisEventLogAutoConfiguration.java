@@ -26,7 +26,9 @@ public class RedisEventLogAutoConfiguration {
     return new RedisOdysseyEventLog(
         connection.sync(),
         properties.getMaxLen(),
-        properties.getStreamPrefix(),
+        properties.getEphemeralPrefix(),
+        properties.getChannelPrefix(),
+        properties.getBroadcastPrefix(),
         properties.getEphemeralTtl().toSeconds(),
         properties.getChannelTtl().toSeconds(),
         properties.getBroadcastTtl().toSeconds());

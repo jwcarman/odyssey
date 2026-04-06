@@ -24,7 +24,9 @@ public class RedisOdysseyEventLog implements OdysseyEventLog {
 
   private final RedisCommands<String, String> commands;
   private final long maxLen;
-  private final String streamPrefix;
+  private final String ephemeralPrefix;
+  private final String channelPrefix;
+  private final String broadcastPrefix;
   private final long ephemeralTtlSeconds;
   private final long channelTtlSeconds;
   private final long broadcastTtlSeconds;
@@ -32,13 +34,17 @@ public class RedisOdysseyEventLog implements OdysseyEventLog {
   public RedisOdysseyEventLog(
       RedisCommands<String, String> commands,
       long maxLen,
-      String streamPrefix,
+      String ephemeralPrefix,
+      String channelPrefix,
+      String broadcastPrefix,
       long ephemeralTtlSeconds,
       long channelTtlSeconds,
       long broadcastTtlSeconds) {
     this.commands = commands;
     this.maxLen = maxLen;
-    this.streamPrefix = streamPrefix;
+    this.ephemeralPrefix = ephemeralPrefix;
+    this.channelPrefix = channelPrefix;
+    this.broadcastPrefix = broadcastPrefix;
     this.ephemeralTtlSeconds = ephemeralTtlSeconds;
     this.channelTtlSeconds = channelTtlSeconds;
     this.broadcastTtlSeconds = broadcastTtlSeconds;
@@ -46,17 +52,17 @@ public class RedisOdysseyEventLog implements OdysseyEventLog {
 
   @Override
   public String ephemeralKey() {
-    return streamPrefix + "ephemeral:" + UUID.randomUUID();
+    return ephemeralPrefix + UUID.randomUUID();
   }
 
   @Override
   public String channelKey(String name) {
-    return streamPrefix + "channel:" + name;
+    return channelPrefix + name;
   }
 
   @Override
   public String broadcastKey(String name) {
-    return streamPrefix + "broadcast:" + name;
+    return broadcastPrefix + name;
   }
 
   @Override
@@ -105,13 +111,11 @@ public class RedisOdysseyEventLog implements OdysseyEventLog {
   }
 
   private long resolveTtl(String streamKey) {
-    String afterPrefix =
-        streamKey.startsWith(streamPrefix) ? streamKey.substring(streamPrefix.length()) : streamKey;
-    if (afterPrefix.startsWith("ephemeral:")) {
+    if (streamKey.startsWith(ephemeralPrefix)) {
       return ephemeralTtlSeconds;
-    } else if (afterPrefix.startsWith("channel:")) {
+    } else if (streamKey.startsWith(channelPrefix)) {
       return channelTtlSeconds;
-    } else if (afterPrefix.startsWith("broadcast:")) {
+    } else if (streamKey.startsWith(broadcastPrefix)) {
       return broadcastTtlSeconds;
     }
     return 0;
