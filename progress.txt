@@ -1,8 +1,8 @@
-LAST_RUN: never
-ITERATION: 0
-SPEC_COMPLETED: none
-WHAT_WAS_DONE: initial setup
-VERIFICATION: n/a
+LAST_RUN: 2026-04-06T11:40:00-04:00
+ITERATION: 1
+SPEC_COMPLETED: 001-project-scaffolding.md
+WHAT_WAS_DONE: Scaffolded Maven multi-module project with parent POM (Spring Boot 4.0.5 BOM, Java 25, Spotless 3.4.0 with Google Java Format), four modules (odyssey-core, odyssey-redis, odyssey-autoconfigure, odyssey-spring-boot-starter) with correct inter-module dependencies, Maven wrapper, and package-info.java placeholders.
+VERIFICATION: ./mvnw clean verify -DskipTests → BUILD SUCCESS; ./mvnw spotless:check → BUILD SUCCESS; mvnw is executable; mvnw.cmd exists
 STATUS: MORE_WORK
-NEXT_SPEC: first file in specs/
-NOTES: First run. Read PRD.md fully before doing anything.
+NEXT_SPEC: 002-core-api-interfaces.md
+NOTES: Had to use spotless-maven-plugin 3.4.0 instead of 2.43.0 — the 2.x line has a NoSuchMethodError with Java 25 (google-java-format incompatibility with JDK 25 internal API changes). The starter module produces an empty JAR warning which is expected (dependency-only module with no source code).
