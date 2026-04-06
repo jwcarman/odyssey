@@ -366,6 +366,7 @@ public interface OdysseyStreamRegistry {
     OdysseyStream ephemeral();               // auto-generated key (UUID)
     OdysseyStream channel(String name);      // odyssey:channel:<name>
     OdysseyStream broadcast(String name);    // odyssey:broadcast:<name>
+    OdysseyStream stream(String streamKey);  // look up any existing stream by full key
 }
 ```
 
@@ -491,15 +492,11 @@ The listener does zero Redis I/O — just a map lookup and semaphore releases.
 ### MCP Tool Call (EPHEMERAL)
 
 ```java
+// Initial request — create ephemeral stream, kick off work, return SSE
 @PostMapping(value = "/mcp", produces = TEXT_EVENT_STREAM_VALUE)
-public SseEmitter handleToolCall(@RequestBody String request,
-        @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
+public SseEmitter handleToolCall(@RequestBody String request) {
 
     OdysseyStream stream = registry.ephemeral();
-
-    if (lastEventId != null) {
-        return stream.resumeAfter(lastEventId);
-    }
 
     executorService.submit(() -> {
         try {
@@ -512,6 +509,15 @@ public SseEmitter handleToolCall(@RequestBody String request,
     });
 
     return stream.subscribe();
+}
+
+// Reconnect — client provides stream key and Last-Event-ID
+@GetMapping(value = "/mcp/stream/{streamKey}", produces = TEXT_EVENT_STREAM_VALUE)
+public SseEmitter reconnect(
+        @PathVariable String streamKey,
+        @RequestHeader("Last-Event-ID") String lastEventId) {
+
+    return registry.stream(streamKey).resumeAfter(lastEventId);
 }
 ```
 

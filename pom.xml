@@ -24,6 +24,7 @@
     <modules>
         <module>odyssey-core</module>
         <module>odyssey-autoconfigure</module>
+        <module>odyssey-eventlog-redis</module>
         <module>odyssey-spring-boot-starter</module>
         <module>odyssey-example</module>
     </modules>

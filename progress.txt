@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T13:19:00-04:00
-ITERATION: 16
-SPEC_COMPLETED: 014-core-autoconfiguration.md
-WHAT_WAS_DONE: Implemented OdysseyAutoConfiguration in the odyssey-autoconfigure module with three bean definitions: DefaultOdysseyStreamRegistry (always created), InMemoryOdysseyEventLog (@ConditionalOnMissingBean fallback with WARN log), and InMemoryOdysseyStreamNotifier (@ConditionalOnMissingBean fallback with WARN log). All beans are wired using OdysseyProperties for configuration. Tests verify all acceptance criteria: properties binding, registry creation, in-memory fallback activation, fallback suppression when external beans exist, and auto-configuration registration.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (92 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T13:24:00-04:00
+ITERATION: 17
+SPEC_COMPLETED: 015-eventlog-redis.md
+WHAT_WAS_DONE: Implemented odyssey-eventlog-redis module with RedisOdysseyEventLog (backed by Lettuce sync API) implementing OdysseyEventLog SPI. Includes XADD with MAXLEN~ trimming, TTL refresh via EXPIRE (resolved per stream type from key prefix), non-blocking XREAD for readAfter, XREVRANGE with reverse for readLast, and DEL for delete. Added RedisEventLogAutoConfiguration with @ConditionalOnClass(RedisConnectionFactory.class) that creates the bean from a LettuceConnectionFactory. Registered via META-INF/spring auto-configuration imports.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (101 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 015-eventlog-redis.md
-NOTES: The autoconfigure module already existed as a separate module (odyssey-autoconfigure) rather than being in odyssey-core as the spec suggested. Used commons-logging (Log/LogFactory) instead of SLF4J since SLF4J is not a direct dependency of the autoconfigure module. The DefaultOdysseyStreamRegistry constructor already subscribes to the notifier, so no SmartLifecycle or @PostConstruct is needed — the subscription happens at bean creation time.
+NEXT_SPEC: 016-notifier-redis.md
+NOTES: The module depends on odyssey-autoconfigure for OdysseyProperties (TTL config, maxLen, streamPrefix). The unchecked warnings from javac are due to Lettuce's generic types (StreamMessage<String, String> varargs in xread) — these are safe and cannot be suppressed per CLAUDE.md rules. The auto-configuration obtains a String-codec StatefulRedisConnection from the RedisClient extracted from LettuceConnectionFactory.
