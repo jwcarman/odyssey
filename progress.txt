@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T11:46:39-04:00
-ITERATION: 4
-SPEC_COMPLETED: 004-topic-fanout.md
-WHAT_WAS_DONE: Created TopicFanout class at org.jwcarman.odyssey.redis.TopicFanout using CopyOnWriteArrayList for thread-safe subscriber management. Implements addSubscriber, removeSubscriber, nudgeAll, shutdown, and hasSubscribers. Added 8 unit tests covering add/remove lifecycle, nudgeAll reaching all outboxes, shutdown gracefully closing all outboxes, hasSubscribers reflecting current state, and edge cases (empty fanout operations).
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (21 tests total, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T11:50:09-04:00
+ITERATION: 5
+SPEC_COMPLETED: 005-pubsub-notification-listener.md
+WHAT_WAS_DONE: Created PubSubNotificationListener class at org.jwcarman.odyssey.redis.PubSubNotificationListener implementing Lettuce's RedisPubSubListener<String, String>. Maintains a ConcurrentHashMap<String, TopicFanout> for stream key to fanout mapping. Subscribes to configurable pattern (<prefix>notify:*) via PSUBSCRIBE on a dedicated virtual thread. On pattern message, extracts stream key from channel name and dispatches nudgeAll() to the matching TopicFanout if it has subscribers. Added 7 unit tests covering stream key extraction (simple, nested colons, custom prefix), notification dispatch to registered fanout, unknown stream key ignored, fanout with no subscribers not nudged, and unregister prevents dispatch.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (28 tests total, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 005-pubsub-notification-listener.md
-NOTES: TopicFanout is package-private, matching SubscriberOutbox convention. CopyOnWriteArrayList chosen per spec recommendation since reads (nudgeAll) are far more frequent than writes (subscribe/unsubscribe).
+NEXT_SPEC: 006-redis-odyssey-stream.md
+NOTES: PubSubNotificationListener is package-private. Constructor takes StatefulRedisPubSubConnection and streamPrefix. Provides registerFanout/unregisterFanout methods for the stream registry to manage fanout lifecycle. The connection parameter is nullable for unit testing (tests pass null since they only exercise the message handling and extraction logic, not the actual Pub/Sub subscription).
