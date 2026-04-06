@@ -555,8 +555,8 @@ Redis (Streams + Pub/Sub), but the architecture supports extracting two SPIs:
 ```java
 public interface EventLog {
     String append(String streamKey, OdysseyEvent event);
-    List<OdysseyEvent> readAfter(String streamKey, String lastId);
-    List<OdysseyEvent> readLast(String streamKey, int count);
+    Stream<OdysseyEvent> readAfter(String streamKey, String lastId);
+    Stream<OdysseyEvent> readLast(String streamKey, int count);
 }
 
 public interface NotificationBus {

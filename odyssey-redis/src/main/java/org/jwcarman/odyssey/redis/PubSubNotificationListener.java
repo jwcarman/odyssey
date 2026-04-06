@@ -5,7 +5,7 @@ import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-class PubSubNotificationListener implements RedisPubSubListener<String, String> {
+public class PubSubNotificationListener implements RedisPubSubListener<String, String> {
 
   private final ConcurrentMap<String, TopicFanout> fanouts = new ConcurrentHashMap<>();
   private final StatefulRedisPubSubConnection<String, String> connection;
@@ -13,14 +13,14 @@ class PubSubNotificationListener implements RedisPubSubListener<String, String> 
   private final String notifyPrefix;
   private Thread listenerThread;
 
-  PubSubNotificationListener(
+  public PubSubNotificationListener(
       StatefulRedisPubSubConnection<String, String> connection, String streamPrefix) {
     this.connection = connection;
     this.streamPrefix = streamPrefix;
     this.notifyPrefix = streamPrefix + "notify:";
   }
 
-  void start() {
+  public void start() {
     listenerThread =
         Thread.ofVirtual()
             .name("odyssey-pubsub-listener")
@@ -31,7 +31,7 @@ class PubSubNotificationListener implements RedisPubSubListener<String, String> 
                 });
   }
 
-  void stop() {
+  public void stop() {
     connection.sync().punsubscribe(notifyPrefix + "*");
     connection.removeListener(this);
     if (listenerThread != null) {

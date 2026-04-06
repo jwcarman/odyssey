@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentMap;
 import org.jwcarman.odyssey.core.OdysseyStream;
 import org.jwcarman.odyssey.core.OdysseyStreamRegistry;
 
-class RedisOdysseyStreamRegistry implements OdysseyStreamRegistry {
+public class RedisOdysseyStreamRegistry implements OdysseyStreamRegistry {
 
   private final RedisCommands<String, String> commands;
   private final PubSubNotificationListener listener;
@@ -22,7 +22,7 @@ class RedisOdysseyStreamRegistry implements OdysseyStreamRegistry {
 
   private final ConcurrentMap<String, RedisOdysseyStream> cache = new ConcurrentHashMap<>();
 
-  RedisOdysseyStreamRegistry(
+  public RedisOdysseyStreamRegistry(
       RedisCommands<String, String> commands,
       PubSubNotificationListener listener,
       String streamPrefix,

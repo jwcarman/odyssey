@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T12:15:00-04:00
-ITERATION: 7
-SPEC_COMPLETED: 007-redis-stream-registry.md
-WHAT_WAS_DONE: Created RedisOdysseyStreamRegistry implementing OdysseyStreamRegistry with ephemeral (UUID-keyed, uncached), channel (prefix-keyed, cached by name), and broadcast (prefix-keyed, cached by name) stream creation. Added ttlSeconds parameter to RedisOdysseyStream constructor; publish() now calls EXPIRE to refresh TTL when ttlSeconds > 0. TTL=0 skips EXPIRE. Registry owns TopicFanout creation and registers each fanout with PubSubNotificationListener. ConcurrentHashMap cache ensures repeated channel/broadcast calls return the same instance. Added 17 unit tests for the registry and 2 TTL tests for RedisOdysseyStream.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (57 tests total, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T12:12:00-04:00
+ITERATION: 8
+SPEC_COMPLETED: 008-autoconfiguration.md
+WHAT_WAS_DONE: Created OdysseyProperties (@ConfigurationProperties with nested Redis/TTL classes, sensible defaults) and OdysseyAutoConfiguration (@AutoConfiguration conditional on RedisConnectionFactory). Auto-config creates two distinct Lettuce connections (pub/sub + shared), PubSubNotificationListener wrapped as SmartLifecycle, and RedisOdysseyStreamRegistry. Made PubSubNotificationListener and RedisOdysseyStreamRegistry public to allow cross-package instantiation. Created odyssey-spring-boot-starter as dependency-only POM. Registered auto-configuration via META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (64 tests total, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 008-autoconfiguration.md
-NOTES: RedisOdysseyStreamRegistry is package-private. Constructor takes RedisCommands, PubSubNotificationListener, streamPrefix, keepAliveInterval, defaultSseTimeout, maxLen, maxLastN, ephemeralTtlSeconds, channelTtlSeconds, broadcastTtlSeconds. TTL is set both at stream creation time and refreshed on each publish(). Cache uses full stream key (including prefix) as the map key. Channel and broadcast streams with the same name are distinct because their keys differ (odyssey:channel:X vs odyssey:broadcast:X).
+NEXT_SPEC: 009-example-app.md
+NOTES: Package is org.jwcarman.odyssey.autoconfigure (not io.odyssey.autoconfigure — matched project convention). StatefulRedisPubSubConnection extends StatefulRedisConnection, so @Qualifier annotations are needed to disambiguate injection. LettuceConnectionFactory mock also implements SmartLifecycle, requiring bean-name lookups in tests. PubSubNotificationListener and RedisOdysseyStreamRegistry were changed from package-private to public (class + constructor + start/stop methods) to support cross-package autoconfiguration.
