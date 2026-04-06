@@ -60,7 +60,6 @@ class PostgresNotifierAutoConfigurationTest {
   private ApplicationContextRunner createContextRunner() {
     return new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(PostgresNotifierAutoConfiguration.class))
-        .withPropertyValues("odyssey.notifier.type=postgresql")
         .withBean(
             DataSource.class,
             () -> {

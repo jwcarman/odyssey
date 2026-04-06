@@ -45,8 +45,7 @@ class CassandraEventLogAutoConfigurationIT {
   private ApplicationContextRunner createContextRunner() {
     return new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(CassandraEventLogAutoConfiguration.class))
-        .withPropertyValues(
-            "odyssey.eventlog.type=cassandra", "odyssey.eventlog.cassandra.auto-create-schema=true")
+        .withPropertyValues("odyssey.eventlog.cassandra.auto-create-schema=true")
         .withBean(
             CqlSession.class,
             () -> {

@@ -60,9 +60,7 @@ class PostgresEventLogAutoConfigurationIT {
   private ApplicationContextRunner createContextRunner() {
     return new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(PostgresEventLogAutoConfiguration.class))
-        .withPropertyValues(
-            "odyssey.eventlog.type=postgresql",
-            "odyssey.eventlog.postgresql.auto-create-schema=true")
+        .withPropertyValues("odyssey.eventlog.postgresql.auto-create-schema=true")
         .withBean(
             DataSource.class,
             () -> {

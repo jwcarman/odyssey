@@ -39,7 +39,6 @@ class NatsNotifierAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(NatsNotifierAutoConfiguration.class))
         .withUserConfiguration(MockNatsConfiguration.class)
-        .withPropertyValues("odyssey.notifier.type=nats")
         .run(
             context -> {
               assertThat(context).hasSingleBean(NatsOdysseyStreamNotifier.class);
@@ -54,7 +53,6 @@ class NatsNotifierAutoConfigurationTest {
             AutoConfigurations.of(
                 NatsNotifierAutoConfiguration.class, OdysseyAutoConfiguration.class))
         .withUserConfiguration(MockNatsConfiguration.class)
-        .withPropertyValues("odyssey.notifier.type=nats")
         .run(
             context -> {
               assertThat(context).hasSingleBean(OdysseyStreamNotifier.class);
@@ -62,14 +60,6 @@ class NatsNotifierAutoConfigurationTest {
                   .isInstanceOf(NatsOdysseyStreamNotifier.class);
               assertThat(context).doesNotHaveBean(InMemoryOdysseyStreamNotifier.class);
             });
-  }
-
-  @Test
-  void doesNotActivateWithoutNatsProperty() {
-    new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(NatsNotifierAutoConfiguration.class))
-        .withUserConfiguration(MockNatsConfiguration.class)
-        .run(context -> assertThat(context).doesNotHaveBean(NatsOdysseyStreamNotifier.class));
   }
 
   @Configuration(proxyBeanMethods = false)
