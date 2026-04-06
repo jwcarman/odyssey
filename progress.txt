@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T15:21:00-04:00
-ITERATION: 28
-SPEC_COMPLETED: 025-notifier-rabbitmq.md
-WHAT_WAS_DONE: Created odyssey-notifier-rabbitmq module — a RabbitMqOdysseyStreamNotifier implementation using a fanout exchange with temporary auto-delete exclusive queues. notify() publishes streamKey|eventId to the exchange via RabbitTemplate; start() declares the fanout exchange, creates a temporary queue, binds it, and starts a SimpleMessageListenerContainer; stop() stops the container. Auto-configuration gated on @ConditionalOnClass(ConnectionFactory.class). Integration tests with Testcontainers RabbitMQ (5 ITs + 2 unit tests).
-VERIFICATION: ./mvnw clean install -DskipTests then ./mvnw verify → BUILD SUCCESS (all modules, 0 failures, 5 RabbitMQ integration tests + 2 auto-config unit tests passed); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T15:29:00-04:00
+ITERATION: 29
+SPEC_COMPLETED: 026-eventlog-mongodb.md
+WHAT_WAS_DONE: Created odyssey-eventlog-mongodb module — a MongoOdysseyEventLog implementation using MongoTemplate with a configurable collection (default: odyssey_events). append() generates timestamp-sequence event IDs (013d-05d format) and inserts documents; readAfter() queries with $gt on eventId sorted ascending; readLast() queries sorted descending with limit then reverses; delete() removes all documents for a stream key. TTL support via expireAt field with a TTL index (expireAfterSeconds=0). Compound index on (streamKey, eventId) for cursor-based reads. Auto-configuration gated on @ConditionalOnClass(MongoClient.class). Integration tests with Testcontainers MongoDB (14 ITs + 2 auto-config ITs).
+VERIFICATION: ./mvnw clean install -DskipTests → BUILD SUCCESS; ./mvnw verify → BUILD SUCCESS (all modules, 0 failures, 16 MongoDB tests passed); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 026-eventlog-mongodb.md
-NOTES: Uses spring-boot-starter-amqp for Spring AMQP. The spec mentioned @ConditionalOnProperty but the PRD says @ConditionalOnClass only — followed the PRD. Message format uses pipe delimiter (streamKey|eventId) consistent with SNS module. Fanout exchange is durable; queues are exclusive/auto-delete per the spec. Parent pom.xml and odyssey-bom updated with the new module.
+NEXT_SPEC: 027-eventlog-rabbitmq.md
+NOTES: Uses spring-boot-starter-data-mongodb for MongoTemplate. Event ID format matches DynamoDB module (013d-05d zero-padded millis-sequence) for string comparison ordering. TTL uses expireAt field pattern (per-document expireAt + TTL index with expireAfterSeconds=0) rather than createdAt-based TTL, allowing future per-stream TTL flexibility. Parent pom.xml and odyssey-bom updated with the new module.
