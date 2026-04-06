@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T14:37:00-04:00
-ITERATION: 23
-SPEC_COMPLETED: 020-notifier-postgresql.md
-WHAT_WAS_DONE: Created odyssey-notifier-postgresql module — an OdysseyStreamNotifier implementation backed by PostgreSQL LISTEN/NOTIFY, with a dedicated virtual thread holding a raw JDBC connection for LISTEN, SmartLifecycle start/stop, client-side notification dispatch via a single channel, auto-configuration gated on @ConditionalOnProperty(odyssey.notifier.type=postgresql), and Testcontainers-based integration tests.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T14:43:00-04:00
+ITERATION: 24
+SPEC_COMPLETED: 021-eventlog-cassandra.md
+WHAT_WAS_DONE: Created odyssey-eventlog-cassandra module — an OdysseyEventLog implementation backed by Apache Cassandra using CqlSession directly, TIMEUUID event IDs via Uuids.timeBased(), native MAP<TEXT,TEXT> for metadata, per-insert TTL support via USING TTL, auto-configuration gated on @ConditionalOnProperty(odyssey.eventlog.type=cassandra) and @ConditionalOnClass(CqlSession.class), and Testcontainers-based integration tests.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all modules, 0 failures, 16 Cassandra tests passed); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 021-eventlog-cassandra.md
-NOTES: Uses a single PostgreSQL channel (odyssey_notify) for all notifications — payload format is "streamKey|eventId". The LISTEN connection is a dedicated long-lived raw JDBC connection obtained from the DataSource (not pooled). Reconnect logic with 1-second backoff if the connection drops. The notify() method uses JdbcTemplate with string-escaped pg_notify calls through pooled connections. Poll timeout is configurable via odyssey.notifier.postgresql.poll-timeout-millis (default 500ms). PostgreSQL driver is a compile dependency since PGConnection is needed for getNotifications().
+NEXT_SPEC: 022-notifier-nats.md
+NOTES: Uses CqlSession directly with prepared statements for all operations. Event IDs are stringified TIMEUUIDs (version 1 UUIDs). Metadata is stored as a native Cassandra MAP<TEXT,TEXT> — no JSON serialization needed. TTL is configurable via odyssey.eventlog.cassandra.default-ttl-seconds (default 86400). TTL=0 means use the table's default_time_to_live. Schema is provided as a CQL resource at db/odyssey/cassandra/V1__create_events.cql and can be auto-created via auto-create-schema=true. The table uses (stream_key, event_id) as the primary key with ASC clustering order. Parent pom.xml and odyssey-bom updated with the new module.

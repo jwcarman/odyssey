@@ -17,8 +17,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 class CassandraEventLogAutoConfigurationIT {
 
-  @Container
-  static CassandraContainer cassandra = new CassandraContainer("cassandra:4.1");
+  @Container static CassandraContainer cassandra = new CassandraContainer("cassandra:4.1");
 
   @Test
   void createsCassandraEventLogBean() {
@@ -47,16 +46,14 @@ class CassandraEventLogAutoConfigurationIT {
     return new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(CassandraEventLogAutoConfiguration.class))
         .withPropertyValues(
-            "odyssey.eventlog.type=cassandra",
-            "odyssey.eventlog.cassandra.auto-create-schema=true")
+            "odyssey.eventlog.type=cassandra", "odyssey.eventlog.cassandra.auto-create-schema=true")
         .withBean(
             CqlSession.class,
             () -> {
               CqlSession session =
                   CqlSession.builder()
                       .addContactPoint(
-                          new InetSocketAddress(
-                              cassandra.getHost(), cassandra.getMappedPort(9042)))
+                          new InetSocketAddress(cassandra.getHost(), cassandra.getMappedPort(9042)))
                       .withLocalDatacenter("datacenter1")
                       .build();
               session.execute(

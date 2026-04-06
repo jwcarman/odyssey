@@ -20,7 +20,6 @@ import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.uuid.Uuids;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -73,8 +72,7 @@ public class CassandraOdysseyEventLog extends AbstractOdysseyEventLog {
             "SELECT event_id, stream_key, event_type, payload, timestamp, metadata"
                 + " FROM odyssey_events WHERE stream_key = ? ORDER BY event_id DESC LIMIT ?");
 
-    this.deleteStatement =
-        session.prepare("DELETE FROM odyssey_events WHERE stream_key = ?");
+    this.deleteStatement = session.prepare("DELETE FROM odyssey_events WHERE stream_key = ?");
   }
 
   @Override
@@ -96,12 +94,7 @@ public class CassandraOdysseyEventLog extends AbstractOdysseyEventLog {
     } else {
       session.execute(
           insertStatement.bind(
-              streamKey,
-              eventId,
-              event.eventType(),
-              event.payload(),
-              event.timestamp(),
-              metadata));
+              streamKey, eventId, event.eventType(), event.payload(), event.timestamp(), metadata));
     }
 
     return eventId.toString();

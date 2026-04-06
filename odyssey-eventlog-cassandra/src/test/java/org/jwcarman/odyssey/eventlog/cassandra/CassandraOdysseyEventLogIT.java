@@ -18,8 +18,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 class CassandraOdysseyEventLogIT {
 
-  @Container
-  static CassandraContainer cassandra = new CassandraContainer("cassandra:4.1");
+  @Container static CassandraContainer cassandra = new CassandraContainer("cassandra:4.1");
 
   private CassandraOdysseyEventLog eventLog;
   private CqlSession session;
@@ -93,8 +92,7 @@ class CassandraOdysseyEventLogIT {
   @Test
   void readAfterReturnsEmptyForUnknownStream() {
     UUID dummyUuid = com.datastax.oss.driver.api.core.uuid.Uuids.timeBased();
-    List<OdysseyEvent> events =
-        eventLog.readAfter("nonexistent", dummyUuid.toString()).toList();
+    List<OdysseyEvent> events = eventLog.readAfter("nonexistent", dummyUuid.toString()).toList();
     assertThat(events).isEmpty();
   }
 
