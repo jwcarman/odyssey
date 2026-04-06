@@ -1,12 +1,12 @@
-package org.jwcarman.odyssey.eventlog.postgresql;
+package org.jwcarman.odyssey.notifier.postgresql;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.odyssey.autoconfigure.OdysseyAutoConfiguration;
-import org.jwcarman.odyssey.memory.InMemoryOdysseyEventLog;
-import org.jwcarman.odyssey.spi.OdysseyEventLog;
+import org.jwcarman.odyssey.memory.InMemoryOdysseyStreamNotifier;
+import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -15,39 +15,37 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @Testcontainers
-class PostgresEventLogAutoConfigurationTest {
+class PostgresNotifierAutoConfigurationTest {
 
   @Container static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16-alpine");
 
   @Test
-  void createsPostgresEventLogBean() {
+  void createsPostgresNotifierBean() {
     createContextRunner()
         .run(
             context -> {
-              assertThat(context).hasSingleBean(PostgresOdysseyEventLog.class);
-              assertThat(context).hasSingleBean(OdysseyEventLog.class);
+              assertThat(context).hasSingleBean(PostgresOdysseyStreamNotifier.class);
+              assertThat(context).hasSingleBean(OdysseyStreamNotifier.class);
             });
   }
 
   @Test
-  void postgresEventLogSuppressesInMemoryFallback() {
+  void postgresNotifierSuppressesInMemoryFallback() {
     createContextRunner()
         .withConfiguration(AutoConfigurations.of(OdysseyAutoConfiguration.class))
         .run(
             context -> {
-              assertThat(context).hasSingleBean(OdysseyEventLog.class);
-              assertThat(context.getBean(OdysseyEventLog.class))
-                  .isInstanceOf(PostgresOdysseyEventLog.class);
-              assertThat(context).doesNotHaveBean(InMemoryOdysseyEventLog.class);
+              assertThat(context).hasSingleBean(OdysseyStreamNotifier.class);
+              assertThat(context.getBean(OdysseyStreamNotifier.class))
+                  .isInstanceOf(PostgresOdysseyStreamNotifier.class);
+              assertThat(context).doesNotHaveBean(InMemoryOdysseyStreamNotifier.class);
             });
   }
 
   private ApplicationContextRunner createContextRunner() {
     return new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(PostgresEventLogAutoConfiguration.class))
-        .withPropertyValues(
-            "odyssey.eventlog.type=postgresql",
-            "odyssey.eventlog.postgresql.auto-create-schema=true")
+        .withConfiguration(AutoConfigurations.of(PostgresNotifierAutoConfiguration.class))
+        .withPropertyValues("odyssey.notifier.type=postgresql")
         .withBean(
             DataSource.class,
             () -> {

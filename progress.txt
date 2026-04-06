@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T14:30:00-04:00
-ITERATION: 22
-SPEC_COMPLETED: 019-eventlog-postgresql.md
-WHAT_WAS_DONE: Created odyssey-eventlog-postgresql module — a PostgreSQL-backed OdysseyEventLog implementation using JdbcTemplate, with auto-configuration gated on @ConditionalOnProperty(odyssey.eventlog.type=postgresql), schema SQL resource at db/odyssey/postgresql/V1__create_events.sql, optional auto-create-schema support, and Testcontainers-based integration tests.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (132 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T14:37:00-04:00
+ITERATION: 23
+SPEC_COMPLETED: 020-notifier-postgresql.md
+WHAT_WAS_DONE: Created odyssey-notifier-postgresql module — an OdysseyStreamNotifier implementation backed by PostgreSQL LISTEN/NOTIFY, with a dedicated virtual thread holding a raw JDBC connection for LISTEN, SmartLifecycle start/stop, client-side notification dispatch via a single channel, auto-configuration gated on @ConditionalOnProperty(odyssey.notifier.type=postgresql), and Testcontainers-based integration tests.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 020-notifier-postgresql.md
-NOTES: Used Testcontainers 2.x (artifact IDs changed from junit-jupiter/postgresql to testcontainers-junit-jupiter/testcontainers-postgresql). The spring-boot-testcontainers dependency pulls in the testcontainers BOM. Trimming strategy uses periodic cleanup (every 100th append) rather than on every append to avoid extra DELETE on the hot path. Metadata stored as JSONB with a simple hand-rolled JSON serializer/parser for flat string-to-string maps (avoids adding Jackson as a compile dependency). The @ConditionalOnProperty disambiguates from other JDBC-based backends that might also have a DataSource on the classpath.
+NEXT_SPEC: 021-eventlog-cassandra.md
+NOTES: Uses a single PostgreSQL channel (odyssey_notify) for all notifications — payload format is "streamKey|eventId". The LISTEN connection is a dedicated long-lived raw JDBC connection obtained from the DataSource (not pooled). Reconnect logic with 1-second backoff if the connection drops. The notify() method uses JdbcTemplate with string-escaped pg_notify calls through pooled connections. Poll timeout is configurable via odyssey.notifier.postgresql.poll-timeout-millis (default 500ms). PostgreSQL driver is a compile dependency since PGConnection is needed for getNotifications().

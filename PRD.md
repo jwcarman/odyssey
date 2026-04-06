@@ -587,6 +587,9 @@ A spec is done when ALL of the following are true:
   - Artifact names are prefixed: `testcontainers-postgresql`, `testcontainers-junit-jupiter`,
     `testcontainers-cassandra`, `testcontainers-mongodb`, etc.
   - Spring Boot manages versions via the testcontainers BOM — do not specify versions
+- Tests using Testcontainers must be named `*IT` (not `*Test`) so they run via
+  Failsafe during the `integration-test` phase, not Surefire. This keeps
+  `./mvnw test` fast (unit tests only) and `./mvnw verify` runs everything.
 
 ---
 

@@ -18,7 +18,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @Testcontainers
-class PostgresOdysseyEventLogTest {
+class PostgresOdysseyEventLogIT {
 
   @Container static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16-alpine");
 
