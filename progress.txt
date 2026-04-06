@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T15:01:00-04:00
-ITERATION: 26
-SPEC_COMPLETED: 023-eventlog-dynamodb.md
-WHAT_WAS_DONE: Created odyssey-eventlog-dynamodb module — a DynamoDbOdysseyEventLog implementation backed by Amazon DynamoDB using AWS SDK v2, with timestamp-based event IDs (<epochMillis>-<seq> zero-padded for lexicographic ordering), DynamoDB TTL attribute for automatic expiration, paginated query for readAfter, reverse-scan readLast, batch-delete for delete, idempotent createTable, auto-configuration gated on @ConditionalOnClass(DynamoDbClient.class), and Testcontainers LocalStack-based integration tests.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all modules, 0 failures, 14 DynamoDB integration tests + 2 auto-config tests passed); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T15:12:00-04:00
+ITERATION: 27
+SPEC_COMPLETED: 024-notifier-sns.md
+WHAT_WAS_DONE: Created odyssey-notifier-sns module — an SnsOdysseyStreamNotifier implementation using the SNS+SQS fan-out pattern: notify() publishes to an SNS topic with stream key as message attribute, start() creates a temporary SQS queue with 5-minute retention, subscribes it to the SNS topic with an IAM policy, and polls via a virtual thread with 20-second long polling; stop() unsubscribes, deletes the queue, and interrupts the poller. Auto-configuration gated on @ConditionalOnClass(SnsClient.class) with @ConditionalOnMissingBean for both SnsClient and SqsClient. Integration tests with Testcontainers LocalStack (SNS + SQS).
+VERIFICATION: ./mvnw clean install -DskipTests then ./mvnw verify → BUILD SUCCESS (all modules, 0 failures, 6 SNS integration tests + 2 auto-config unit tests passed); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 024-notifier-sns.md
-NOTES: Uses AWS SDK v2 BOM 2.31.26 (not managed by Spring Boot, version specified in module POM's dependencyManagement). LocalStack latest requires a license; pinned to localstack/localstack:3.8 for tests. Event IDs use format <13-digit-millis>-<5-digit-seq> ensuring lexicographic = chronological ordering. createTable is idempotent (catches ResourceInUseException). Parent pom.xml and odyssey-bom updated with the new module.
+NEXT_SPEC: 025-notifier-rabbitmq.md
+NOTES: Uses AWS SDK v2 BOM 2.31.26 (same as odyssey-eventlog-dynamodb). SNS delivers to SQS in a JSON envelope; the notifier parses the "Message" field using simple string extraction to avoid a JSON dependency. The SnsNotifierProperties was auto-converted to a record by the linter (consistent with other modules). Parent pom.xml and odyssey-bom updated with the new module. Note: ./mvnw clean verify has a pre-existing reactor ordering issue where some modules fail to compile odyssey-core classes — workaround is to install first then verify.
