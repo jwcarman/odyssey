@@ -52,7 +52,8 @@ class RedisOdysseyStreamTest {
             SSE_TIMEOUT,
             MAX_LEN,
             MAX_LAST_N,
-            STREAM_PREFIX);
+            STREAM_PREFIX,
+            0);
   }
 
   @AfterEach
@@ -192,6 +193,35 @@ class RedisOdysseyStreamTest {
 
     verify(fanout).shutdownImmediately();
     verify(commands).del(STREAM_KEY);
+  }
+
+  @Test
+  void publishRefreshesTtlWhenTtlIsPositive() {
+    RedisOdysseyStream streamWithTtl =
+        new RedisOdysseyStream(
+            STREAM_KEY,
+            commands,
+            fanout,
+            KEEP_ALIVE,
+            SSE_TIMEOUT,
+            MAX_LEN,
+            MAX_LAST_N,
+            STREAM_PREFIX,
+            300);
+    when(commands.xadd(eq(STREAM_KEY), any(XAddArgs.class), anyMap())).thenReturn("1-0");
+
+    streamWithTtl.publish("test-event", "payload");
+
+    verify(commands).expire(STREAM_KEY, 300);
+  }
+
+  @Test
+  void publishSkipsExpireWhenTtlIsZero() {
+    when(commands.xadd(eq(STREAM_KEY), any(XAddArgs.class), anyMap())).thenReturn("1-0");
+
+    stream.publish("test-event", "payload");
+
+    verify(commands, never()).expire(anyString(), anyLong());
   }
 
   @Test

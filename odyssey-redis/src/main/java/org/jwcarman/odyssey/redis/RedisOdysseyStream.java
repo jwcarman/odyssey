@@ -29,6 +29,7 @@ class RedisOdysseyStream implements OdysseyStream {
   private final long maxLen;
   private final int maxLastN;
   private final String notifyChannel;
+  private final long ttlSeconds;
 
   RedisOdysseyStream(
       String streamKey,
@@ -38,7 +39,8 @@ class RedisOdysseyStream implements OdysseyStream {
       long defaultSseTimeout,
       long maxLen,
       int maxLastN,
-      String streamPrefix) {
+      String streamPrefix,
+      long ttlSeconds) {
     this.streamKey = streamKey;
     this.commands = commands;
     this.fanout = fanout;
@@ -47,6 +49,7 @@ class RedisOdysseyStream implements OdysseyStream {
     this.maxLen = maxLen;
     this.maxLastN = maxLastN;
     this.notifyChannel = streamPrefix + "notify:" + streamKey;
+    this.ttlSeconds = ttlSeconds;
   }
 
   @Override
@@ -59,6 +62,9 @@ class RedisOdysseyStream implements OdysseyStream {
     XAddArgs args = new XAddArgs().maxlen(maxLen).approximateTrimming();
     String entryId = commands.xadd(streamKey, args, body);
     commands.publish(notifyChannel, entryId);
+    if (ttlSeconds > 0) {
+      commands.expire(streamKey, ttlSeconds);
+    }
     return entryId;
   }
 

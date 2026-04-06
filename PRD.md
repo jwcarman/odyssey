@@ -544,3 +544,36 @@ A spec is done when ALL of the following are true:
 - Never change the public API interfaces (`OdysseyStream`, `OdysseyStreamRegistry`) without a spec that explicitly calls for it
 - Never commit secrets or credentials
 - Never use `@SuppressWarnings` annotations — fix the underlying issue instead
+
+---
+
+## Future: Pluggable Backend SPI
+
+The event storage and notification concerns are orthogonal. Currently both are provided by
+Redis (Streams + Pub/Sub), but the architecture supports extracting two SPIs:
+
+```java
+public interface EventLog {
+    String append(String streamKey, OdysseyEvent event);
+    List<OdysseyEvent> readAfter(String streamKey, String lastId);
+    List<OdysseyEvent> readLast(String streamKey, int count);
+}
+
+public interface NotificationBus {
+    void notify(String streamKey, String eventId);
+    void subscribe(String pattern, NotificationHandler handler);
+}
+```
+
+The core coordination machinery (`SubscriberOutbox`, `TopicFanout`) is already
+backend-agnostic. Possible future implementations:
+
+- Cassandra + NATS
+- PostgreSQL + LISTEN/NOTIFY
+- Kafka (both log and notification in one)
+- DynamoDB + SNS
+
+The public consumer API (`OdysseyStream`, `OdysseyStreamRegistry`, `OdysseyEvent`) would
+not change — consumers would just swap a starter dependency.
+
+**Not in scope for initial release.** Extract the SPI when a second backend materializes.
