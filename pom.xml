@@ -93,6 +93,7 @@
         <module>odyssey-eventlog-cassandra</module>
         <module>odyssey-eventlog-dynamodb</module>
         <module>odyssey-eventlog-mongodb</module>
+        <module>odyssey-eventlog-rabbitmq</module>
         <module>odyssey-notifier-redis</module>
         <module>odyssey-notifier-postgresql</module>
         <module>odyssey-notifier-nats</module>

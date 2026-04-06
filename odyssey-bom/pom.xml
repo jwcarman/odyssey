@@ -66,6 +66,11 @@
             </dependency>
             <dependency>
                 <groupId>org.jwcarman.odyssey</groupId>
+                <artifactId>odyssey-eventlog-rabbitmq</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jwcarman.odyssey</groupId>
                 <artifactId>odyssey-notifier-redis</artifactId>
                 <version>${project.version}</version>
             </dependency>
