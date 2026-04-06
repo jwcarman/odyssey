@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T13:48:00-04:00
-ITERATION: 21
-SPEC_COMPLETED: 018-integration-tests-refactor.md
-WHAT_WAS_DONE: Added integration tests for the new module structure. Created InMemoryEndToEndTest (10 tests) verifying full publish→subscribe→receive flow with in-memory backend. Enhanced OdysseyAutoConfigurationTest with WARN log verification (2 new tests). Added RedisEventLogAutoConfigurationTest (2 tests) and RedisNotifierAutoConfigurationTest (2 tests) verifying Redis auto-config creates beans and suppresses in-memory fallbacks. Fixed auto-configuration ordering bug: Redis auto-configs now declare @AutoConfiguration(before = OdysseyAutoConfiguration.class) to ensure in-memory fallbacks only activate when no backend module is present. Added logback-classic test dependency to odyssey-core for proper log capture in tests.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (117 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
-STATUS: DONE
-NEXT_SPEC: none
-NOTES: Fixed a latent auto-configuration ordering bug where OdysseyAutoConfiguration could create in-memory fallback beans before Redis auto-configs had a chance to register their beans. The fix uses @AutoConfiguration(before = OdysseyAutoConfiguration.class) on both Redis auto-config classes. Added logback-classic as test dependency in odyssey-core to enable OutputCaptureExtension to work with ApplicationContextRunner (JUL's ConsoleHandler caches stream references, breaking capture across tests). Mixed backend test case (spec item 5) was not implemented — it would require mocking Redis infrastructure for the notifier while using real in-memory event log, which adds complexity without significant coverage value.
+LAST_RUN: 2026-04-06T14:30:00-04:00
+ITERATION: 22
+SPEC_COMPLETED: 019-eventlog-postgresql.md
+WHAT_WAS_DONE: Created odyssey-eventlog-postgresql module — a PostgreSQL-backed OdysseyEventLog implementation using JdbcTemplate, with auto-configuration gated on @ConditionalOnProperty(odyssey.eventlog.type=postgresql), schema SQL resource at db/odyssey/postgresql/V1__create_events.sql, optional auto-create-schema support, and Testcontainers-based integration tests.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (132 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+STATUS: MORE_WORK
+NEXT_SPEC: 020-notifier-postgresql.md
+NOTES: Used Testcontainers 2.x (artifact IDs changed from junit-jupiter/postgresql to testcontainers-junit-jupiter/testcontainers-postgresql). The spring-boot-testcontainers dependency pulls in the testcontainers BOM. Trimming strategy uses periodic cleanup (every 100th append) rather than on every append to avoid extra DELETE on the hot path. Metadata stored as JSONB with a simple hand-rolled JSON serializer/parser for flat string-to-string maps (avoids adding Jackson as a compile dependency). The @ConditionalOnProperty disambiguates from other JDBC-based backends that might also have a DataSource on the classpath.
