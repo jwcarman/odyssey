@@ -7,4 +7,6 @@ public interface OdysseyStreamRegistry {
   OdysseyStream channel(String name);
 
   OdysseyStream broadcast(String name);
+
+  OdysseyStream stream(String streamKey);
 }

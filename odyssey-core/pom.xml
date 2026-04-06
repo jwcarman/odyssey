@@ -11,7 +11,7 @@
     </parent>
 
     <artifactId>odyssey-core</artifactId>
-    <name>OdySSEy Core</name>
+    <name>Odyssey Core</name>
     <description>Public API and domain model</description>
 
     <dependencies>
@@ -47,11 +47,6 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

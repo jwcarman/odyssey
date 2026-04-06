@@ -11,7 +11,7 @@
     </parent>
 
     <artifactId>odyssey-notifier-redis</artifactId>
-    <name>OdySSEy Notifier Redis</name>
+    <name>Odyssey Notifier Redis</name>
     <description>OdysseyStreamNotifier implementation backed by Redis Pub/Sub</description>
 
     <dependencies>

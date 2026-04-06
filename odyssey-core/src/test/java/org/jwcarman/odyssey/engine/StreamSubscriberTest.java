@@ -47,6 +47,7 @@ class StreamSubscriberTest {
     StreamSubscriber subscriber = new StreamSubscriber(eventLog, handler, "test-stream", "0", 50);
     subscriber.start();
 
+    subscriber.nudge();
     assertTrue(readCalled.await(5, TimeUnit.SECONDS), "Reader thread should be running");
 
     subscriber.closeImmediately();
@@ -152,6 +153,7 @@ class StreamSubscriberTest {
     StreamSubscriber subscriber = new StreamSubscriber(eventLog, handler, "test-stream", "0", 50);
     subscriber.start();
 
+    subscriber.nudge();
     assertTrue(readerStarted.await(5, TimeUnit.SECONDS));
 
     subscriber.closeImmediately();

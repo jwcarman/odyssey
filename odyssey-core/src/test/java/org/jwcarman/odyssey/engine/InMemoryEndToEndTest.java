@@ -16,7 +16,6 @@ import org.jwcarman.odyssey.memory.InMemoryOdysseyStreamNotifier;
 
 class InMemoryEndToEndTest {
 
-  private static final String STREAM_PREFIX = "odyssey:";
   private static final long KEEP_ALIVE_INTERVAL = 500;
   private static final long SSE_TIMEOUT = 0;
   private static final int MAX_LAST_N = 500;
@@ -31,7 +30,7 @@ class InMemoryEndToEndTest {
     notifier = new InMemoryOdysseyStreamNotifier();
     registry =
         new DefaultOdysseyStreamRegistry(
-            eventLog, notifier, STREAM_PREFIX, KEEP_ALIVE_INTERVAL, SSE_TIMEOUT, MAX_LAST_N);
+            eventLog, notifier, KEEP_ALIVE_INTERVAL, SSE_TIMEOUT, MAX_LAST_N);
   }
 
   @AfterEach
@@ -42,11 +41,12 @@ class InMemoryEndToEndTest {
   @Test
   void publishStoresEventsInEventLog() {
     OdysseyStream stream = registry.channel("test");
+    String streamKey = stream.getStreamKey();
 
     stream.publish("greeting", "hello");
     stream.publish("greeting", "world");
 
-    List<OdysseyEvent> events = eventLog.readAfter("odyssey:channel:test", "0-0").toList();
+    List<OdysseyEvent> events = eventLog.readAfter(streamKey, "0-0").toList();
     assertEquals(2, events.size());
     assertEquals("hello", events.get(0).payload());
     assertEquals("world", events.get(1).payload());
@@ -58,19 +58,21 @@ class InMemoryEndToEndTest {
     notifier.subscribe((streamKey, eventId) -> notifications.add(streamKey));
 
     OdysseyStream stream = registry.channel("test");
+    String streamKey = stream.getStreamKey();
     stream.publish("msg", "data");
 
-    assertTrue(notifications.stream().anyMatch(k -> k.equals("odyssey:channel:test")));
+    assertTrue(notifications.stream().anyMatch(k -> k.equals(streamKey)));
   }
 
   @Test
   void resumeAfterReplaysStoredEvents() {
     OdysseyStream stream = registry.channel("test");
+    String streamKey = stream.getStreamKey();
     String id1 = stream.publish("msg", "first");
     stream.publish("msg", "second");
     stream.publish("msg", "third");
 
-    List<OdysseyEvent> events = eventLog.readAfter("odyssey:channel:test", id1).toList();
+    List<OdysseyEvent> events = eventLog.readAfter(streamKey, id1).toList();
 
     assertEquals(2, events.size());
     assertEquals("second", events.get(0).payload());
@@ -80,12 +82,13 @@ class InMemoryEndToEndTest {
   @Test
   void replayLastReturnsLastNEvents() {
     OdysseyStream stream = registry.channel("test");
+    String streamKey = stream.getStreamKey();
     stream.publish("msg", "a");
     stream.publish("msg", "b");
     stream.publish("msg", "c");
     stream.publish("msg", "d");
 
-    List<OdysseyEvent> events = eventLog.readLast("odyssey:channel:test", 2).toList();
+    List<OdysseyEvent> events = eventLog.readLast(streamKey, 2).toList();
 
     assertEquals(2, events.size());
     assertEquals("c", events.get(0).payload());
@@ -107,8 +110,8 @@ class InMemoryEndToEndTest {
     OdysseyStream s2 = registry.ephemeral();
 
     assertNotEquals(s1.getStreamKey(), s2.getStreamKey());
-    assertTrue(s1.getStreamKey().startsWith("odyssey:ephemeral:"));
-    assertTrue(s2.getStreamKey().startsWith("odyssey:ephemeral:"));
+    assertTrue(s1.getStreamKey().startsWith("ephemeral:"));
+    assertTrue(s2.getStreamKey().startsWith("ephemeral:"));
 
     s1.close();
     s2.close();
@@ -120,7 +123,7 @@ class InMemoryEndToEndTest {
     OdysseyStream s2 = registry.channel("same");
 
     assertEquals(s1.getStreamKey(), s2.getStreamKey());
-    assertEquals("odyssey:channel:same", s1.getStreamKey());
+    assertEquals("channel:same", s1.getStreamKey());
 
     s1.close();
   }
@@ -131,7 +134,7 @@ class InMemoryEndToEndTest {
     OdysseyStream s2 = registry.broadcast("news");
 
     assertEquals(s1.getStreamKey(), s2.getStreamKey());
-    assertEquals("odyssey:broadcast:news", s1.getStreamKey());
+    assertEquals("broadcast:news", s1.getStreamKey());
 
     s1.close();
   }
@@ -139,11 +142,12 @@ class InMemoryEndToEndTest {
   @Test
   void deleteRemovesEventsFromLog() {
     OdysseyStream stream = registry.channel("test");
+    String streamKey = stream.getStreamKey();
     stream.publish("msg", "hello");
 
     stream.delete();
 
-    List<OdysseyEvent> events = eventLog.readAfter("odyssey:channel:test", "0-0").toList();
+    List<OdysseyEvent> events = eventLog.readAfter(streamKey, "0-0").toList();
     assertTrue(events.isEmpty());
   }
 

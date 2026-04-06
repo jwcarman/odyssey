@@ -24,8 +24,6 @@ class OdysseyPropertiesTest {
           OdysseyProperties properties = context.getBean(OdysseyProperties.class);
           assertEquals(Duration.ofSeconds(30), properties.getKeepAliveInterval());
           assertEquals(Duration.ZERO, properties.getSseTimeout());
-          assertEquals("odyssey:", properties.getStreamPrefix());
-          assertEquals(100_000, properties.getMaxLen());
           assertEquals(500, properties.getMaxLastN());
         });
   }
@@ -34,18 +32,12 @@ class OdysseyPropertiesTest {
   void customValues() {
     contextRunner
         .withPropertyValues(
-            "odyssey.keep-alive-interval=10s",
-            "odyssey.sse-timeout=5s",
-            "odyssey.stream-prefix=custom:",
-            "odyssey.max-len=50000",
-            "odyssey.max-last-n=100")
+            "odyssey.keep-alive-interval=10s", "odyssey.sse-timeout=5s", "odyssey.max-last-n=100")
         .run(
             context -> {
               OdysseyProperties properties = context.getBean(OdysseyProperties.class);
               assertEquals(Duration.ofSeconds(10), properties.getKeepAliveInterval());
               assertEquals(Duration.ofSeconds(5), properties.getSseTimeout());
-              assertEquals("custom:", properties.getStreamPrefix());
-              assertEquals(50_000, properties.getMaxLen());
               assertEquals(100, properties.getMaxLastN());
             });
   }

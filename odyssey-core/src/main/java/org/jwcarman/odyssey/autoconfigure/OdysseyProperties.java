@@ -8,8 +8,6 @@ public class OdysseyProperties {
 
   private Duration keepAliveInterval = Duration.ofSeconds(30);
   private Duration sseTimeout = Duration.ZERO;
-  private String streamPrefix = "odyssey:";
-  private long maxLen = 100_000;
   private int maxLastN = 500;
 
   public Duration getKeepAliveInterval() {
@@ -26,22 +24,6 @@ public class OdysseyProperties {
 
   public void setSseTimeout(Duration sseTimeout) {
     this.sseTimeout = sseTimeout;
-  }
-
-  public String getStreamPrefix() {
-    return streamPrefix;
-  }
-
-  public void setStreamPrefix(String streamPrefix) {
-    this.streamPrefix = streamPrefix;
-  }
-
-  public long getMaxLen() {
-    return maxLen;
-  }
-
-  public void setMaxLen(long maxLen) {
-    this.maxLen = maxLen;
   }
 
   public int getMaxLastN() {

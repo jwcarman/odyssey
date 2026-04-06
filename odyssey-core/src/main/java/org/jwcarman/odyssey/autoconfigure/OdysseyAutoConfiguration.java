@@ -25,7 +25,7 @@ public class OdysseyAutoConfiguration {
         "No OdysseyEventLog bean found; falling back to in-memory implementation. "
             + "Suitable for single-node environments and testing only. "
             + "For clustered deployments, add a backend module (e.g. odyssey-eventlog-redis).");
-    return new InMemoryOdysseyEventLog((int) properties.getMaxLen());
+    return new InMemoryOdysseyEventLog();
   }
 
   @Bean
@@ -44,7 +44,6 @@ public class OdysseyAutoConfiguration {
     return new DefaultOdysseyStreamRegistry(
         eventLog,
         notifier,
-        properties.getStreamPrefix(),
         properties.getKeepAliveInterval().toMillis(),
         properties.getSseTimeout().toMillis(),
         properties.getMaxLastN());

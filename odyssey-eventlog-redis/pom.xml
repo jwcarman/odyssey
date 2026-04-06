@@ -11,7 +11,7 @@
     </parent>
 
     <artifactId>odyssey-eventlog-redis</artifactId>
-    <name>OdySSEy Event Log Redis</name>
+    <name>Odyssey Event Log Redis</name>
     <description>OdysseyEventLog implementation backed by Redis Streams</description>
 
     <dependencies>

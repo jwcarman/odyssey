@@ -12,8 +12,8 @@
 
     <artifactId>odyssey-bom</artifactId>
     <packaging>pom</packaging>
-    <name>OdySSEy BOM</name>
-    <description>Bill of Materials for OdySSEy — version alignment for consumers</description>
+    <name>Odyssey BOM</name>
+    <description>Bill of Materials for Odyssey — version alignment for consumers</description>
 
     <dependencyManagement>
         <dependencies>

@@ -41,7 +41,7 @@ class StreamReaderTest {
 
     Semaphore nudge = new Semaphore(0);
     BlockingQueue<OdysseyEvent> queue = new LinkedBlockingQueue<>();
-    StreamReader reader = new StreamReader(eventLog, "test-stream", nudge, queue, "0", 60_000);
+    StreamReader reader = new StreamReader(eventLog, "test-stream", nudge, queue, "0");
     Thread thread = Thread.ofVirtual().start(reader);
 
     nudge.release();
@@ -52,22 +52,21 @@ class StreamReaderTest {
   }
 
   @Test
-  void timeoutWakesReader() throws Exception {
-    CountDownLatch readCalled = new CountDownLatch(1);
+  void readerBlocksUntilNudged() throws Exception {
     OdysseyEventLog eventLog = mock(OdysseyEventLog.class);
-    when(eventLog.readAfter(eq("test-stream"), anyString()))
-        .thenAnswer(
-            inv -> {
-              readCalled.countDown();
-              return Stream.empty();
-            });
+    when(eventLog.readAfter(eq("test-stream"), anyString())).thenReturn(Stream.empty());
 
     Semaphore nudge = new Semaphore(0);
     BlockingQueue<OdysseyEvent> queue = new LinkedBlockingQueue<>();
-    StreamReader reader = new StreamReader(eventLog, "test-stream", nudge, queue, "0", 50);
+    StreamReader reader = new StreamReader(eventLog, "test-stream", nudge, queue, "0");
     Thread thread = Thread.ofVirtual().start(reader);
 
-    assertTrue(readCalled.await(5, TimeUnit.SECONDS), "Reader should wake on keep-alive timeout");
+    Thread.sleep(200);
+    verify(eventLog, never()).readAfter(anyString(), anyString());
+
+    nudge.release();
+    Thread.sleep(100);
+    verify(eventLog, atLeastOnce()).readAfter(eq("test-stream"), eq("0"));
 
     thread.interrupt();
   }
@@ -88,7 +87,7 @@ class StreamReaderTest {
 
     Semaphore nudge = new Semaphore(0);
     BlockingQueue<OdysseyEvent> queue = new LinkedBlockingQueue<>();
-    StreamReader reader = new StreamReader(eventLog, "test-stream", nudge, queue, "0", 60_000);
+    StreamReader reader = new StreamReader(eventLog, "test-stream", nudge, queue, "0");
     Thread thread = Thread.ofVirtual().start(reader);
 
     nudge.release();
@@ -123,9 +122,11 @@ class StreamReaderTest {
 
     Semaphore nudge = new Semaphore(0);
     BlockingQueue<OdysseyEvent> queue = new LinkedBlockingQueue<>();
-    StreamReader reader = new StreamReader(eventLog, "test-stream", nudge, queue, "0", 50);
+    StreamReader reader = new StreamReader(eventLog, "test-stream", nudge, queue, "0");
     Thread thread = Thread.ofVirtual().start(reader);
 
+    nudge.release();
+    Thread.sleep(100);
     nudge.release();
     assertTrue(secondReadDone.await(5, TimeUnit.SECONDS));
 
@@ -152,7 +153,7 @@ class StreamReaderTest {
 
     Semaphore nudge = new Semaphore(0);
     BlockingQueue<OdysseyEvent> queue = new LinkedBlockingQueue<>();
-    StreamReader reader = new StreamReader(eventLog, "test-stream", nudge, queue, "0", 60_000);
+    StreamReader reader = new StreamReader(eventLog, "test-stream", nudge, queue, "0");
     Thread thread = Thread.ofVirtual().start(reader);
 
     nudge.release();
@@ -178,7 +179,7 @@ class StreamReaderTest {
 
     Semaphore nudge = new Semaphore(0);
     BlockingQueue<OdysseyEvent> queue = new LinkedBlockingQueue<>();
-    StreamReader reader = new StreamReader(eventLog, "test-stream", nudge, queue, "0", 60_000);
+    StreamReader reader = new StreamReader(eventLog, "test-stream", nudge, queue, "0");
     Thread thread = Thread.ofVirtual().start(reader);
 
     Thread.sleep(50);

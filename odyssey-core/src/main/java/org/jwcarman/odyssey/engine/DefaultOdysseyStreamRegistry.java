@@ -1,6 +1,5 @@
 package org.jwcarman.odyssey.engine;
 
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.jwcarman.odyssey.core.OdysseyStream;
@@ -12,7 +11,6 @@ public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
 
   private final OdysseyEventLog eventLog;
   private final OdysseyStreamNotifier notifier;
-  private final String streamPrefix;
   private final long keepAliveInterval;
   private final long defaultSseTimeout;
   private final int maxLastN;
@@ -24,13 +22,11 @@ public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
   public DefaultOdysseyStreamRegistry(
       OdysseyEventLog eventLog,
       OdysseyStreamNotifier notifier,
-      String streamPrefix,
       long keepAliveInterval,
       long defaultSseTimeout,
       int maxLastN) {
     this.eventLog = eventLog;
     this.notifier = notifier;
-    this.streamPrefix = streamPrefix;
     this.keepAliveInterval = keepAliveInterval;
     this.defaultSseTimeout = defaultSseTimeout;
     this.maxLastN = maxLastN;
@@ -46,20 +42,24 @@ public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
 
   @Override
   public OdysseyStream ephemeral() {
-    String uuid = UUID.randomUUID().toString();
-    String streamKey = streamPrefix + "ephemeral:" + uuid;
+    String streamKey = eventLog.ephemeralKey();
     return createStream(streamKey);
   }
 
   @Override
   public OdysseyStream channel(String name) {
-    String streamKey = streamPrefix + "channel:" + name;
+    String streamKey = eventLog.channelKey(name);
     return cache.computeIfAbsent(streamKey, this::createStream);
   }
 
   @Override
   public OdysseyStream broadcast(String name) {
-    String streamKey = streamPrefix + "broadcast:" + name;
+    String streamKey = eventLog.broadcastKey(name);
+    return cache.computeIfAbsent(streamKey, this::createStream);
+  }
+
+  @Override
+  public OdysseyStream stream(String streamKey) {
     return cache.computeIfAbsent(streamKey, this::createStream);
   }
 

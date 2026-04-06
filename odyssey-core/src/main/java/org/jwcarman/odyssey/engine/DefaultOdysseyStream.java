@@ -127,8 +127,12 @@ class DefaultOdysseyStream implements OdysseyStream {
         new StreamSubscriber(eventLog, handler, streamKey, lastId, keepAliveInterval);
     subscriberRef.set(subscriber);
     subscriberGroup.addSubscriber(subscriber);
-    for (OdysseyEvent event : replayEvents) {
-      subscriber.enqueue(event);
+    try {
+      for (OdysseyEvent event : replayEvents) {
+        subscriber.enqueue(event);
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     }
     subscriber.start();
     return emitter;

@@ -3,6 +3,7 @@ package org.jwcarman.odyssey.memory;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -16,8 +17,29 @@ public class InMemoryOdysseyEventLog implements OdysseyEventLog {
   private final int maxLen;
   private final AtomicLong counter = new AtomicLong(0);
 
+  private static final int DEFAULT_MAX_LEN = 100_000;
+
+  public InMemoryOdysseyEventLog() {
+    this(DEFAULT_MAX_LEN);
+  }
+
   public InMemoryOdysseyEventLog(int maxLen) {
     this.maxLen = maxLen;
+  }
+
+  @Override
+  public String ephemeralKey() {
+    return "ephemeral:" + UUID.randomUUID();
+  }
+
+  @Override
+  public String channelKey(String name) {
+    return "channel:" + name;
+  }
+
+  @Override
+  public String broadcastKey(String name) {
+    return "broadcast:" + name;
   }
 
   @Override

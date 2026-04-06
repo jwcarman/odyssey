@@ -28,13 +28,12 @@ class StreamSubscriber {
       String lastReadId,
       long keepAliveInterval) {
     this.streamKey = streamKey;
-    this.reader =
-        new StreamReader(eventLog, streamKey, nudge, queue, lastReadId, keepAliveInterval);
+    this.reader = new StreamReader(eventLog, streamKey, nudge, queue, lastReadId);
     this.writer = new StreamWriter(queue, handler, keepAliveInterval);
   }
 
-  void enqueue(OdysseyEvent event) {
-    queue.offer(event);
+  void enqueue(OdysseyEvent event) throws InterruptedException {
+    queue.put(event);
   }
 
   void start() {

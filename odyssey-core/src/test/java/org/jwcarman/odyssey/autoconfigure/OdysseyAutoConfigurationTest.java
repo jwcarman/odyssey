@@ -145,6 +145,21 @@ class OdysseyAutoConfigurationTest {
   static class StubOdysseyEventLog implements OdysseyEventLog {
 
     @Override
+    public String ephemeralKey() {
+      return "ephemeral:stub";
+    }
+
+    @Override
+    public String channelKey(String name) {
+      return "channel:" + name;
+    }
+
+    @Override
+    public String broadcastKey(String name) {
+      return "broadcast:" + name;
+    }
+
+    @Override
     public String append(String streamKey, org.jwcarman.odyssey.core.OdysseyEvent event) {
       return "stub-id";
     }

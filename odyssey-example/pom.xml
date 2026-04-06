@@ -11,8 +11,8 @@
     </parent>
 
     <artifactId>odyssey-example</artifactId>
-    <name>OdySSEy Example Application</name>
-    <description>Example Spring Boot application demonstrating OdySSEy</description>
+    <name>Odyssey Example Application</name>
+    <description>Example Spring Boot application demonstrating Odyssey</description>
 
     <dependencyManagement>
         <dependencies>
@@ -27,6 +27,10 @@
     </dependencyManagement>
 
     <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-docker-compose</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.jwcarman.odyssey</groupId>
             <artifactId>odyssey-core</artifactId>
@@ -54,7 +58,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>${spring-boot.version}</version>
             </plugin>
         </plugins>
     </build>

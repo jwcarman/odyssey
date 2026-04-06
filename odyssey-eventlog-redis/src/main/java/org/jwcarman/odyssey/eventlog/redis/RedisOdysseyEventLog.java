@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.spi.OdysseyEventLog;
@@ -41,6 +42,21 @@ public class RedisOdysseyEventLog implements OdysseyEventLog {
     this.ephemeralTtlSeconds = ephemeralTtlSeconds;
     this.channelTtlSeconds = channelTtlSeconds;
     this.broadcastTtlSeconds = broadcastTtlSeconds;
+  }
+
+  @Override
+  public String ephemeralKey() {
+    return streamPrefix + "ephemeral:" + UUID.randomUUID();
+  }
+
+  @Override
+  public String channelKey(String name) {
+    return streamPrefix + "channel:" + name;
+  }
+
+  @Override
+  public String broadcastKey(String name) {
+    return streamPrefix + "broadcast:" + name;
   }
 
   @Override

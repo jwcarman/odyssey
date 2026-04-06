@@ -3,7 +3,6 @@ package org.jwcarman.odyssey.engine;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.spi.OdysseyEventLog;
 
@@ -13,7 +12,6 @@ class StreamReader implements Runnable {
   private final String streamKey;
   private final Semaphore nudge;
   private final BlockingQueue<OdysseyEvent> queue;
-  private final long keepAliveInterval;
 
   private String lastReadId;
 
@@ -22,25 +20,23 @@ class StreamReader implements Runnable {
       String streamKey,
       Semaphore nudge,
       BlockingQueue<OdysseyEvent> queue,
-      String lastReadId,
-      long keepAliveInterval) {
+      String lastReadId) {
     this.eventLog = eventLog;
     this.streamKey = streamKey;
     this.nudge = nudge;
     this.queue = queue;
     this.lastReadId = lastReadId;
-    this.keepAliveInterval = keepAliveInterval;
   }
 
   @Override
   public void run() {
     try {
       while (!Thread.currentThread().isInterrupted()) {
-        nudge.tryAcquire(keepAliveInterval, TimeUnit.MILLISECONDS);
+        nudge.acquire();
         nudge.drainPermits();
         List<OdysseyEvent> events = eventLog.readAfter(streamKey, lastReadId).toList();
         for (OdysseyEvent event : events) {
-          queue.offer(event);
+          queue.put(event);
           lastReadId = event.id();
         }
       }
