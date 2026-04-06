@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T16:58:00-04:00
-ITERATION: 33
-SPEC_COMPLETED: 030-duration-properties.md
-WHAT_WAS_DONE: Converted all time-based properties from raw numeric types to java.time.Duration across 7 modules — Cassandra (defaultTtlSeconds→defaultTtl), DynamoDB (ttlSeconds→ttl), MongoDB (ttlSeconds→ttl), RabbitMQ (maxAgeSeconds→maxAge), NATS (maxAgeSeconds→maxAge), PostgreSQL notifier (pollTimeoutMillis→pollTimeout), SNS notifier (sqsMessageRetentionSeconds→sqsMessageRetention). Updated properties records, defaults files (using Duration format like 24h, 1h, 500ms, 5m), auto-configuration classes, implementation classes, and integration tests.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all 15 modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T17:04:00-04:00
+ITERATION: 34
+SPEC_COMPLETED: 031-sse-send-helper.md
+WHAT_WAS_DONE: Extracted a private send(SseEmitter.SseEventBuilder) helper in SseStreamEventHandler that wraps emitter.send() with try/catch IOException → doCleanup(). Both onEvent() and onKeepAlive() now delegate to this helper, eliminating the duplicated try/catch pattern.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: DONE
 NEXT_SPEC: none
-NOTES: The Redis event log and core OdysseyProperties already used Duration and were left unchanged. Implementation classes that need raw numeric values (e.g., Cassandra's TTL as int seconds, PostgreSQL's poll timeout as int millis) now convert internally using Duration.toSeconds() or Duration.toMillis(). Unused Duration imports were removed from RabbitMQ and NATS auto-config classes where the conversion was previously done at the auto-config layer.
+NOTES: Pure refactor — no behavioral change. The send helper is private and handles the same IOException → cleanup pattern that was previously duplicated in onEvent() and onKeepAlive().

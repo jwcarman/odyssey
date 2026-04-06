@@ -37,17 +37,17 @@ class SseStreamEventHandler implements StreamEventHandler {
 
   @Override
   public void onEvent(OdysseyEvent event) {
-    try {
-      emitter.send(SseEmitter.event().id(event.id()).name(event.eventType()).data(event.payload()));
-    } catch (IOException e) {
-      doCleanup();
-    }
+    send(SseEmitter.event().id(event.id()).name(event.eventType()).data(event.payload()));
   }
 
   @Override
   public void onKeepAlive() {
+    send(SseEmitter.event().comment("keep-alive"));
+  }
+
+  private void send(SseEmitter.SseEventBuilder event) {
     try {
-      emitter.send(SseEmitter.event().comment("keep-alive"));
+      emitter.send(event);
     } catch (IOException e) {
       doCleanup();
     }
