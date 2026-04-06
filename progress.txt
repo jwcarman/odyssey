@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T13:00:00-04:00
-ITERATION: 11
-SPEC_COMPLETED: 011-extract-spis.md
-WHAT_WAS_DONE: Created OdysseyEventLog, OdysseyStreamNotifier, and NotificationHandler SPI interfaces in the org.jwcarman.odyssey.spi package within odyssey-core. These are pure interfaces with no implementations, decoupling the engine from any specific storage or notification backend.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS; ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T12:55:00-04:00
+ITERATION: 12
+SPEC_COMPLETED: 012-engine-to-core.md
+WHAT_WAS_DONE: Moved SubscriberOutbox, TopicFanout, DefaultOdysseyStream, and DefaultOdysseyStreamRegistry into odyssey-core under org.jwcarman.odyssey.engine, refactored to program against SPIs (OdysseyEventLog, OdysseyStreamNotifier) instead of Redis/Lettuce directly. Added delete(String) to OdysseyEventLog SPI. Notification dispatch now handled by registry subscribing via notifier.subscribe(). Stripped odyssey-autoconfigure of Redis-specific beans (to be rebuilt in spec 014). Removed odyssey-redis from parent pom modules.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS; ./mvnw spotless:check → BUILD SUCCESS; grep for Lettuce/Redis imports in odyssey-core → none found
 STATUS: MORE_WORK
-NEXT_SPEC: 012-engine-to-core.md
-NOTES: The three SPI interfaces are minimal as specified: OdysseyEventLog (append, readAfter, readLast returning Stream<OdysseyEvent>), OdysseyStreamNotifier (notify, subscribe), and NotificationHandler (@FunctionalInterface with onNotification). No implementations yet — those come in later specs.
+NEXT_SPEC: 013-in-memory-backend.md
+NOTES: odyssey-redis module directory still exists on disk but is no longer in the parent pom modules list. The autoconfigure is temporarily a shell (only exposes OdysseyProperties) — spec 014 will rebuild it with SPI-aware bean creation. The integration tests that required Redis (RedisStreamIntegrationTest) are no longer in the build — they will return when the Redis backend modules are created in specs 015/016.

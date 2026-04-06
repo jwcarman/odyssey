@@ -10,4 +10,6 @@ public interface OdysseyEventLog {
   Stream<OdysseyEvent> readAfter(String streamKey, String lastId);
 
   Stream<OdysseyEvent> readLast(String streamKey, int count);
+
+  void delete(String streamKey);
 }
