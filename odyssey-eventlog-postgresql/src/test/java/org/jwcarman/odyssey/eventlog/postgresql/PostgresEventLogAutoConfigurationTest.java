@@ -10,15 +10,14 @@ import org.jwcarman.odyssey.spi.OdysseyEventLog;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @Testcontainers
 class PostgresEventLogAutoConfigurationTest {
 
-  @Container
-  static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+  @Container static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16-alpine");
 
   @Test
   void createsPostgresEventLogBean() {

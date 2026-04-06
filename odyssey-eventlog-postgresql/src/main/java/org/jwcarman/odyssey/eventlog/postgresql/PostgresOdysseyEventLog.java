@@ -6,22 +6,18 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import org.jwcarman.odyssey.core.OdysseyEvent;
-import org.jwcarman.odyssey.spi.OdysseyEventLog;
+import org.jwcarman.odyssey.spi.AbstractOdysseyEventLog;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-public class PostgresOdysseyEventLog implements OdysseyEventLog {
+public class PostgresOdysseyEventLog extends AbstractOdysseyEventLog {
 
   private static final int TRIM_INTERVAL = 100;
 
   private final JdbcTemplate jdbcTemplate;
   private final long maxLen;
-  private final String ephemeralPrefix;
-  private final String channelPrefix;
-  private final String broadcastPrefix;
   private final AtomicLong appendCounter = new AtomicLong(0);
 
   public PostgresOdysseyEventLog(
@@ -30,26 +26,9 @@ public class PostgresOdysseyEventLog implements OdysseyEventLog {
       String ephemeralPrefix,
       String channelPrefix,
       String broadcastPrefix) {
+    super(ephemeralPrefix, channelPrefix, broadcastPrefix);
     this.jdbcTemplate = jdbcTemplate;
     this.maxLen = maxLen;
-    this.ephemeralPrefix = ephemeralPrefix;
-    this.channelPrefix = channelPrefix;
-    this.broadcastPrefix = broadcastPrefix;
-  }
-
-  @Override
-  public String ephemeralKey() {
-    return ephemeralPrefix + UUID.randomUUID();
-  }
-
-  @Override
-  public String channelKey(String name) {
-    return channelPrefix + name;
-  }
-
-  @Override
-  public String broadcastKey(String name) {
-    return broadcastPrefix + name;
   }
 
   @Override

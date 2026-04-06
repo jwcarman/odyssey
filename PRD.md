@@ -578,6 +578,15 @@ A spec is done when ALL of the following are true:
 - Never change the public API interfaces (`OdysseyStream`, `OdysseyStreamRegistry`) without a spec that explicitly calls for it
 - Never commit secrets or credentials
 - Never use `@SuppressWarnings` annotations — fix the underlying issue instead
+- Event log implementations must extend `AbstractOdysseyEventLog` (in `odyssey-core`)
+  rather than implementing `OdysseyEventLog` directly
+- Testcontainers 2.x: use the new package/class names. The old ones are deprecated:
+  - `org.testcontainers.containers.PostgreSQLContainer` → `org.testcontainers.postgresql.PostgreSQLContainer`
+  - Containers are no longer generic — use `PostgreSQLContainer` not `PostgreSQLContainer<?>`,
+    and `new PostgreSQLContainer(...)` not `new PostgreSQLContainer<>(...)`
+  - Artifact names are prefixed: `testcontainers-postgresql`, `testcontainers-junit-jupiter`,
+    `testcontainers-cassandra`, `testcontainers-mongodb`, etc.
+  - Spring Boot manages versions via the testcontainers BOM — do not specify versions
 
 ---
 
