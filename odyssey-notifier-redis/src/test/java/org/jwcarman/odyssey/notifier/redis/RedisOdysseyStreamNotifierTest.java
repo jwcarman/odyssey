@@ -27,7 +27,7 @@ class RedisOdysseyStreamNotifierTest {
   @BeforeEach
   void setUp() {
     when(pubSubConnection.sync()).thenReturn(pubSubCommands);
-    notifier = new RedisOdysseyStreamNotifier(pubSubConnection, sharedCommands, "odyssey:");
+    notifier = new RedisOdysseyStreamNotifier(pubSubConnection, sharedCommands, "odyssey:notify:");
   }
 
   @Test

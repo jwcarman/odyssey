@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T13:32:00-04:00
-ITERATION: 19
-SPEC_COMPLETED: 017-bom-and-restructure.md
-WHAT_WAS_DONE: Created odyssey-bom module with dependencyManagement for odyssey-core, odyssey-eventlog-redis, and odyssey-notifier-redis. Removed old modules (odyssey-redis, odyssey-autoconfigure, odyssey-spring-boot-starter) from parent POM and deleted their directories. Moved OdysseyProperties and OdysseyAutoConfiguration (with tests) from odyssey-autoconfigure into odyssey-core's autoconfigure package, since both Redis modules depended on OdysseyProperties. Updated odyssey-example to import odyssey-bom and depend on odyssey-core, odyssey-eventlog-redis, odyssey-notifier-redis instead of the old starter. Added spring-boot-autoconfigure dependency to odyssey-core.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all 6 modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T13:38:00-04:00
+ITERATION: 20
+SPEC_COMPLETED: 017b-backend-module-properties.md
+WHAT_WAS_DONE: Created RedisEventLogProperties (prefix odyssey.eventlog.redis) with streamPrefix, maxLen, maxLastN, and TTL durations. Created RedisNotifierProperties (prefix odyssey.notifier.redis) with channelPrefix. Wired both into their auto-configuration classes via @EnableConfigurationProperties. Updated RedisOdysseyStreamNotifier to accept channelPrefix directly instead of building it from streamPrefix. Removed Redis nested class from OdysseyProperties, promoting streamPrefix, maxLen, and maxLastN to top level as backend-agnostic properties. Updated OdysseyAutoConfiguration to use the flattened properties. Added property binding tests for both new properties classes.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (111 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
 NEXT_SPEC: 018-integration-tests-refactor.md
-NOTES: OdysseyProperties and OdysseyAutoConfiguration were moved from the deleted odyssey-autoconfigure module into odyssey-core at the same package path (org.jwcarman.odyssey.autoconfigure), so no import changes were needed in the Redis modules. The odyssey-core module now has spring-boot-autoconfigure as a compile dependency and spring-boot-test-autoconfigure as a test dependency. The META-INF/spring auto-configuration imports file was created in odyssey-core.
+NOTES: Config namespace changed: odyssey.redis.* properties are now split — Redis-specific config moves to odyssey.eventlog.redis.* and odyssey.notifier.redis.*, while backend-agnostic properties (streamPrefix, maxLen, maxLastN) moved to the top-level odyssey.* namespace. The Redis auto-config classes no longer depend on OdysseyProperties from core; they use their own module-specific properties classes. Added spring-boot-test-autoconfigure test dependency to both Redis modules for ApplicationContextRunner-based property tests.

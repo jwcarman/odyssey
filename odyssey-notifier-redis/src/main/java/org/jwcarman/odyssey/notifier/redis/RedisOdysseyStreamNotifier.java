@@ -24,12 +24,12 @@ public class RedisOdysseyStreamNotifier extends RedisPubSubAdapter<String, Strin
   public RedisOdysseyStreamNotifier(
       StatefulRedisPubSubConnection<String, String> pubSubConnection,
       io.lettuce.core.api.sync.RedisCommands<String, String> sharedCommands,
-      String streamPrefix) {
+      String channelPrefix) {
     this.pubSubConnection = pubSubConnection;
     this.pubSubCommands = pubSubConnection.sync();
     this.sharedCommands = sharedCommands;
-    this.notifyPrefix = streamPrefix + "notify:";
-    this.subscribePattern = notifyPrefix + "*";
+    this.notifyPrefix = channelPrefix;
+    this.subscribePattern = channelPrefix + "*";
   }
 
   @Override
