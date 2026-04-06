@@ -31,6 +31,7 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import tools.jackson.databind.ObjectMapper;
 
 class NatsNotifierAutoConfigurationTest {
 
@@ -53,6 +54,7 @@ class NatsNotifierAutoConfigurationTest {
             AutoConfigurations.of(
                 NatsNotifierAutoConfiguration.class, OdysseyAutoConfiguration.class))
         .withUserConfiguration(MockNatsConfiguration.class)
+        .withBean(ObjectMapper.class, ObjectMapper::new)
         .run(
             context -> {
               assertThat(context).hasSingleBean(OdysseyStreamNotifier.class);

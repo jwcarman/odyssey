@@ -50,6 +50,7 @@ public class SnsNotifierAutoConfiguration {
     if (properties.autoCreateTopic() && topicArn == null) {
       topicArn = snsClient.createTopic(request -> request.name("odyssey-notifications")).topicArn();
     }
-    return new SnsOdysseyStreamNotifier(snsClient, sqsClient, topicArn);
+    return new SnsOdysseyStreamNotifier(
+        snsClient, sqsClient, topicArn, properties.sqsMessageRetentionSeconds());
   }
 }

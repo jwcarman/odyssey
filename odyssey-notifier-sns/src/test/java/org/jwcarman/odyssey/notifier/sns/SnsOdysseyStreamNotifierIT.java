@@ -72,7 +72,7 @@ class SnsOdysseyStreamNotifierIT {
 
     topicArn = snsClient.createTopic(request -> request.name("odyssey-notifications")).topicArn();
 
-    notifier = new SnsOdysseyStreamNotifier(snsClient, sqsClient, topicArn);
+    notifier = new SnsOdysseyStreamNotifier(snsClient, sqsClient, topicArn, 300);
   }
 
   @AfterEach

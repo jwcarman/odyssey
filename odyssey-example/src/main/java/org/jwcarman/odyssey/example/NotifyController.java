@@ -42,7 +42,7 @@ public class NotifyController {
   public Map<String, String> publish(
       @PathVariable String userId, @RequestBody Map<String, String> body) {
     OdysseyStream stream = registry.channel("user:" + userId);
-    String id = stream.publish("notification", body.get("message"));
+    String id = stream.publishRaw("notification", body.get("message"));
     return Map.of("id", id);
   }
 

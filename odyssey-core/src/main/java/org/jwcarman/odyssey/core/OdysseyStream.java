@@ -32,7 +32,9 @@ public interface OdysseyStream {
 
   SseEmitter replayLast(int count, Duration timeout);
 
-  String publish(String eventType, String payload);
+  String publishRaw(String eventType, String payload);
+
+  String publishJson(String eventType, Object payload);
 
   void close();
 

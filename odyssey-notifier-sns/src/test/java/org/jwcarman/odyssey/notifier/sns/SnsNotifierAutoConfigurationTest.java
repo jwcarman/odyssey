@@ -40,6 +40,7 @@ import software.amazon.awssdk.services.sqs.model.GetQueueAttributesResponse;
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.SetQueueAttributesRequest;
 import software.amazon.awssdk.services.sqs.model.SetQueueAttributesResponse;
+import tools.jackson.databind.ObjectMapper;
 
 class SnsNotifierAutoConfigurationTest {
 
@@ -64,6 +65,7 @@ class SnsNotifierAutoConfigurationTest {
                 SnsNotifierAutoConfiguration.class, OdysseyAutoConfiguration.class))
         .withUserConfiguration(MockAwsConfiguration.class)
         .withPropertyValues("odyssey.notifier.sns.topic-arn=arn:aws:sns:us-east-1:123:test")
+        .withBean(ObjectMapper.class, ObjectMapper::new)
         .run(
             context -> {
               assertThat(context).hasSingleBean(OdysseyStreamNotifier.class);

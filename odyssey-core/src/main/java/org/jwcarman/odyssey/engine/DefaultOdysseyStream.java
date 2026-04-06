@@ -25,6 +25,7 @@ import org.jwcarman.odyssey.core.OdysseyStream;
 import org.jwcarman.odyssey.spi.OdysseyEventLog;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import tools.jackson.databind.ObjectMapper;
 
 class DefaultOdysseyStream implements OdysseyStream {
 
@@ -35,6 +36,7 @@ class DefaultOdysseyStream implements OdysseyStream {
   private final long keepAliveInterval;
   private final long defaultSseTimeout;
   private final int maxLastN;
+  private final ObjectMapper objectMapper;
 
   DefaultOdysseyStream(
       String streamKey,
@@ -43,7 +45,8 @@ class DefaultOdysseyStream implements OdysseyStream {
       StreamSubscriberGroup subscriberGroup,
       long keepAliveInterval,
       long defaultSseTimeout,
-      int maxLastN) {
+      int maxLastN,
+      ObjectMapper objectMapper) {
     this.streamKey = streamKey;
     this.eventLog = eventLog;
     this.notifier = notifier;
@@ -51,10 +54,11 @@ class DefaultOdysseyStream implements OdysseyStream {
     this.keepAliveInterval = keepAliveInterval;
     this.defaultSseTimeout = defaultSseTimeout;
     this.maxLastN = maxLastN;
+    this.objectMapper = objectMapper;
   }
 
   @Override
-  public String publish(String eventType, String payload) {
+  public String publishRaw(String eventType, String payload) {
     OdysseyEvent event =
         OdysseyEvent.builder()
             .streamKey(streamKey)
@@ -66,6 +70,12 @@ class DefaultOdysseyStream implements OdysseyStream {
     String entryId = eventLog.append(streamKey, event);
     notifier.notify(streamKey, entryId);
     return entryId;
+  }
+
+  @Override
+  public String publishJson(String eventType, Object payload) {
+    String json = objectMapper.writeValueAsString(payload);
+    return publishRaw(eventType, json);
   }
 
   @Override

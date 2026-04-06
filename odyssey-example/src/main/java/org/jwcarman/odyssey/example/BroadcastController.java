@@ -40,7 +40,7 @@ public class BroadcastController {
   @PostMapping
   public Map<String, String> publish(@RequestBody Map<String, String> body) {
     OdysseyStream stream = registry.broadcast("announcements");
-    String id = stream.publish("message", body.get("message"));
+    String id = stream.publishRaw("message", body.get("message"));
     return Map.of("id", id);
   }
 

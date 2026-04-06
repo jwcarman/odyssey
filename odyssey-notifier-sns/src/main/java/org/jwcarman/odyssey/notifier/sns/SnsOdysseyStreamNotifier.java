@@ -47,10 +47,13 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
   private static final Logger log = LoggerFactory.getLogger(SnsOdysseyStreamNotifier.class);
   private static final String STREAM_KEY_ATTRIBUTE = "streamKey";
   private static final String DELIMITER = "|";
+  private static final int SQS_POLL_WAIT_TIME_SECONDS = 20;
+  private static final int SQS_MAX_MESSAGES_PER_POLL = 10;
 
   private final SnsClient snsClient;
   private final SqsClient sqsClient;
   private final String topicArn;
+  private final int sqsMessageRetentionSeconds;
   private final List<NotificationHandler> handlers = new CopyOnWriteArrayList<>();
 
   private volatile boolean running;
@@ -59,10 +62,12 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
   private volatile String subscriptionArn;
   private volatile Thread pollerThread;
 
-  public SnsOdysseyStreamNotifier(SnsClient snsClient, SqsClient sqsClient, String topicArn) {
+  public SnsOdysseyStreamNotifier(
+      SnsClient snsClient, SqsClient sqsClient, String topicArn, int sqsMessageRetentionSeconds) {
     this.snsClient = snsClient;
     this.sqsClient = sqsClient;
     this.topicArn = topicArn;
+    this.sqsMessageRetentionSeconds = sqsMessageRetentionSeconds;
   }
 
   @Override
@@ -94,7 +99,10 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
             .createQueue(
                 CreateQueueRequest.builder()
                     .queueName(queueName)
-                    .attributes(Map.of(QueueAttributeName.MESSAGE_RETENTION_PERIOD, "300"))
+                    .attributes(
+                        Map.of(
+                            QueueAttributeName.MESSAGE_RETENTION_PERIOD,
+                            String.valueOf(sqsMessageRetentionSeconds)))
                     .build())
             .queueUrl();
 
@@ -192,8 +200,8 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
             sqsClient.receiveMessage(
                 ReceiveMessageRequest.builder()
                     .queueUrl(queueUrl)
-                    .waitTimeSeconds(20)
-                    .maxNumberOfMessages(10)
+                    .waitTimeSeconds(SQS_POLL_WAIT_TIME_SECONDS)
+                    .maxNumberOfMessages(SQS_MAX_MESSAGES_PER_POLL)
                     .build());
 
         List<Message> messages = response.messages();

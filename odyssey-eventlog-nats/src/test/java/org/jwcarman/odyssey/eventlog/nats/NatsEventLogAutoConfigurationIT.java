@@ -26,6 +26,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import tools.jackson.databind.ObjectMapper;
 
 @Testcontainers
 class NatsEventLogAutoConfigurationIT {
@@ -60,6 +61,7 @@ class NatsEventLogAutoConfigurationIT {
   private ApplicationContextRunner createContextRunner() {
     return new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(NatsEventLogAutoConfiguration.class))
+        .withBean(ObjectMapper.class, ObjectMapper::new)
         .withPropertyValues(
             "odyssey.eventlog.nats.url=nats://"
                 + natsContainer.getHost()

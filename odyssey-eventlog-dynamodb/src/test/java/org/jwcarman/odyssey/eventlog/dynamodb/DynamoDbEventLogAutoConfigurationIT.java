@@ -32,6 +32,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import tools.jackson.databind.ObjectMapper;
 
 @Testcontainers
 class DynamoDbEventLogAutoConfigurationIT {
@@ -68,6 +69,7 @@ class DynamoDbEventLogAutoConfigurationIT {
     return new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(DynamoDbEventLogAutoConfiguration.class))
         .withPropertyValues("odyssey.eventlog.dynamodb.auto-create-table=true")
+        .withBean(ObjectMapper.class, ObjectMapper::new)
         .withBean(
             DynamoDbClient.class,
             () ->

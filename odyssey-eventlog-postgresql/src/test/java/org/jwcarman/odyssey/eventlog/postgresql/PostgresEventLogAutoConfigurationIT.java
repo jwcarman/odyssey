@@ -28,6 +28,7 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import tools.jackson.databind.ObjectMapper;
 
 @Testcontainers
 class PostgresEventLogAutoConfigurationIT {
@@ -61,6 +62,7 @@ class PostgresEventLogAutoConfigurationIT {
     return new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(PostgresEventLogAutoConfiguration.class))
         .withPropertyValues("odyssey.eventlog.postgresql.auto-create-schema=true")
+        .withBean(ObjectMapper.class, ObjectMapper::new)
         .withBean(
             DataSource.class,
             () -> {

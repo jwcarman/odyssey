@@ -27,6 +27,7 @@ import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.rabbitmq.RabbitMQContainer;
+import tools.jackson.databind.ObjectMapper;
 
 @Testcontainers
 class RabbitMqEventLogAutoConfigurationIT {
@@ -65,6 +66,7 @@ class RabbitMqEventLogAutoConfigurationIT {
   private ApplicationContextRunner createContextRunner() {
     return new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(RabbitMqEventLogAutoConfiguration.class))
+        .withBean(ObjectMapper.class, ObjectMapper::new)
         .withPropertyValues(
             "odyssey.eventlog.rabbitmq.host=" + rabbitMQContainer.getHost(),
             "odyssey.eventlog.rabbitmq.port=" + rabbitMQContainer.getMappedPort(5552));

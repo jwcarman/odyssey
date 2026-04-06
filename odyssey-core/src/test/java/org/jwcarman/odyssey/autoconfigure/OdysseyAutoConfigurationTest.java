@@ -30,13 +30,15 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(OutputCaptureExtension.class)
 class OdysseyAutoConfigurationTest {
 
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner()
-          .withConfiguration(AutoConfigurations.of(OdysseyAutoConfiguration.class));
+          .withConfiguration(AutoConfigurations.of(OdysseyAutoConfiguration.class))
+          .withBean(ObjectMapper.class, ObjectMapper::new);
 
   @Test
   void createsPropertiesBean() {

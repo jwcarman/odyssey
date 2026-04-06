@@ -28,6 +28,7 @@ import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.core.OdysseyStream;
 import org.jwcarman.odyssey.memory.InMemoryOdysseyEventLog;
 import org.jwcarman.odyssey.memory.InMemoryOdysseyStreamNotifier;
+import tools.jackson.databind.ObjectMapper;
 
 class InMemoryEndToEndTest {
 
@@ -45,7 +46,7 @@ class InMemoryEndToEndTest {
     notifier = new InMemoryOdysseyStreamNotifier();
     registry =
         new DefaultOdysseyStreamRegistry(
-            eventLog, notifier, KEEP_ALIVE_INTERVAL, SSE_TIMEOUT, MAX_LAST_N);
+            eventLog, notifier, KEEP_ALIVE_INTERVAL, SSE_TIMEOUT, MAX_LAST_N, new ObjectMapper());
   }
 
   @AfterEach
@@ -58,8 +59,8 @@ class InMemoryEndToEndTest {
     OdysseyStream stream = registry.channel("test");
     String streamKey = stream.getStreamKey();
 
-    stream.publish("greeting", "hello");
-    stream.publish("greeting", "world");
+    stream.publishRaw("greeting", "hello");
+    stream.publishRaw("greeting", "world");
 
     List<OdysseyEvent> events = eventLog.readAfter(streamKey, "0-0").toList();
     assertEquals(2, events.size());
@@ -74,7 +75,7 @@ class InMemoryEndToEndTest {
 
     OdysseyStream stream = registry.channel("test");
     String streamKey = stream.getStreamKey();
-    stream.publish("msg", "data");
+    stream.publishRaw("msg", "data");
 
     assertTrue(notifications.stream().anyMatch(k -> k.equals(streamKey)));
   }
@@ -83,9 +84,9 @@ class InMemoryEndToEndTest {
   void resumeAfterReplaysStoredEvents() {
     OdysseyStream stream = registry.channel("test");
     String streamKey = stream.getStreamKey();
-    String id1 = stream.publish("msg", "first");
-    stream.publish("msg", "second");
-    stream.publish("msg", "third");
+    String id1 = stream.publishRaw("msg", "first");
+    stream.publishRaw("msg", "second");
+    stream.publishRaw("msg", "third");
 
     List<OdysseyEvent> events = eventLog.readAfter(streamKey, id1).toList();
 
@@ -98,10 +99,10 @@ class InMemoryEndToEndTest {
   void replayLastReturnsLastNEvents() {
     OdysseyStream stream = registry.channel("test");
     String streamKey = stream.getStreamKey();
-    stream.publish("msg", "a");
-    stream.publish("msg", "b");
-    stream.publish("msg", "c");
-    stream.publish("msg", "d");
+    stream.publishRaw("msg", "a");
+    stream.publishRaw("msg", "b");
+    stream.publishRaw("msg", "c");
+    stream.publishRaw("msg", "d");
 
     List<OdysseyEvent> events = eventLog.readLast(streamKey, 2).toList();
 
@@ -158,7 +159,7 @@ class InMemoryEndToEndTest {
   void deleteRemovesEventsFromLog() {
     OdysseyStream stream = registry.channel("test");
     String streamKey = stream.getStreamKey();
-    stream.publish("msg", "hello");
+    stream.publishRaw("msg", "hello");
 
     stream.delete();
 
@@ -172,7 +173,7 @@ class InMemoryEndToEndTest {
     notifier.subscribe((streamKey, eventId) -> latch.countDown());
 
     OdysseyStream stream = registry.channel("test");
-    stream.publish("msg", "trigger");
+    stream.publishRaw("msg", "trigger");
 
     assertTrue(latch.await(2, TimeUnit.SECONDS));
   }

@@ -33,6 +33,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import tools.jackson.databind.ObjectMapper;
 
 class RedisEventLogAutoConfigurationTest {
 
@@ -68,6 +69,7 @@ class RedisEventLogAutoConfigurationTest {
             AutoConfigurations.of(
                 RedisEventLogAutoConfiguration.class, OdysseyAutoConfiguration.class))
         .withUserConfiguration(MockRedisConfiguration.class)
+        .withBean(ObjectMapper.class, ObjectMapper::new)
         .run(
             context -> {
               assertThat(context).hasSingleBean(OdysseyEventLog.class);

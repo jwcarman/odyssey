@@ -18,4 +18,5 @@ package org.jwcarman.odyssey.notifier.sns;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "odyssey.notifier.sns")
-public record SnsNotifierProperties(String topicArn, boolean autoCreateTopic) {}
+public record SnsNotifierProperties(
+    String topicArn, boolean autoCreateTopic, int sqsMessageRetentionSeconds) {}

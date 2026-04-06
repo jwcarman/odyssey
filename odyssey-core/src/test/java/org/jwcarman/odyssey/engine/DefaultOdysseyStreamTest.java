@@ -32,6 +32,7 @@ import org.jwcarman.odyssey.spi.OdysseyEventLog;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class DefaultOdysseyStreamTest {
@@ -52,7 +53,14 @@ class DefaultOdysseyStreamTest {
     subscriberGroup = spy(new StreamSubscriberGroup());
     stream =
         new DefaultOdysseyStream(
-            STREAM_KEY, eventLog, notifier, subscriberGroup, KEEP_ALIVE, SSE_TIMEOUT, MAX_LAST_N);
+            STREAM_KEY,
+            eventLog,
+            notifier,
+            subscriberGroup,
+            KEEP_ALIVE,
+            SSE_TIMEOUT,
+            MAX_LAST_N,
+            new ObjectMapper());
   }
 
   @AfterEach
@@ -64,7 +72,7 @@ class DefaultOdysseyStreamTest {
   void publishCallsAppendAndNotify() {
     when(eventLog.append(eq(STREAM_KEY), any(OdysseyEvent.class))).thenReturn("1-0");
 
-    String entryId = stream.publish("test-event", "{\"data\":1}");
+    String entryId = stream.publishRaw("test-event", "{\"data\":1}");
 
     assertEquals("1-0", entryId);
     verify(eventLog).append(eq(STREAM_KEY), any(OdysseyEvent.class));

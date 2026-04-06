@@ -28,6 +28,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.mongodb.MongoDBContainer;
+import tools.jackson.databind.ObjectMapper;
 
 @Testcontainers
 class MongoEventLogAutoConfigurationIT {
@@ -60,6 +61,7 @@ class MongoEventLogAutoConfigurationIT {
   private ApplicationContextRunner createContextRunner() {
     return new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(MongoEventLogAutoConfiguration.class))
+        .withBean(ObjectMapper.class, ObjectMapper::new)
         .withBean(
             MongoTemplate.class,
             () ->

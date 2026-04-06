@@ -49,13 +49,13 @@ public class TaskController {
         .start(
             () -> {
               try {
-                stream.publish("progress", "{\"percent\":0,\"status\":\"Starting...\"}");
+                stream.publishRaw("progress", "{\"percent\":0,\"status\":\"Starting...\"}");
                 Thread.sleep(1500);
-                stream.publish("progress", "{\"percent\":33,\"status\":\"Processing...\"}");
+                stream.publishRaw("progress", "{\"percent\":33,\"status\":\"Processing...\"}");
                 Thread.sleep(1500);
-                stream.publish("progress", "{\"percent\":66,\"status\":\"Almost done...\"}");
+                stream.publishRaw("progress", "{\"percent\":66,\"status\":\"Almost done...\"}");
                 Thread.sleep(1500);
-                stream.publish("complete", "{\"percent\":100,\"status\":\"Done!\"}");
+                stream.publishRaw("complete", "{\"percent\":100,\"status\":\"Done!\"}");
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
               } finally {

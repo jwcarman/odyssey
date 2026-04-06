@@ -26,6 +26,7 @@ import org.jwcarman.odyssey.spi.OdysseyEventLog;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class DefaultOdysseyStreamRegistryTest {
@@ -42,7 +43,8 @@ class DefaultOdysseyStreamRegistryTest {
   @BeforeEach
   void setUp() {
     registry =
-        new DefaultOdysseyStreamRegistry(eventLog, notifier, KEEP_ALIVE, SSE_TIMEOUT, MAX_LAST_N);
+        new DefaultOdysseyStreamRegistry(
+            eventLog, notifier, KEEP_ALIVE, SSE_TIMEOUT, MAX_LAST_N, new ObjectMapper());
   }
 
   @Test

@@ -27,6 +27,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.PropertySource;
+import tools.jackson.databind.ObjectMapper;
 
 @AutoConfiguration
 @EnableConfigurationProperties(OdysseyProperties.class)
@@ -57,12 +58,16 @@ public class OdysseyAutoConfiguration {
 
   @Bean
   public DefaultOdysseyStreamRegistry odysseyStreamRegistry(
-      OdysseyEventLog eventLog, OdysseyStreamNotifier notifier, OdysseyProperties properties) {
+      OdysseyEventLog eventLog,
+      OdysseyStreamNotifier notifier,
+      OdysseyProperties properties,
+      ObjectMapper objectMapper) {
     return new DefaultOdysseyStreamRegistry(
         eventLog,
         notifier,
         properties.keepAliveInterval().toMillis(),
         properties.sseTimeout().toMillis(),
-        properties.maxLastN());
+        properties.maxLastN(),
+        objectMapper);
   }
 }

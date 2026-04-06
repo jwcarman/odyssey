@@ -28,6 +28,7 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import tools.jackson.databind.ObjectMapper;
 
 @Testcontainers
 class PostgresNotifierAutoConfigurationTest {
@@ -48,6 +49,7 @@ class PostgresNotifierAutoConfigurationTest {
   void postgresNotifierSuppressesInMemoryFallback() {
     createContextRunner()
         .withConfiguration(AutoConfigurations.of(OdysseyAutoConfiguration.class))
+        .withBean(ObjectMapper.class, ObjectMapper::new)
         .run(
             context -> {
               assertThat(context).hasSingleBean(OdysseyStreamNotifier.class);

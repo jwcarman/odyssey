@@ -21,6 +21,7 @@ import org.jwcarman.odyssey.core.OdysseyStream;
 import org.jwcarman.odyssey.core.OdysseyStreamRegistry;
 import org.jwcarman.odyssey.spi.OdysseyEventLog;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
+import tools.jackson.databind.ObjectMapper;
 
 public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
 
@@ -29,6 +30,7 @@ public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
   private final long keepAliveInterval;
   private final long defaultSseTimeout;
   private final int maxLastN;
+  private final ObjectMapper objectMapper;
 
   private final ConcurrentMap<String, DefaultOdysseyStream> cache = new ConcurrentHashMap<>();
   private final ConcurrentMap<String, StreamSubscriberGroup> subscriberGroups =
@@ -39,12 +41,14 @@ public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
       OdysseyStreamNotifier notifier,
       long keepAliveInterval,
       long defaultSseTimeout,
-      int maxLastN) {
+      int maxLastN,
+      ObjectMapper objectMapper) {
     this.eventLog = eventLog;
     this.notifier = notifier;
     this.keepAliveInterval = keepAliveInterval;
     this.defaultSseTimeout = defaultSseTimeout;
     this.maxLastN = maxLastN;
+    this.objectMapper = objectMapper;
 
     notifier.subscribe(
         (streamKey, eventId) -> {
@@ -82,6 +86,13 @@ public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
     StreamSubscriberGroup group = new StreamSubscriberGroup();
     subscriberGroups.put(streamKey, group);
     return new DefaultOdysseyStream(
-        streamKey, eventLog, notifier, group, keepAliveInterval, defaultSseTimeout, maxLastN);
+        streamKey,
+        eventLog,
+        notifier,
+        group,
+        keepAliveInterval,
+        defaultSseTimeout,
+        maxLastN,
+        objectMapper);
   }
 }
