@@ -1,24 +1,23 @@
 package org.jwcarman.odyssey.engine;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import org.jwcarman.odyssey.core.OdysseyEvent;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.jwcarman.odyssey.core.StreamEventHandler;
+import org.jwcarman.odyssey.spi.OdysseyEventLog;
 
-class SubscriberOutbox {
+class StreamSubscriber {
 
   static final OdysseyEvent POISON =
       OdysseyEvent.builder().id("__poison__").streamKey("__poison__").build();
 
   private final Semaphore nudge = new Semaphore(0);
   private final BlockingQueue<OdysseyEvent> queue = new LinkedBlockingQueue<>();
-  private final Function<String, List<OdysseyEvent>> readFunction;
-  private final SseEmitter emitter;
+  private final OdysseyEventLog eventLog;
+  private final StreamEventHandler handler;
   private final String streamKey;
   private final long keepAliveInterval;
 
@@ -26,14 +25,14 @@ class SubscriberOutbox {
   private Thread readerThread;
   private Thread writerThread;
 
-  SubscriberOutbox(
-      Function<String, List<OdysseyEvent>> readFunction,
-      SseEmitter emitter,
+  StreamSubscriber(
+      OdysseyEventLog eventLog,
+      StreamEventHandler handler,
       String streamKey,
       String lastReadId,
       long keepAliveInterval) {
-    this.readFunction = readFunction;
-    this.emitter = emitter;
+    this.eventLog = eventLog;
+    this.handler = handler;
     this.streamKey = streamKey;
     this.lastReadId = lastReadId;
     this.keepAliveInterval = keepAliveInterval;
@@ -73,7 +72,7 @@ class SubscriberOutbox {
       while (!Thread.currentThread().isInterrupted()) {
         nudge.tryAcquire(keepAliveInterval, TimeUnit.MILLISECONDS);
         nudge.drainPermits();
-        List<OdysseyEvent> events = readFunction.apply(lastReadId);
+        List<OdysseyEvent> events = eventLog.readAfter(streamKey, lastReadId).toList();
         for (OdysseyEvent event : events) {
           queue.offer(event);
           lastReadId = event.id();
@@ -89,33 +88,29 @@ class SubscriberOutbox {
       while (!Thread.currentThread().isInterrupted()) {
         OdysseyEvent event = queue.poll(keepAliveInterval, TimeUnit.MILLISECONDS);
         if (event == null) {
-          emitter.send(SseEmitter.event().comment("keep-alive"));
+          handler.onKeepAlive();
         } else if (event == POISON) {
           drainRemaining();
-          emitter.complete();
+          handler.onComplete();
           return;
         } else {
-          sendEvent(event);
+          handler.onEvent(event);
         }
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-    } catch (IOException e) {
-      emitter.completeWithError(e);
+    } catch (Exception e) {
+      handler.onError(e);
     }
   }
 
-  private void drainRemaining() throws IOException {
+  private void drainRemaining() {
     OdysseyEvent event;
     while ((event = queue.poll()) != null) {
       if (event == POISON) {
         break;
       }
-      sendEvent(event);
+      handler.onEvent(event);
     }
-  }
-
-  private void sendEvent(OdysseyEvent event) throws IOException {
-    emitter.send(SseEmitter.event().id(event.id()).name(event.eventType()).data(event.payload()));
   }
 }

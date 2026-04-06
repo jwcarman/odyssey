@@ -18,7 +18,8 @@ public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
   private final int maxLastN;
 
   private final ConcurrentMap<String, DefaultOdysseyStream> cache = new ConcurrentHashMap<>();
-  private final ConcurrentMap<String, TopicFanout> fanouts = new ConcurrentHashMap<>();
+  private final ConcurrentMap<String, StreamSubscriberGroup> subscriberGroups =
+      new ConcurrentHashMap<>();
 
   public DefaultOdysseyStreamRegistry(
       OdysseyEventLog eventLog,
@@ -35,11 +36,10 @@ public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
     this.maxLastN = maxLastN;
 
     notifier.subscribe(
-        "*",
         (streamKey, eventId) -> {
-          TopicFanout fanout = fanouts.get(streamKey);
-          if (fanout != null && fanout.hasSubscribers()) {
-            fanout.nudgeAll();
+          StreamSubscriberGroup group = subscriberGroups.get(streamKey);
+          if (group != null && group.hasSubscribers()) {
+            group.nudgeAll();
           }
         });
   }
@@ -64,9 +64,9 @@ public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
   }
 
   private DefaultOdysseyStream createStream(String streamKey) {
-    TopicFanout fanout = new TopicFanout();
-    fanouts.put(streamKey, fanout);
+    StreamSubscriberGroup group = new StreamSubscriberGroup();
+    subscriberGroups.put(streamKey, group);
     return new DefaultOdysseyStream(
-        streamKey, eventLog, notifier, fanout, keepAliveInterval, defaultSseTimeout, maxLastN);
+        streamKey, eventLog, notifier, group, keepAliveInterval, defaultSseTimeout, maxLastN);
   }
 }

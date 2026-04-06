@@ -4,7 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.concurrent.atomic.AtomicReference;
 import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.core.OdysseyStream;
 import org.jwcarman.odyssey.spi.OdysseyEventLog;
@@ -16,7 +16,7 @@ class DefaultOdysseyStream implements OdysseyStream {
   private final String streamKey;
   private final OdysseyEventLog eventLog;
   private final OdysseyStreamNotifier notifier;
-  private final TopicFanout fanout;
+  private final StreamSubscriberGroup subscriberGroup;
   private final long keepAliveInterval;
   private final long defaultSseTimeout;
   private final int maxLastN;
@@ -25,14 +25,14 @@ class DefaultOdysseyStream implements OdysseyStream {
       String streamKey,
       OdysseyEventLog eventLog,
       OdysseyStreamNotifier notifier,
-      TopicFanout fanout,
+      StreamSubscriberGroup subscriberGroup,
       long keepAliveInterval,
       long defaultSseTimeout,
       int maxLastN) {
     this.streamKey = streamKey;
     this.eventLog = eventLog;
     this.notifier = notifier;
-    this.fanout = fanout;
+    this.subscriberGroup = subscriberGroup;
     this.keepAliveInterval = keepAliveInterval;
     this.defaultSseTimeout = defaultSseTimeout;
     this.maxLastN = maxLastN;
@@ -61,10 +61,7 @@ class DefaultOdysseyStream implements OdysseyStream {
   @Override
   public SseEmitter subscribe(Duration timeout) {
     String lastId = getCurrentLastId();
-    SseEmitter emitter = new SseEmitter(timeout.toMillis());
-    SubscriberOutbox outbox = createOutbox(emitter, lastId);
-    registerAndStart(outbox, emitter);
-    return emitter;
+    return createSubscription(lastId, timeout, List.of());
   }
 
   @Override
@@ -74,17 +71,9 @@ class DefaultOdysseyStream implements OdysseyStream {
 
   @Override
   public SseEmitter resumeAfter(String lastEventId, Duration timeout) {
-    SseEmitter emitter = new SseEmitter(timeout.toMillis());
-
     List<OdysseyEvent> replayEvents = eventLog.readAfter(streamKey, lastEventId).toList();
-
     String lastId = replayEvents.isEmpty() ? lastEventId : replayEvents.getLast().id();
-    SubscriberOutbox outbox = createOutbox(emitter, lastId);
-    for (OdysseyEvent event : replayEvents) {
-      outbox.enqueue(event);
-    }
-    registerAndStart(outbox, emitter);
-    return emitter;
+    return createSubscription(lastId, timeout, replayEvents);
   }
 
   @Override
@@ -94,28 +83,20 @@ class DefaultOdysseyStream implements OdysseyStream {
 
   @Override
   public SseEmitter replayLast(int count, Duration timeout) {
-    SseEmitter emitter = new SseEmitter(timeout.toMillis());
-
     int cappedCount = Math.min(count, maxLastN);
     List<OdysseyEvent> replayEvents = eventLog.readLast(streamKey, cappedCount).toList();
-
     String lastId = replayEvents.isEmpty() ? getCurrentLastId() : replayEvents.getLast().id();
-    SubscriberOutbox outbox = createOutbox(emitter, lastId);
-    for (OdysseyEvent event : replayEvents) {
-      outbox.enqueue(event);
-    }
-    registerAndStart(outbox, emitter);
-    return emitter;
+    return createSubscription(lastId, timeout, replayEvents);
   }
 
   @Override
   public void close() {
-    fanout.shutdown();
+    subscriberGroup.shutdown();
   }
 
   @Override
   public void delete() {
-    fanout.shutdownImmediately();
+    subscriberGroup.shutdownImmediately();
     eventLog.delete(streamKey);
   }
 
@@ -129,25 +110,27 @@ class DefaultOdysseyStream implements OdysseyStream {
     return latest.isEmpty() ? "0-0" : latest.getFirst().id();
   }
 
-  private Function<String, List<OdysseyEvent>> createReadFunction() {
-    return lastId -> eventLog.readAfter(streamKey, lastId).toList();
-  }
-
-  private SubscriberOutbox createOutbox(SseEmitter emitter, String lastReadId) {
-    return new SubscriberOutbox(
-        createReadFunction(), emitter, streamKey, lastReadId, keepAliveInterval);
-  }
-
-  private void registerAndStart(SubscriberOutbox outbox, SseEmitter emitter) {
-    fanout.addSubscriber(outbox);
+  private SseEmitter createSubscription(
+      String lastId, Duration timeout, List<OdysseyEvent> replayEvents) {
+    SseEmitter emitter = new SseEmitter(timeout.toMillis());
+    AtomicReference<StreamSubscriber> subscriberRef = new AtomicReference<>();
     Runnable cleanup =
         () -> {
-          fanout.removeSubscriber(outbox);
-          outbox.closeImmediately();
+          StreamSubscriber s = subscriberRef.get();
+          if (s != null) {
+            subscriberGroup.removeSubscriber(s);
+            s.closeImmediately();
+          }
         };
-    emitter.onCompletion(cleanup);
-    emitter.onError(e -> cleanup.run());
-    emitter.onTimeout(cleanup);
-    outbox.start();
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+    StreamSubscriber subscriber =
+        new StreamSubscriber(eventLog, handler, streamKey, lastId, keepAliveInterval);
+    subscriberRef.set(subscriber);
+    subscriberGroup.addSubscriber(subscriber);
+    for (OdysseyEvent event : replayEvents) {
+      subscriber.enqueue(event);
+    }
+    subscriber.start();
+    return emitter;
   }
 }

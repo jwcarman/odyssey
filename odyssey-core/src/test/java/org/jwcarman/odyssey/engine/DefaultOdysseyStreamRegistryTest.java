@@ -114,6 +114,6 @@ class DefaultOdysseyStreamRegistryTest {
 
   @Test
   void registrySubscribesToNotifier() {
-    verify(notifier).subscribe(eq("*"), any());
+    verify(notifier).subscribe(any());
   }
 }

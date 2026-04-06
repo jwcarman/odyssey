@@ -29,15 +29,15 @@ class DefaultOdysseyStreamTest {
   @Mock private OdysseyEventLog eventLog;
   @Mock private OdysseyStreamNotifier notifier;
 
-  private TopicFanout fanout;
+  private StreamSubscriberGroup subscriberGroup;
   private DefaultOdysseyStream stream;
 
   @BeforeEach
   void setUp() {
-    fanout = spy(new TopicFanout());
+    subscriberGroup = spy(new StreamSubscriberGroup());
     stream =
         new DefaultOdysseyStream(
-            STREAM_KEY, eventLog, notifier, fanout, KEEP_ALIVE, SSE_TIMEOUT, MAX_LAST_N);
+            STREAM_KEY, eventLog, notifier, subscriberGroup, KEEP_ALIVE, SSE_TIMEOUT, MAX_LAST_N);
   }
 
   @AfterEach
@@ -166,14 +166,14 @@ class DefaultOdysseyStreamTest {
   void closeShutsFanoutGracefully() {
     stream.close();
 
-    verify(fanout).shutdown();
+    verify(subscriberGroup).shutdown();
   }
 
   @Test
   void deleteShutsFanoutImmediatelyAndDeletesFromEventLog() {
     stream.delete();
 
-    verify(fanout).shutdownImmediately();
+    verify(subscriberGroup).shutdownImmediately();
     verify(eventLog).delete(STREAM_KEY);
   }
 
