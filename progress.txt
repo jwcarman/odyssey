@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T12:17:00-04:00
-ITERATION: 9
-SPEC_COMPLETED: 009-example-app.md
-WHAT_WAS_DONE: Created odyssey-example Spring Boot application module with three REST controllers (BroadcastController, NotifyController, TaskController) demonstrating all three stream types, a static HTML demo page with EventSource subscriptions, application.yml config, and a docker-compose.yml for Redis. The example depends solely on odyssey-spring-boot-starter.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (64 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS (4 files clean)
+LAST_RUN: 2026-04-06T12:37:00-04:00
+ITERATION: 10
+SPEC_COMPLETED: 010-integration-tests.md
+WHAT_WAS_DONE: Added Testcontainers Redis integration tests to odyssey-redis verifying all 8 scenarios: live publish/subscribe, multiple subscribers, resume after disconnect, replay last N, ephemeral close, delete disconnects subscriber, keep-alive comments, and cross-type consistency (ephemeral/channel/broadcast). Created SseEmitterTestSupport helper using Spring package-level access to install a capturing Handler on SseEmitter without a servlet container.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (73 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 010-integration-tests.md
-NOTES: TaskController stores ephemeral stream references in a ConcurrentHashMap keyed by streamKey, since registry.ephemeral() generates a new stream each call and there's no API to retrieve an existing stream by key. The map entry is cleaned up when the task completes and calls stream.close(). The HTML uses named event listeners (e.g., addEventListener('message'), addEventListener('notification'), addEventListener('progress'/'complete')) matching the event types published by each controller.
+NEXT_SPEC: 011-extract-spis.md
+NOTES: SseEmitterTestSupport lives in org.springframework.web.servlet.mvc.method.annotation package (test scope) to access the package-private ResponseBodyEmitter.Handler interface and initialize() method. This avoids reflection and works cleanly with Java 25. The delete test verifies Redis key removal and subscriber disconnection (no new events delivered) rather than emitter completion, since shutdownImmediately() interrupts threads without calling emitter.complete() — in production, the servlet async context handles that lifecycle.

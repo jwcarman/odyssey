@@ -62,18 +62,32 @@ Spring Boot: 4.x
 
 ```
 odyssey-parent/
-├── odyssey-core/           # Public API, domain model
-├── odyssey-redis/          # All three stream type implementations
-├── odyssey-autoconfigure/  # Spring Boot AutoConfiguration, properties
-└── odyssey-spring-boot-starter/  # Convenience starter (what consumers add)
+├── odyssey-bom/                # Bill of Materials — version alignment for consumers
+├── odyssey-core/               # Public API, SPIs, engine (SubscriberOutbox, TopicFanout),
+│                               # in-memory implementations, auto-config with
+│                               # @ConditionalOnMissingBean fallback
+├── odyssey-eventlog-redis/     # OdysseyEventLog via Redis Streams, self-registering auto-config
+├── odyssey-notifier-redis/     # OdysseyStreamNotifier via Redis Pub/Sub, self-registering auto-config
+└── odyssey-example/            # Example app (not published)
 ```
+
+Each backend module includes its own `@AutoConfiguration` class. When present on the
+classpath, it registers its bean, which prevents `odyssey-core`'s in-memory fallback from
+activating (`@ConditionalOnMissingBean`).
+
+**Consumer usage:**
+- In-memory (zero deps): just add `odyssey-core`
+- Redis: add `odyssey-core` + `odyssey-eventlog-redis` + `odyssey-notifier-redis`
+- Mix-and-match: e.g. `odyssey-eventlog-cassandra` + `odyssey-notifier-redis`
+
+Import the BOM to align versions across modules.
 
 ---
 
 ## How to run the project
 
-This is a library — there is no standalone application to run. Consumers add the starter
-dependency and configure their own Spring Boot application.
+This is a library — there is no standalone application to run. Consumers add the modules
+they need and configure their own Spring Boot application.
 
 ```bash
 # Compile and package
@@ -124,24 +138,38 @@ Expected output when all tests pass:
 
 ```
 odyssey-parent/
+├── odyssey-bom/
+│   └── pom.xml                                 # BOM — version alignment only
 ├── odyssey-core/
-│   └── src/main/java/io/odyssey/core/
-│       ├── OdysseyStream.java              # Public stream interface
-│       ├── OdysseyStreamRegistry.java      # Factory interface
-│       └── OdysseyEvent.java               # Immutable event record with builder
-├── odyssey-redis/
-│   └── src/main/java/io/odyssey/redis/
-│       ├── RedisOdysseyStreamRegistry.java # Registry implementation
-│       ├── RedisOdysseyStream.java         # Unified stream implementation (all three types)
-│       ├── SubscriberOutbox.java           # Per-subscriber: semaphore, queue, two virtual threads
-│       ├── TopicFanout.java                # Per-stream-key fan-out to local outboxes
-│       └── PubSubNotificationListener.java # Single PSUBSCRIBE listener, no I/O
-├── odyssey-autoconfigure/
-│   └── src/main/java/io/odyssey/autoconfigure/
-│       ├── OdysseyAutoConfiguration.java   # Spring Boot auto-config
-│       └── OdysseyProperties.java          # @ConfigurationProperties
-└── odyssey-spring-boot-starter/
-    └── (empty — dependency-only module)
+│   └── src/main/java/org/jwcarman/odyssey/
+│       ├── core/
+│       │   ├── OdysseyStream.java              # Public stream interface
+│       │   ├── OdysseyStreamRegistry.java      # Factory interface
+│       │   └── OdysseyEvent.java               # Immutable event record with builder
+│       ├── spi/
+│       │   ├── OdysseyEventLog.java            # Event storage SPI
+│       │   └── OdysseyStreamNotifier.java      # Notification SPI
+│       ├── engine/
+│       │   ├── DefaultOdysseyStreamRegistry.java # Registry wired to SPIs
+│       │   ├── DefaultOdysseyStream.java       # Stream impl using SPIs
+│       │   ├── SubscriberOutbox.java           # Per-subscriber: semaphore, queue, two virtual threads
+│       │   └── TopicFanout.java                # Per-stream-key fan-out to local outboxes
+│       ├── memory/
+│       │   ├── InMemoryOdysseyEventLog.java    # Bounded in-memory event storage
+│       │   └── InMemoryOdysseyStreamNotifier.java  # Direct-call notifier
+│       └── autoconfigure/
+│           ├── OdysseyAutoConfiguration.java   # Engine + in-memory fallback beans
+│           └── OdysseyProperties.java          # @ConfigurationProperties
+├── odyssey-eventlog-redis/
+│   └── src/main/java/org/jwcarman/odyssey/eventlog/redis/
+│       ├── RedisOdysseyEventLog.java           # OdysseyEventLog via Redis Streams
+│       └── RedisEventLogAutoConfiguration.java # @ConditionalOnClass(RedisConnectionFactory)
+├── odyssey-notifier-redis/
+│   └── src/main/java/org/jwcarman/odyssey/notifier/redis/
+│       ├── RedisOdysseyStreamNotifier.java     # OdysseyStreamNotifier via Redis Pub/Sub
+│       └── RedisNotifierAutoConfiguration.java # @ConditionalOnClass(RedisConnectionFactory)
+└── odyssey-example/
+    └── (Spring Boot app with static HTML demo)
 ```
 
 ---
@@ -574,4 +602,33 @@ backend-agnostic. Possible future implementations:
 The public consumer API (`OdysseyStream`, `OdysseyStreamRegistry`, `OdysseyEvent`) would
 not change — consumers would just swap a starter dependency.
 
-**Not in scope for initial release.** Extract the SPI when a second backend materializes.
+### Near-term: In-Memory Backend
+
+Provide in-memory implementations of both SPIs:
+
+- **`InMemoryOdysseyEventLog`** — `ConcurrentHashMap<String, BoundedList<OdysseyEvent>>`.
+  Bounded per stream key (configurable max size, matching `maxLen`). Old events evicted
+  from the head when the cap is reached. Supports `readAfter` and `readLast`.
+- **`InMemoryOdysseyStreamNotifier`** — direct call to `TopicFanout.nudgeAll()`. No
+  serialization, no network. Same-JVM only.
+
+Use cases:
+- **Testing** — no Redis needed for unit/integration tests of application code
+- **Local development** — add the starter and go, no infrastructure
+- **Single-node apps** — if you don't need clustering, skip Redis entirely
+
+Auto-configuration behavior: when no `OdysseyEventLog` or `OdysseyStreamNotifier` bean is
+found, fall back to in-memory automatically. On activation, log a WARN message for each:
+
+```
+No OdysseyEventLog bean found; falling back to in-memory implementation.
+This is suitable for single-node environments and testing only.
+For clustered deployments, add a backend module (e.g. odyssey-eventlog-redis).
+```
+
+Same pattern for `OdysseyStreamNotifier`. Zero config for the simple case, but the warning
+ensures nobody accidentally runs in-memory in production.
+
+### Future: Pluggable Backends
+
+Extract the SPIs when a second external backend materializes.
