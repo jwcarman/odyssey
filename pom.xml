@@ -30,6 +30,7 @@
         <module>odyssey-bom</module>
         <module>odyssey-core</module>
         <module>odyssey-eventlog-redis</module>
+        <module>odyssey-eventlog-postgresql</module>
         <module>odyssey-notifier-redis</module>
         <module>odyssey-example</module>
     </modules>

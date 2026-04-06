@@ -13,20 +13,19 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Stream;
 import org.jwcarman.odyssey.core.OdysseyEvent;
-import org.jwcarman.odyssey.spi.OdysseyEventLog;
+import org.jwcarman.odyssey.spi.AbstractOdysseyEventLog;
 
-public class RedisOdysseyEventLog implements OdysseyEventLog {
+public class RedisOdysseyEventLog extends AbstractOdysseyEventLog {
 
   private static final int READ_BATCH_SIZE = 100;
+  private static final String FIELD_EVENT_TYPE = "eventType";
+  private static final String FIELD_PAYLOAD = "payload";
+  private static final String FIELD_TIMESTAMP = "timestamp";
 
   private final RedisCommands<String, String> commands;
   private final long maxLen;
-  private final String ephemeralPrefix;
-  private final String channelPrefix;
-  private final String broadcastPrefix;
   private final long ephemeralTtlSeconds;
   private final long channelTtlSeconds;
   private final long broadcastTtlSeconds;
@@ -40,37 +39,20 @@ public class RedisOdysseyEventLog implements OdysseyEventLog {
       long ephemeralTtlSeconds,
       long channelTtlSeconds,
       long broadcastTtlSeconds) {
+    super(ephemeralPrefix, channelPrefix, broadcastPrefix);
     this.commands = commands;
     this.maxLen = maxLen;
-    this.ephemeralPrefix = ephemeralPrefix;
-    this.channelPrefix = channelPrefix;
-    this.broadcastPrefix = broadcastPrefix;
     this.ephemeralTtlSeconds = ephemeralTtlSeconds;
     this.channelTtlSeconds = channelTtlSeconds;
     this.broadcastTtlSeconds = broadcastTtlSeconds;
   }
 
   @Override
-  public String ephemeralKey() {
-    return ephemeralPrefix + UUID.randomUUID();
-  }
-
-  @Override
-  public String channelKey(String name) {
-    return channelPrefix + name;
-  }
-
-  @Override
-  public String broadcastKey(String name) {
-    return broadcastPrefix + name;
-  }
-
-  @Override
   public String append(String streamKey, OdysseyEvent event) {
     Map<String, String> body = new LinkedHashMap<>();
-    body.put("eventType", event.eventType());
-    body.put("payload", event.payload());
-    body.put("timestamp", event.timestamp().toString());
+    body.put(FIELD_EVENT_TYPE, event.eventType());
+    body.put(FIELD_PAYLOAD, event.payload());
+    body.put(FIELD_TIMESTAMP, event.timestamp().toString());
     for (Map.Entry<String, String> entry : event.metadata().entrySet()) {
       body.put(entry.getKey(), entry.getValue());
     }
@@ -111,11 +93,11 @@ public class RedisOdysseyEventLog implements OdysseyEventLog {
   }
 
   private long resolveTtl(String streamKey) {
-    if (streamKey.startsWith(ephemeralPrefix)) {
+    if (streamKey.startsWith(ephemeralPrefix())) {
       return ephemeralTtlSeconds;
-    } else if (streamKey.startsWith(channelPrefix)) {
+    } else if (streamKey.startsWith(channelPrefix())) {
       return channelTtlSeconds;
-    } else if (streamKey.startsWith(broadcastPrefix)) {
+    } else if (streamKey.startsWith(broadcastPrefix())) {
       return broadcastTtlSeconds;
     }
     return 0;
@@ -123,15 +105,15 @@ public class RedisOdysseyEventLog implements OdysseyEventLog {
 
   private OdysseyEvent toOdysseyEvent(String streamKey, StreamMessage<String, String> message) {
     Map<String, String> body = message.getBody();
-    String eventType = body.get("eventType");
-    String payload = body.get("payload");
-    String timestampStr = body.get("timestamp");
+    String eventType = body.get(FIELD_EVENT_TYPE);
+    String payload = body.get(FIELD_PAYLOAD);
+    String timestampStr = body.get(FIELD_TIMESTAMP);
     Instant timestamp = timestampStr != null ? Instant.parse(timestampStr) : Instant.now();
 
     Map<String, String> metadata = new LinkedHashMap<>(body);
-    metadata.remove("eventType");
-    metadata.remove("payload");
-    metadata.remove("timestamp");
+    metadata.remove(FIELD_EVENT_TYPE);
+    metadata.remove(FIELD_PAYLOAD);
+    metadata.remove(FIELD_TIMESTAMP);
 
     return OdysseyEvent.builder()
         .id(message.getId())
