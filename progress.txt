@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T11:50:09-04:00
-ITERATION: 5
-SPEC_COMPLETED: 005-pubsub-notification-listener.md
-WHAT_WAS_DONE: Created PubSubNotificationListener class at org.jwcarman.odyssey.redis.PubSubNotificationListener implementing Lettuce's RedisPubSubListener<String, String>. Maintains a ConcurrentHashMap<String, TopicFanout> for stream key to fanout mapping. Subscribes to configurable pattern (<prefix>notify:*) via PSUBSCRIBE on a dedicated virtual thread. On pattern message, extracts stream key from channel name and dispatches nudgeAll() to the matching TopicFanout if it has subscribers. Added 7 unit tests covering stream key extraction (simple, nested colons, custom prefix), notification dispatch to registered fanout, unknown stream key ignored, fanout with no subscribers not nudged, and unregister prevents dispatch.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (28 tests total, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T12:00:49-04:00
+ITERATION: 6
+SPEC_COMPLETED: 006-redis-odyssey-stream.md
+WHAT_WAS_DONE: Created RedisOdysseyStream class implementing OdysseyStream with publish (XADD + PUBLISH), subscribe (XREVRANGE to get current position, creates SubscriberOutbox with readFunction using XREAD), resumeAfter (XRANGE with exclusive lower bound for replay), replayLast (XREVRANGE with capped count, reversed), close (graceful fanout shutdown), and delete (immediate fanout shutdown + DEL). Added enqueue() to SubscriberOutbox for replay event queuing before start. Added shutdownImmediately() to TopicFanout for delete support. Added Mockito test dependencies. Created 16 unit tests covering all public methods.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (38 tests total, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 006-redis-odyssey-stream.md
-NOTES: PubSubNotificationListener is package-private. Constructor takes StatefulRedisPubSubConnection and streamPrefix. Provides registerFanout/unregisterFanout methods for the stream registry to manage fanout lifecycle. The connection parameter is nullable for unit testing (tests pass null since they only exercise the message handling and extraction logic, not the actual Pub/Sub subscription).
+NEXT_SPEC: 007-redis-stream-registry.md
+NOTES: Added mockito-core and mockito-junit-jupiter as test dependencies to odyssey-redis (versions managed by spring-boot-dependencies BOM). RedisOdysseyStream is package-private. Constructor takes streamKey, RedisCommands<String,String>, TopicFanout, keepAliveInterval, defaultSseTimeout, maxLen, maxLastN, and streamPrefix. The notify channel is computed as streamPrefix + "notify:" + streamKey. SseEmitter completion/error/timeout callbacks remove the outbox from the fanout and close it immediately.

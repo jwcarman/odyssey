@@ -27,6 +27,12 @@ class TopicFanout {
     }
   }
 
+  void shutdownImmediately() {
+    for (SubscriberOutbox outbox : subscribers) {
+      outbox.closeImmediately();
+    }
+  }
+
   boolean hasSubscribers() {
     return !subscribers.isEmpty();
   }

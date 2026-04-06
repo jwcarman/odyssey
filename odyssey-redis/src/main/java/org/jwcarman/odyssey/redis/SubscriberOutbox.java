@@ -39,6 +39,10 @@ class SubscriberOutbox {
     this.keepAliveInterval = keepAliveInterval;
   }
 
+  void enqueue(OdysseyEvent event) {
+    queue.offer(event);
+  }
+
   void start() {
     readerThread = Thread.ofVirtual().name("odyssey-reader-" + streamKey).start(this::readerLoop);
     writerThread = Thread.ofVirtual().name("odyssey-writer-" + streamKey).start(this::writerLoop);
