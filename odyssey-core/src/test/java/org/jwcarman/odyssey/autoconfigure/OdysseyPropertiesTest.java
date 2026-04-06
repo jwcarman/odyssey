@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 
 class OdysseyPropertiesTest {
 
@@ -30,6 +31,7 @@ class OdysseyPropertiesTest {
 
   @Configuration
   @EnableConfigurationProperties(OdysseyProperties.class)
+  @PropertySource("classpath:odyssey-defaults.properties")
   static class PropertiesConfiguration {}
 
   @Test
@@ -37,9 +39,9 @@ class OdysseyPropertiesTest {
     contextRunner.run(
         context -> {
           OdysseyProperties properties = context.getBean(OdysseyProperties.class);
-          assertEquals(Duration.ofSeconds(30), properties.getKeepAliveInterval());
-          assertEquals(Duration.ZERO, properties.getSseTimeout());
-          assertEquals(500, properties.getMaxLastN());
+          assertEquals(Duration.ofSeconds(30), properties.keepAliveInterval());
+          assertEquals(Duration.ZERO, properties.sseTimeout());
+          assertEquals(500, properties.maxLastN());
         });
   }
 
@@ -51,9 +53,9 @@ class OdysseyPropertiesTest {
         .run(
             context -> {
               OdysseyProperties properties = context.getBean(OdysseyProperties.class);
-              assertEquals(Duration.ofSeconds(10), properties.getKeepAliveInterval());
-              assertEquals(Duration.ofSeconds(5), properties.getSseTimeout());
-              assertEquals(100, properties.getMaxLastN());
+              assertEquals(Duration.ofSeconds(10), properties.keepAliveInterval());
+              assertEquals(Duration.ofSeconds(5), properties.sseTimeout());
+              assertEquals(100, properties.maxLastN());
             });
   }
 }

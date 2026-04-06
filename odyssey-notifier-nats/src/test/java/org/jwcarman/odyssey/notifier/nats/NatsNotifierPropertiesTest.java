@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 
 class NatsNotifierPropertiesTest {
 
@@ -29,6 +30,7 @@ class NatsNotifierPropertiesTest {
 
   @Configuration
   @EnableConfigurationProperties(NatsNotifierProperties.class)
+  @PropertySource("classpath:odyssey-notifier-nats-defaults.properties")
   static class PropertiesConfiguration {}
 
   @Test
@@ -36,8 +38,8 @@ class NatsNotifierPropertiesTest {
     contextRunner.run(
         context -> {
           NatsNotifierProperties properties = context.getBean(NatsNotifierProperties.class);
-          assertEquals("nats://localhost:4222", properties.getUrl());
-          assertEquals("odyssey.notify.", properties.getSubjectPrefix());
+          assertEquals("nats://localhost:4222", properties.url());
+          assertEquals("odyssey.notify.", properties.subjectPrefix());
         });
   }
 
@@ -50,8 +52,8 @@ class NatsNotifierPropertiesTest {
         .run(
             context -> {
               NatsNotifierProperties properties = context.getBean(NatsNotifierProperties.class);
-              assertEquals("nats://custom:4223", properties.getUrl());
-              assertEquals("custom.notify.", properties.getSubjectPrefix());
+              assertEquals("nats://custom:4223", properties.url());
+              assertEquals("custom.notify.", properties.subjectPrefix());
             });
   }
 }

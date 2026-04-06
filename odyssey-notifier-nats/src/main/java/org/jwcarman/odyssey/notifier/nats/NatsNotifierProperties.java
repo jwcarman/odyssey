@@ -18,25 +18,4 @@ package org.jwcarman.odyssey.notifier.nats;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "odyssey.notifier.nats")
-public class NatsNotifierProperties {
-
-  private String url = "nats://localhost:4222";
-
-  private String subjectPrefix = "odyssey.notify.";
-
-  public String getUrl() {
-    return url;
-  }
-
-  public void setUrl(String url) {
-    this.url = url;
-  }
-
-  public String getSubjectPrefix() {
-    return subjectPrefix;
-  }
-
-  public void setSubjectPrefix(String subjectPrefix) {
-    this.subjectPrefix = subjectPrefix;
-  }
-}
+public record NatsNotifierProperties(String url, String subjectPrefix) {}

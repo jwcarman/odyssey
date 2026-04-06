@@ -13,14 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.odyssey.eventlog.cassandra;
+package org.jwcarman.odyssey.notifier.sns;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "odyssey.eventlog.cassandra")
-public record CassandraEventLogProperties(
-    String ephemeralPrefix,
-    String channelPrefix,
-    String broadcastPrefix,
-    int defaultTtlSeconds,
-    boolean autoCreateSchema) {}
+@ConfigurationProperties(prefix = "odyssey.notifier.sns")
+public record SnsNotifierProperties(String topicArn, boolean autoCreateTopic) {}

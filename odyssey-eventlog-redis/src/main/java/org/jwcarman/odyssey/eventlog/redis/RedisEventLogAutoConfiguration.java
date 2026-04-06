@@ -23,12 +23,14 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 
 @AutoConfiguration(before = OdysseyAutoConfiguration.class)
 @ConditionalOnClass(RedisConnectionFactory.class)
 @EnableConfigurationProperties(RedisEventLogProperties.class)
+@PropertySource("classpath:odyssey-eventlog-redis-defaults.properties")
 public class RedisEventLogAutoConfiguration {
 
   @Bean
@@ -40,12 +42,12 @@ public class RedisEventLogAutoConfiguration {
 
     return new RedisOdysseyEventLog(
         connection.sync(),
-        properties.getMaxLen(),
-        properties.getEphemeralPrefix(),
-        properties.getChannelPrefix(),
-        properties.getBroadcastPrefix(),
-        properties.getEphemeralTtl().toSeconds(),
-        properties.getChannelTtl().toSeconds(),
-        properties.getBroadcastTtl().toSeconds());
+        properties.maxLen(),
+        properties.ephemeralPrefix(),
+        properties.channelPrefix(),
+        properties.broadcastPrefix(),
+        properties.ephemeralTtl().toSeconds(),
+        properties.channelTtl().toSeconds(),
+        properties.broadcastTtl().toSeconds());
   }
 }

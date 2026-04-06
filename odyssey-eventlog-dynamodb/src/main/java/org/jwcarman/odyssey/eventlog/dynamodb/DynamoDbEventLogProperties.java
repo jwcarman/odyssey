@@ -18,60 +18,10 @@ package org.jwcarman.odyssey.eventlog.dynamodb;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "odyssey.eventlog.dynamodb")
-public class DynamoDbEventLogProperties {
-
-  private String ephemeralPrefix = "ephemeral:";
-  private String channelPrefix = "channel:";
-  private String broadcastPrefix = "broadcast:";
-  private String tableName = "odyssey_events";
-  private boolean autoCreateTable = false;
-  private long ttlSeconds = 86400;
-
-  public String getEphemeralPrefix() {
-    return ephemeralPrefix;
-  }
-
-  public void setEphemeralPrefix(String ephemeralPrefix) {
-    this.ephemeralPrefix = ephemeralPrefix;
-  }
-
-  public String getChannelPrefix() {
-    return channelPrefix;
-  }
-
-  public void setChannelPrefix(String channelPrefix) {
-    this.channelPrefix = channelPrefix;
-  }
-
-  public String getBroadcastPrefix() {
-    return broadcastPrefix;
-  }
-
-  public void setBroadcastPrefix(String broadcastPrefix) {
-    this.broadcastPrefix = broadcastPrefix;
-  }
-
-  public String getTableName() {
-    return tableName;
-  }
-
-  public void setTableName(String tableName) {
-    this.tableName = tableName;
-  }
-
-  public boolean isAutoCreateTable() {
-    return autoCreateTable;
-  }
-
-  public void setAutoCreateTable(boolean autoCreateTable) {
-    this.autoCreateTable = autoCreateTable;
-  }
-
-  public long getTtlSeconds() {
-    return ttlSeconds;
-  }
-
-  public void setTtlSeconds(long ttlSeconds) {
-    this.ttlSeconds = ttlSeconds;
-  }
-}
+public record DynamoDbEventLogProperties(
+    String ephemeralPrefix,
+    String channelPrefix,
+    String broadcastPrefix,
+    String tableName,
+    boolean autoCreateTable,
+    long ttlSeconds) {}

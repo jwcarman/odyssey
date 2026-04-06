@@ -23,12 +23,14 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 
 @AutoConfiguration(before = OdysseyAutoConfiguration.class)
 @ConditionalOnClass(RedisConnectionFactory.class)
 @EnableConfigurationProperties(RedisNotifierProperties.class)
+@PropertySource("classpath:odyssey-notifier-redis-defaults.properties")
 public class RedisNotifierAutoConfiguration {
 
   @Bean
@@ -43,6 +45,6 @@ public class RedisNotifierAutoConfiguration {
         client.connect(StringCodec.UTF8);
 
     return new RedisOdysseyStreamNotifier(
-        pubSubConnection, sharedConnection.sync(), properties.getChannelPrefix());
+        pubSubConnection, sharedConnection.sync(), properties.channelPrefix());
   }
 }

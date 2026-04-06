@@ -589,6 +589,11 @@ A spec is done when ALL of the following are true:
   - Spring Boot manages versions via the testcontainers BOM — do not specify versions
 - Backend auto-configurations should use `@ConditionalOnClass` only — not
   `@ConditionalOnProperty`. Drop-it-on-the-classpath-and-it-works.
+- `@ConfigurationProperties` classes must be records (not classes with getters/setters).
+  Default values live in a `*-defaults.properties` file in `src/main/resources/`, loaded
+  via `@PropertySource("classpath:*-defaults.properties")` on the auto-configuration class.
+  Example: `odyssey-eventlog-redis-defaults.properties` with defaults, loaded by
+  `RedisEventLogAutoConfiguration`. The record has no default values in code.
 - All new Java files and POM files must include the Apache 2.0 license header. Run
   `./mvnw -Plicense license:format` to apply headers automatically after creating files.
 - Tests using Testcontainers must be named `*IT` (not `*Test`) so they run via

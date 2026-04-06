@@ -20,11 +20,13 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.PropertySource;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 @AutoConfiguration(before = OdysseyAutoConfiguration.class)
 @ConditionalOnClass(DynamoDbClient.class)
 @EnableConfigurationProperties(DynamoDbEventLogProperties.class)
+@PropertySource("classpath:odyssey-eventlog-dynamodb-defaults.properties")
 public class DynamoDbEventLogAutoConfiguration {
 
   @Bean
@@ -33,13 +35,13 @@ public class DynamoDbEventLogAutoConfiguration {
     DynamoDbOdysseyEventLog eventLog =
         new DynamoDbOdysseyEventLog(
             dynamoDbClient,
-            properties.getTableName(),
-            properties.getTtlSeconds(),
-            properties.getEphemeralPrefix(),
-            properties.getChannelPrefix(),
-            properties.getBroadcastPrefix());
+            properties.tableName(),
+            properties.ttlSeconds(),
+            properties.ephemeralPrefix(),
+            properties.channelPrefix(),
+            properties.broadcastPrefix());
 
-    if (properties.isAutoCreateTable()) {
+    if (properties.autoCreateTable()) {
       eventLog.createTable();
     }
 

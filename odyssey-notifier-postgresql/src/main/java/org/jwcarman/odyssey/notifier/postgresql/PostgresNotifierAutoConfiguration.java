@@ -21,11 +21,13 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @AutoConfiguration(before = OdysseyAutoConfiguration.class)
 @ConditionalOnClass(DataSource.class)
 @EnableConfigurationProperties(PostgresNotifierProperties.class)
+@PropertySource("classpath:odyssey-notifier-postgresql-defaults.properties")
 public class PostgresNotifierAutoConfiguration {
 
   @Bean
@@ -33,6 +35,6 @@ public class PostgresNotifierAutoConfiguration {
       DataSource dataSource, PostgresNotifierProperties properties) {
     JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
     return new PostgresOdysseyStreamNotifier(
-        jdbcTemplate, dataSource, properties.getChannel(), properties.getPollTimeoutMillis());
+        jdbcTemplate, dataSource, properties.channel(), properties.pollTimeoutMillis());
   }
 }

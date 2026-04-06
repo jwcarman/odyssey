@@ -13,12 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jwcarman.odyssey.notifier.nats;
+package org.jwcarman.odyssey.notifier.sns;
 
-import io.nats.client.Connection;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-import java.io.IOException;
 import org.jwcarman.odyssey.autoconfigure.OdysseyAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -26,24 +22,34 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.PropertySource;
+import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.sqs.SqsClient;
 
 @AutoConfiguration(before = OdysseyAutoConfiguration.class)
-@ConditionalOnClass(Connection.class)
-@EnableConfigurationProperties(NatsNotifierProperties.class)
-@PropertySource("classpath:odyssey-notifier-nats-defaults.properties")
-public class NatsNotifierAutoConfiguration {
+@ConditionalOnClass(SnsClient.class)
+@EnableConfigurationProperties(SnsNotifierProperties.class)
+@PropertySource("classpath:odyssey-notifier-sns-defaults.properties")
+public class SnsNotifierAutoConfiguration {
 
   @Bean
-  @ConditionalOnMissingBean(Connection.class)
-  public Connection natsConnection(NatsNotifierProperties properties)
-      throws IOException, InterruptedException {
-    Options options = new Options.Builder().server(properties.url()).build();
-    return Nats.connect(options);
+  @ConditionalOnMissingBean(SnsClient.class)
+  public SnsClient snsClient() {
+    return SnsClient.create();
   }
 
   @Bean
-  public NatsOdysseyStreamNotifier natsOdysseyStreamNotifier(
-      Connection connection, NatsNotifierProperties properties) {
-    return new NatsOdysseyStreamNotifier(connection, properties.subjectPrefix());
+  @ConditionalOnMissingBean(SqsClient.class)
+  public SqsClient sqsClient() {
+    return SqsClient.create();
+  }
+
+  @Bean
+  public SnsOdysseyStreamNotifier snsOdysseyStreamNotifier(
+      SnsClient snsClient, SqsClient sqsClient, SnsNotifierProperties properties) {
+    String topicArn = properties.topicArn();
+    if (properties.autoCreateTopic() && topicArn == null) {
+      topicArn = snsClient.createTopic(request -> request.name("odyssey-notifications")).topicArn();
+    }
+    return new SnsOdysseyStreamNotifier(snsClient, sqsClient, topicArn);
   }
 }

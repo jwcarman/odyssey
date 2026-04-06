@@ -26,16 +26,18 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.PropertySource;
 
 @AutoConfiguration
 @EnableConfigurationProperties(OdysseyProperties.class)
+@PropertySource("classpath:odyssey-defaults.properties")
 public class OdysseyAutoConfiguration {
 
   private static final Log log = LogFactory.getLog(OdysseyAutoConfiguration.class);
 
   @Bean
   @ConditionalOnMissingBean(OdysseyEventLog.class)
-  public InMemoryOdysseyEventLog odysseyEventLog(OdysseyProperties properties) {
+  public InMemoryOdysseyEventLog odysseyEventLog() {
     log.warn(
         "No OdysseyEventLog bean found; falling back to in-memory implementation. "
             + "Suitable for single-node environments and testing only. "
@@ -59,8 +61,8 @@ public class OdysseyAutoConfiguration {
     return new DefaultOdysseyStreamRegistry(
         eventLog,
         notifier,
-        properties.getKeepAliveInterval().toMillis(),
-        properties.getSseTimeout().toMillis(),
-        properties.getMaxLastN());
+        properties.keepAliveInterval().toMillis(),
+        properties.sseTimeout().toMillis(),
+        properties.maxLastN());
   }
 }

@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 
 class RedisEventLogPropertiesTest {
 
@@ -30,6 +31,7 @@ class RedisEventLogPropertiesTest {
 
   @Configuration
   @EnableConfigurationProperties(RedisEventLogProperties.class)
+  @PropertySource("classpath:odyssey-eventlog-redis-defaults.properties")
   static class PropertiesConfiguration {}
 
   @Test
@@ -37,14 +39,14 @@ class RedisEventLogPropertiesTest {
     contextRunner.run(
         context -> {
           RedisEventLogProperties properties = context.getBean(RedisEventLogProperties.class);
-          assertEquals("odyssey:ephemeral:", properties.getEphemeralPrefix());
-          assertEquals("odyssey:channel:", properties.getChannelPrefix());
-          assertEquals("odyssey:broadcast:", properties.getBroadcastPrefix());
-          assertEquals(100_000, properties.getMaxLen());
-          assertEquals(500, properties.getMaxLastN());
-          assertEquals(Duration.ofMinutes(5), properties.getEphemeralTtl());
-          assertEquals(Duration.ofHours(1), properties.getChannelTtl());
-          assertEquals(Duration.ofHours(24), properties.getBroadcastTtl());
+          assertEquals("odyssey:ephemeral:", properties.ephemeralPrefix());
+          assertEquals("odyssey:channel:", properties.channelPrefix());
+          assertEquals("odyssey:broadcast:", properties.broadcastPrefix());
+          assertEquals(100_000, properties.maxLen());
+          assertEquals(500, properties.maxLastN());
+          assertEquals(Duration.ofMinutes(5), properties.ephemeralTtl());
+          assertEquals(Duration.ofHours(1), properties.channelTtl());
+          assertEquals(Duration.ofHours(24), properties.broadcastTtl());
         });
   }
 
@@ -63,14 +65,14 @@ class RedisEventLogPropertiesTest {
         .run(
             context -> {
               RedisEventLogProperties properties = context.getBean(RedisEventLogProperties.class);
-              assertEquals("custom:temp:", properties.getEphemeralPrefix());
-              assertEquals("custom:chan:", properties.getChannelPrefix());
-              assertEquals("custom:bcast:", properties.getBroadcastPrefix());
-              assertEquals(50_000, properties.getMaxLen());
-              assertEquals(100, properties.getMaxLastN());
-              assertEquals(Duration.ofMinutes(2), properties.getEphemeralTtl());
-              assertEquals(Duration.ofMinutes(30), properties.getChannelTtl());
-              assertEquals(Duration.ofHours(12), properties.getBroadcastTtl());
+              assertEquals("custom:temp:", properties.ephemeralPrefix());
+              assertEquals("custom:chan:", properties.channelPrefix());
+              assertEquals("custom:bcast:", properties.broadcastPrefix());
+              assertEquals(50_000, properties.maxLen());
+              assertEquals(100, properties.maxLastN());
+              assertEquals(Duration.ofMinutes(2), properties.ephemeralTtl());
+              assertEquals(Duration.ofMinutes(30), properties.channelTtl());
+              assertEquals(Duration.ofHours(12), properties.broadcastTtl());
             });
   }
 }

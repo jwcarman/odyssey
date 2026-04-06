@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 
 class RedisNotifierPropertiesTest {
 
@@ -29,6 +30,7 @@ class RedisNotifierPropertiesTest {
 
   @Configuration
   @EnableConfigurationProperties(RedisNotifierProperties.class)
+  @PropertySource("classpath:odyssey-notifier-redis-defaults.properties")
   static class PropertiesConfiguration {}
 
   @Test
@@ -36,7 +38,7 @@ class RedisNotifierPropertiesTest {
     contextRunner.run(
         context -> {
           RedisNotifierProperties properties = context.getBean(RedisNotifierProperties.class);
-          assertEquals("odyssey:notify:", properties.getChannelPrefix());
+          assertEquals("odyssey:notify:", properties.channelPrefix());
         });
   }
 
@@ -47,7 +49,7 @@ class RedisNotifierPropertiesTest {
         .run(
             context -> {
               RedisNotifierProperties properties = context.getBean(RedisNotifierProperties.class);
-              assertEquals("custom:notify:", properties.getChannelPrefix());
+              assertEquals("custom:notify:", properties.channelPrefix());
             });
   }
 }

@@ -21,6 +21,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
@@ -28,12 +29,13 @@ import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 @AutoConfiguration(before = OdysseyAutoConfiguration.class)
 @ConditionalOnClass(DataSource.class)
 @EnableConfigurationProperties(PostgresEventLogProperties.class)
+@PropertySource("classpath:odyssey-eventlog-postgresql-defaults.properties")
 public class PostgresEventLogAutoConfiguration {
 
   @Bean
   public PostgresOdysseyEventLog postgresOdysseyEventLog(
       DataSource dataSource, PostgresEventLogProperties properties) {
-    if (properties.isAutoCreateSchema()) {
+    if (properties.autoCreateSchema()) {
       ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
       populator.addScript(new ClassPathResource("db/odyssey/postgresql/V1__create_events.sql"));
       populator.execute(dataSource);
@@ -42,9 +44,9 @@ public class PostgresEventLogAutoConfiguration {
     JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
     return new PostgresOdysseyEventLog(
         jdbcTemplate,
-        properties.getMaxLen(),
-        properties.getEphemeralPrefix(),
-        properties.getChannelPrefix(),
-        properties.getBroadcastPrefix());
+        properties.maxLen(),
+        properties.ephemeralPrefix(),
+        properties.channelPrefix(),
+        properties.broadcastPrefix());
   }
 }

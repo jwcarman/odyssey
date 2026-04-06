@@ -21,17 +21,19 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.io.ClassPathResource;
 
 @AutoConfiguration(before = OdysseyAutoConfiguration.class)
 @ConditionalOnClass(CqlSession.class)
 @EnableConfigurationProperties(CassandraEventLogProperties.class)
+@PropertySource("classpath:odyssey-eventlog-cassandra-defaults.properties")
 public class CassandraEventLogAutoConfiguration {
 
   @Bean
   public CassandraOdysseyEventLog cassandraOdysseyEventLog(
       CqlSession cqlSession, CassandraEventLogProperties properties) {
-    if (properties.isAutoCreateSchema()) {
+    if (properties.autoCreateSchema()) {
       ClassPathResource schemaResource =
           new ClassPathResource("db/odyssey/cassandra/V1__create_events.cql");
       try {
@@ -44,9 +46,9 @@ public class CassandraEventLogAutoConfiguration {
 
     return new CassandraOdysseyEventLog(
         cqlSession,
-        properties.getDefaultTtlSeconds(),
-        properties.getEphemeralPrefix(),
-        properties.getChannelPrefix(),
-        properties.getBroadcastPrefix());
+        properties.defaultTtlSeconds(),
+        properties.ephemeralPrefix(),
+        properties.channelPrefix(),
+        properties.broadcastPrefix());
   }
 }

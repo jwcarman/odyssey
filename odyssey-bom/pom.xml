@@ -74,6 +74,11 @@
                 <artifactId>odyssey-notifier-nats</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.jwcarman.odyssey</groupId>
+                <artifactId>odyssey-notifier-sns</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 </project>
