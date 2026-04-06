@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T13:12:00-04:00
-ITERATION: 14
-SPEC_COMPLETED: 012c-extract-reader-writer.md
-WHAT_WAS_DONE: Extracted StreamReader and StreamWriter from StreamSubscriber, splitting the monolithic class into three single-responsibility classes: StreamReader (reader thread loop, owns lastReadId), StreamWriter (writer thread loop, delegates to StreamEventHandler), and StreamSubscriber (orchestrator that creates reader/writer, manages lifecycle). Wrote isolated unit tests for StreamReader (6 tests) and StreamWriter (6 tests), rewrote StreamSubscriberTest to focus on orchestration/lifecycle (6 tests). Deleted unused SseEmitterTestSupport from odyssey-core.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (65 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T13:16:00-04:00
+ITERATION: 15
+SPEC_COMPLETED: 013-in-memory-backend.md
+WHAT_WAS_DONE: Implemented InMemoryOdysseyEventLog and InMemoryOdysseyStreamNotifier in org.jwcarman.odyssey.memory package. Event log uses ConcurrentHashMap with synchronized BoundedEventList (LinkedList with max size eviction). IDs are monotonic counter-based ("N-0" format) for Redis Stream ID compatibility. Notifier uses CopyOnWriteArrayList to dispatch notifications synchronously to all registered handlers.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (85 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 013-in-memory-backend.md
-NOTES: StreamReader and StreamWriter are package-private in org.jwcarman.odyssey.engine. POISON sentinel remains on StreamSubscriber as a static constant, accessible to both StreamSubscriber (who offers it to the queue) and StreamWriter (who checks for it). SseEmitterTestSupport still exists in odyssey-redis module (used by RedisStreamIntegrationTest) — only the odyssey-core copy was deleted.
+NEXT_SPEC: 014-core-autoconfiguration.md
+NOTES: The SPI's subscribe() method has no pattern parameter — pattern matching is a Redis-level concern (PSUBSCRIBE). The in-memory notifier broadcasts all notifications to all handlers, which is correct since DefaultOdysseyStreamRegistry filters by stream key in its handler callback. AtomicLong counter is shared across all stream keys for globally unique IDs.
