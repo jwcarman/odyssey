@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T13:07:00-04:00
-ITERATION: 13
-SPEC_COMPLETED: 012b-simplify-notifier-spi.md
-WHAT_WAS_DONE: Simplified OdysseyStreamNotifier.subscribe() by removing the pattern parameter, renamed SubscriberOutbox→StreamSubscriber and TopicFanout→StreamSubscriberGroup, removed readFunction indirection (StreamSubscriber takes OdysseyEventLog directly), extracted StreamEventHandler interface in core package, created SseStreamEventHandler implementation with idempotent cleanup, and removed all SseEmitter references from StreamSubscriber.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (56 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T13:12:00-04:00
+ITERATION: 14
+SPEC_COMPLETED: 012c-extract-reader-writer.md
+WHAT_WAS_DONE: Extracted StreamReader and StreamWriter from StreamSubscriber, splitting the monolithic class into three single-responsibility classes: StreamReader (reader thread loop, owns lastReadId), StreamWriter (writer thread loop, delegates to StreamEventHandler), and StreamSubscriber (orchestrator that creates reader/writer, manages lifecycle). Wrote isolated unit tests for StreamReader (6 tests) and StreamWriter (6 tests), rewrote StreamSubscriberTest to focus on orchestration/lifecycle (6 tests). Deleted unused SseEmitterTestSupport from odyssey-core.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (65 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
 NEXT_SPEC: 013-in-memory-backend.md
-NOTES: StreamEventHandler lives in org.jwcarman.odyssey.core (public API) to support non-SSE consumers. SseStreamEventHandler lives in org.jwcarman.odyssey.engine (package-private). DefaultOdysseyStream uses AtomicReference to resolve the circular dependency between StreamSubscriber and SseStreamEventHandler (subscriber needs handler, handler's cleanup needs subscriber reference). The old SubscriberOutbox.java and TopicFanout.java files have been deleted.
+NOTES: StreamReader and StreamWriter are package-private in org.jwcarman.odyssey.engine. POISON sentinel remains on StreamSubscriber as a static constant, accessible to both StreamSubscriber (who offers it to the queue) and StreamWriter (who checks for it). SseEmitterTestSupport still exists in odyssey-redis module (used by RedisStreamIntegrationTest) — only the odyssey-core copy was deleted.
