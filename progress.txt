@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T14:43:00-04:00
-ITERATION: 24
-SPEC_COMPLETED: 021-eventlog-cassandra.md
-WHAT_WAS_DONE: Created odyssey-eventlog-cassandra module — an OdysseyEventLog implementation backed by Apache Cassandra using CqlSession directly, TIMEUUID event IDs via Uuids.timeBased(), native MAP<TEXT,TEXT> for metadata, per-insert TTL support via USING TTL, auto-configuration gated on @ConditionalOnProperty(odyssey.eventlog.type=cassandra) and @ConditionalOnClass(CqlSession.class), and Testcontainers-based integration tests.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all modules, 0 failures, 16 Cassandra tests passed); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T14:51:00-04:00
+ITERATION: 25
+SPEC_COMPLETED: 022-notifier-nats.md
+WHAT_WAS_DONE: Created odyssey-notifier-nats module — an OdysseyStreamNotifier implementation backed by NATS using jnats client, fire-and-forget publish via connection.publish(), Dispatcher-based subscription to wildcard subject odyssey.notify.>, stream key mapping (colons to dots for NATS subjects, dots back to colons on receive), SmartLifecycle for dispatcher management, auto-configuration gated on @ConditionalOnProperty(odyssey.notifier.type=nats) and @ConditionalOnClass(Connection.class), and Testcontainers-based integration tests.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all modules, 0 failures, 12 NATS unit tests + 5 NATS integration tests passed); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 022-notifier-nats.md
-NOTES: Uses CqlSession directly with prepared statements for all operations. Event IDs are stringified TIMEUUIDs (version 1 UUIDs). Metadata is stored as a native Cassandra MAP<TEXT,TEXT> — no JSON serialization needed. TTL is configurable via odyssey.eventlog.cassandra.default-ttl-seconds (default 86400). TTL=0 means use the table's default_time_to_live. Schema is provided as a CQL resource at db/odyssey/cassandra/V1__create_events.cql and can be auto-created via auto-create-schema=true. The table uses (stream_key, event_id) as the primary key with ASC clustering order. Parent pom.xml and odyssey-bom updated with the new module.
+NEXT_SPEC: 023-eventlog-dynamodb.md
+NOTES: Uses jnats 2.20.6 (not managed by Spring Boot, version specified in POM). NATS subjects use dots as delimiters — stream key colons are converted to dots for subjects and back to colons when receiving. The wildcard subscription uses NATS `>` token (multi-level wildcard). Connection bean is auto-created from odyssey.notifier.nats.url property but can be overridden with a user-provided Connection bean (@ConditionalOnMissingBean). Parent pom.xml and odyssey-bom updated with the new module.

@@ -93,6 +93,7 @@
         <module>odyssey-eventlog-cassandra</module>
         <module>odyssey-notifier-redis</module>
         <module>odyssey-notifier-postgresql</module>
+        <module>odyssey-notifier-nats</module>
         <module>odyssey-example</module>
     </modules>
 

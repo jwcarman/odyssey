@@ -19,14 +19,12 @@ import com.datastax.oss.driver.api.core.CqlSession;
 import org.jwcarman.odyssey.autoconfigure.OdysseyAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.io.ClassPathResource;
 
 @AutoConfiguration(before = OdysseyAutoConfiguration.class)
 @ConditionalOnClass(CqlSession.class)
-@ConditionalOnProperty(name = "odyssey.eventlog.type", havingValue = "cassandra")
 @EnableConfigurationProperties(CassandraEventLogProperties.class)
 public class CassandraEventLogAutoConfiguration {
 
