@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T11:42:35-04:00
-ITERATION: 2
-SPEC_COMPLETED: 002-core-api-interfaces.md
-WHAT_WAS_DONE: Created OdysseyStream and OdysseyStreamRegistry interfaces, and OdysseyEvent immutable record with builder in odyssey-core at package org.jwcarman.odyssey.core. Added spring-webmvc as provided dependency for SseEmitter. Wrote unit tests for builder construction, metadata defensive copy, metadata unmodifiability, and null metadata handling.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all tests pass); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T11:44:54-04:00
+ITERATION: 3
+SPEC_COMPLETED: 003-subscriber-outbox.md
+WHAT_WAS_DONE: Created SubscriberOutbox class at org.jwcarman.odyssey.redis with POISON sentinel, Semaphore-based nudge, BlockingQueue bridging reader and writer virtual threads, graceful and immediate shutdown, and keep-alive support. Added spring-webmvc (provided) and junit-jupiter (test) dependencies to odyssey-redis. Wrote 8 unit tests covering nudge waking reader, timeout waking reader, drainPermits coalescing, graceful shutdown draining events, immediate shutdown stopping both threads, POISON sentinel ID, keep-alive on timeout, and lastReadId updates.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (13 tests total, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 003-subscriber-outbox.md
-NOTES: The spec and acceptance criteria use package org.jwcarman.odyssey.core (matching the groupId), but the original scaffolding used io.odyssey.core. Moved core to org.jwcarman.odyssey.core. Other modules (redis, autoconfigure) still have placeholder package-info.java files at io.odyssey — those should be updated when their respective specs are implemented. SseEmitter lives in spring-webmvc, not spring-web.
+NEXT_SPEC: 004-topic-fanout.md
+NOTES: Package is org.jwcarman.odyssey.redis (matching groupId convention). The old io.odyssey.redis package-info.java placeholder still exists — should be cleaned up when appropriate. SubscriberOutbox accepts a Function<String, List<OdysseyEvent>> for Redis reads to avoid Lettuce dependency in unit tests.
