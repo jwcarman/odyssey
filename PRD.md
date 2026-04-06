@@ -587,6 +587,8 @@ A spec is done when ALL of the following are true:
   - Artifact names are prefixed: `testcontainers-postgresql`, `testcontainers-junit-jupiter`,
     `testcontainers-cassandra`, `testcontainers-mongodb`, etc.
   - Spring Boot manages versions via the testcontainers BOM — do not specify versions
+- All new Java files and POM files must include the Apache 2.0 license header. Run
+  `./mvnw -Plicense license:format` to apply headers automatically after creating files.
 - Tests using Testcontainers must be named `*IT` (not `*Test`) so they run via
   Failsafe during the `integration-test` phase, not Surefire. This keeps
   `./mvnw test` fast (unit tests only) and `./mvnw verify` runs everything.
