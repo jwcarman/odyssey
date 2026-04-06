@@ -91,6 +91,7 @@
         <module>odyssey-eventlog-redis</module>
         <module>odyssey-eventlog-postgresql</module>
         <module>odyssey-eventlog-cassandra</module>
+        <module>odyssey-eventlog-dynamodb</module>
         <module>odyssey-notifier-redis</module>
         <module>odyssey-notifier-postgresql</module>
         <module>odyssey-notifier-nats</module>
