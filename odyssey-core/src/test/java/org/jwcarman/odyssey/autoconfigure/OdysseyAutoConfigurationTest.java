@@ -3,6 +3,7 @@ package org.jwcarman.odyssey.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.odyssey.engine.DefaultOdysseyStreamRegistry;
 import org.jwcarman.odyssey.memory.InMemoryOdysseyEventLog;
 import org.jwcarman.odyssey.memory.InMemoryOdysseyStreamNotifier;
@@ -10,9 +11,12 @@ import org.jwcarman.odyssey.spi.OdysseyEventLog;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+@ExtendWith(OutputCaptureExtension.class)
 class OdysseyAutoConfigurationTest {
 
   private final ApplicationContextRunner contextRunner =
@@ -90,6 +94,34 @@ class OdysseyAutoConfigurationTest {
             context -> {
               assertThat(context).hasSingleBean(DefaultOdysseyStreamRegistry.class);
             });
+  }
+
+  @Test
+  void logsWarningsWhenFallingBackToInMemoryImplementations(CapturedOutput output) {
+    contextRunner.run(
+        context -> {
+          assertThat(context).hasSingleBean(InMemoryOdysseyEventLog.class);
+          assertThat(context).hasSingleBean(InMemoryOdysseyStreamNotifier.class);
+        });
+    assertThat(output)
+        .contains("No OdysseyEventLog bean found; falling back to in-memory implementation")
+        .contains("No OdysseyStreamNotifier bean found; falling back to in-memory implementation");
+  }
+
+  @Test
+  void doesNotLogWarningsWhenExternalBeansExist(CapturedOutput output) {
+    contextRunner
+        .withUserConfiguration(
+            CustomEventLogConfiguration.class, CustomStreamNotifierConfiguration.class)
+        .run(
+            context -> {
+              assertThat(context).doesNotHaveBean(InMemoryOdysseyEventLog.class);
+              assertThat(context).doesNotHaveBean(InMemoryOdysseyStreamNotifier.class);
+            });
+    assertThat(output)
+        .doesNotContain("No OdysseyEventLog bean found; falling back to in-memory implementation")
+        .doesNotContain(
+            "No OdysseyStreamNotifier bean found; falling back to in-memory implementation");
   }
 
   @Configuration(proxyBeanMethods = false)

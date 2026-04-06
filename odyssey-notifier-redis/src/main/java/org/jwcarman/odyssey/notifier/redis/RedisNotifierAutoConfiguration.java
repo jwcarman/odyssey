@@ -3,6 +3,7 @@ package org.jwcarman.odyssey.notifier.redis;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
+import org.jwcarman.odyssey.autoconfigure.OdysseyAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -10,7 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 
-@AutoConfiguration
+@AutoConfiguration(before = OdysseyAutoConfiguration.class)
 @ConditionalOnClass(RedisConnectionFactory.class)
 @EnableConfigurationProperties(RedisNotifierProperties.class)
 public class RedisNotifierAutoConfiguration {
