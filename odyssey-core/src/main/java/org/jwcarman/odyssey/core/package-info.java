@@ -1,2 +1,2 @@
 /** OdySSEy core API and domain model. */
-package io.odyssey.core;
+package org.jwcarman.odyssey.core;
