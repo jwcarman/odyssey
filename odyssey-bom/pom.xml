@@ -104,6 +104,11 @@
                 <artifactId>odyssey-notifier-rabbitmq</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.jwcarman.odyssey</groupId>
+                <artifactId>odyssey-notifier-hazelcast</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 </project>

@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T23:58:25-04:00
-ITERATION: 43
-SPEC_COMPLETED: 040-eventlog-hazelcast.md
-WHAT_WAS_DONE: Created odyssey-eventlog-hazelcast module — HazelcastOdysseyEventLog backed by Hazelcast Ringbuffer with JSON serialization via Jackson ObjectMapper, HazelcastEventLogProperties record with defaults, HazelcastEventLogAutoConfiguration with wildcard RingbufferConfig, and 18 tests (4 unit + 14 integration using embedded Hazelcast). Updated parent POM modules list and BOM.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all 16 modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-07T00:04:55-04:00
+ITERATION: 44
+SPEC_COMPLETED: 041-notifier-hazelcast.md
+WHAT_WAS_DONE: Created odyssey-notifier-hazelcast module — HazelcastOdysseyStreamNotifier backed by Hazelcast ITopic with streamKey|eventId payload format, SmartLifecycle management via AtomicReference<UUID> for listener registration, HazelcastNotifierProperties record with defaults, HazelcastNotifierAutoConfiguration with @ConditionalOnClass, and 10 tests (7 unit with embedded Hazelcast + 3 auto-configuration/properties tests). Updated parent POM modules list and BOM.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all 17 modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 041-notifier-hazelcast.md
-NOTES: Hazelcast Ringbuffer sequence numbers are used as event IDs (long → String). The batchSize constructor parameter controls readManyAsync max read count — currently set to ringbufferCapacity from properties. Wildcard RingbufferConfig "odyssey:*" is applied at auto-configuration time to set TTL and capacity for all odyssey ringbuffers.
+NEXT_SPEC: 042-update-bom-all-modules.md
+NOTES: Hazelcast ITopic provides true fan-out (all members receive every message), same as Redis Pub/Sub. The notifier uses a single topic name (default "odyssey-notifications") rather than per-stream-key topics — stream routing is handled by the payload format. Split on first pipe character to correctly handle event IDs that may contain pipes.

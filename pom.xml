@@ -101,6 +101,7 @@
         <module>odyssey-notifier-nats</module>
         <module>odyssey-notifier-sns</module>
         <module>odyssey-notifier-rabbitmq</module>
+        <module>odyssey-notifier-hazelcast</module>
         <module>odyssey-example</module>
     </modules>
 
