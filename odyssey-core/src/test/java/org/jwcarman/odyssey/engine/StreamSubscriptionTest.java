@@ -73,7 +73,7 @@ class StreamSubscriptionTest {
   }
 
   @Test
-  void startSendsConnectedComment() throws IOException {
+  void startSendsConnectedComment() {
     when(cursor.isOpen()).thenReturn(false);
     StreamSubscription sub = createSubscription();
     sub.start();
@@ -83,7 +83,7 @@ class StreamSubscriptionTest {
   }
 
   @Test
-  void writerLoopSendsEventsFromCursor() throws IOException {
+  void writerLoopSendsEventsFromCursor() {
     OdysseyEvent event = testEvent("1-0", "msg", "hello");
     when(cursor.isOpen()).thenReturn(true, true, false);
     when(cursor.poll(any())).thenReturn(Optional.of(journalEntry("1-0", event)), Optional.empty());
@@ -98,7 +98,7 @@ class StreamSubscriptionTest {
   }
 
   @Test
-  void writerLoopSendsKeepAliveOnTimeout() throws IOException {
+  void writerLoopSendsKeepAliveOnTimeout() {
     when(cursor.isOpen()).thenReturn(true, true, false);
     when(cursor.poll(any())).thenReturn(Optional.empty());
 
@@ -122,7 +122,7 @@ class StreamSubscriptionTest {
   }
 
   @Test
-  void sendFailureClosesSubscription() throws IOException {
+  void sendFailureClosesSubscription() throws Exception {
     when(cursor.isOpen()).thenReturn(true, false);
     when(cursor.poll(any())).thenReturn(Optional.empty());
     doThrow(new IOException("broken pipe"))
@@ -154,7 +154,7 @@ class StreamSubscriptionTest {
   }
 
   @Test
-  void eventWithNullEventTypeSkipsName() throws IOException {
+  void eventWithNullEventTypeSkipsName() {
     OdysseyEvent event = testEvent("1-0", null, "data");
     when(cursor.isOpen()).thenReturn(true, false);
     when(cursor.poll(any())).thenReturn(Optional.of(journalEntry("1-0", event)));
@@ -179,7 +179,7 @@ class StreamSubscriptionTest {
   }
 
   @Test
-  void emitterCallbacksClose() throws IOException {
+  void emitterCallbacksClose() {
     when(cursor.isOpen()).thenReturn(false);
 
     StreamSubscription sub = createSubscription();
