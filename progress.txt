@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-07T00:10:00-04:00
-ITERATION: 45
-SPEC_COMPLETED: 042-update-bom-all-modules.md
-WHAT_WAS_DONE: Verified that all 15 published modules are already present in odyssey-bom/pom.xml and both Hazelcast modules are in the parent POM modules list. No changes needed — the BOM and parent POM were already up to date from previous iterations.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (0 failures across all 17 modules); ./mvnw spotless:check → BUILD SUCCESS
-STATUS: MORE_WORK
-NEXT_SPEC: 043-delete-custom-localstack.md
-NOTES: All acceptance criteria were already satisfied. The BOM contains all 15 published modules (no odyssey-example, no odyssey-bom self-reference). Parent POM modules section includes both odyssey-eventlog-hazelcast and odyssey-notifier-hazelcast.
+LAST_RUN: 2026-04-07T00:20:00-04:00
+ITERATION: 46
+SPEC_COMPLETED: 043-delete-custom-localstack.md
+WHAT_WAS_DONE: Deleted the custom LocalStackContainer.java from the project root (236-line Lombok-dependent copy). All IT tests already used the correct Testcontainers 2.x class from the testcontainers-localstack dependency, which was already present in both odyssey-eventlog-dynamodb and odyssey-notifier-sns POMs. No code changes needed in test files.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (0 failures across all modules); ./mvnw spotless:check → BUILD SUCCESS
+STATUS: DONE
+NEXT_SPEC: none
+NOTES: The org/ directory at the project root still contains org/springframework/web/servlet/mvc/method/annotation/SseEmitter.java — another loose file not part of any module. Not touched by this spec.
