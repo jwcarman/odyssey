@@ -8,8 +8,8 @@ event log SPI, no notifier SPI. All infrastructure lives in Substrate.
 
 ### Phase 1: Add Substrate dependency
 
-Add `substrate-core` as a dependency of `odyssey-core`. Substrate must be installed
-locally first (`mvn install` in the substrate project).
+Add `substrate-core` and `codec-jackson` as dependencies of `odyssey-core`. Substrate
+must be installed locally first (`mvn install` in the substrate project).
 
 ```xml
 <dependency>
@@ -17,7 +17,15 @@ locally first (`mvn install` in the substrate project).
     <artifactId>substrate-core</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
+<dependency>
+    <groupId>org.jwcarman.codec</groupId>
+    <artifactId>codec-jackson</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+</dependency>
 ```
+
+With `codec-jackson`, the Journal is strongly typed. Odyssey uses
+`Journal<OdysseyEvent>` directly — no manual JSON serialization.
 
 ### Phase 2: Rewrite the engine to use Substrate
 
@@ -30,55 +38,52 @@ locally first (`mvn install` in the substrate project).
 ```java
 public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
     private final JournalFactory journalFactory;
-    private final ObjectMapper objectMapper;
     private final long keepAliveInterval;
     private final long defaultSseTimeout;
 
     public OdysseyStream ephemeral() {
-        Journal<String> journal = journalFactory.create(
-            "ephemeral:" + UUID.randomUUID(), String.class);
-        return new DefaultOdysseyStream(journal, objectMapper, keepAliveInterval, defaultSseTimeout);
+        Journal<OdysseyEvent> journal = journalFactory.create(
+            "ephemeral:" + UUID.randomUUID(), OdysseyEvent.class);
+        return new DefaultOdysseyStream(journal, keepAliveInterval, defaultSseTimeout);
     }
 
     public OdysseyStream channel(String name) {
         return cache.computeIfAbsent("channel:" + name, key -> {
-            Journal<String> journal = journalFactory.create(key, String.class);
-            return new DefaultOdysseyStream(journal, objectMapper, keepAliveInterval, defaultSseTimeout);
+            Journal<OdysseyEvent> journal = journalFactory.create(key, OdysseyEvent.class);
+            return new DefaultOdysseyStream(journal, keepAliveInterval, defaultSseTimeout);
         });
     }
     // ... broadcast and stream(key) similar
 }
 ```
 
-**`DefaultOdysseyStream`** — rewrite to use `Journal<String>`:
+**`DefaultOdysseyStream`** — rewrite to use `Journal<OdysseyEvent>`:
 
 ```java
 public class DefaultOdysseyStream implements OdysseyStream {
-    private final Journal<String> journal;
-    private final ObjectMapper objectMapper;
+    private final Journal<OdysseyEvent> journal;
 
     public String publishRaw(String eventType, String payload) {
-        // Store eventType + payload as a serialized OdysseyEvent
         OdysseyEvent event = OdysseyEvent.builder()
             .eventType(eventType)
             .payload(payload)
             .timestamp(Instant.now())
             .build();
-        return journal.append(objectMapper.writeValueAsString(event));
+        return journal.append(event);  // Substrate serializes via codec
     }
 
     public SseEmitter subscribe() {
-        JournalCursor<String> cursor = journal.read();
+        JournalCursor<OdysseyEvent> cursor = journal.read();
         // Start writer thread that polls cursor
     }
 
     public SseEmitter resumeAfter(String lastEventId) {
-        JournalCursor<String> cursor = journal.readAfter(lastEventId);
+        JournalCursor<OdysseyEvent> cursor = journal.readAfter(lastEventId);
         // Start writer thread
     }
 
     public SseEmitter replayLast(int count) {
-        JournalCursor<String> cursor = journal.readLast(count);
+        JournalCursor<OdysseyEvent> cursor = journal.readLast(count);
         // Start writer thread
     }
 
@@ -93,15 +98,15 @@ public class DefaultOdysseyStream implements OdysseyStream {
 ```
 
 **Writer thread** — simplified. No reader thread needed (Substrate handles that
-inside the `JournalCursor`). The writer just polls the cursor:
+inside the `JournalCursor`). The writer just polls the cursor. No deserialization
+needed — the cursor returns `JournalEntry<OdysseyEvent>` already typed:
 
 ```java
-void writerLoop(JournalCursor<String> cursor, StreamEventHandler handler) {
+void writerLoop(JournalCursor<OdysseyEvent> cursor, StreamEventHandler handler) {
     while (cursor.isOpen()) {
-        Optional<JournalEntry<String>> entry = cursor.poll(keepAliveInterval);
+        Optional<JournalEntry<OdysseyEvent>> entry = cursor.poll(keepAliveInterval);
         if (entry.isPresent()) {
-            OdysseyEvent event = deserialize(entry.get().data());
-            handler.onEvent(event);
+            handler.onEvent(entry.get().data());  // already an OdysseyEvent
         } else {
             handler.onKeepAlive();
         }
@@ -237,9 +242,8 @@ The example app's dependencies change:
 - The `JournalCursor` already has the reader thread + semaphore + queue pattern.
   Odyssey's writer thread just polls `cursor.poll(timeout)` — no semaphore,
   no reader thread, no `StreamSubscriberGroup`.
-- `OdysseyEvent` is serialized as JSON into the Journal. The Journal stores
-  `String` type. Deserialization happens in the writer thread before calling
-  the `StreamEventHandler`.
+- With `codec-jackson`, the Journal is `Journal<OdysseyEvent>`. Substrate handles
+  serialization/deserialization via the Jackson codec. No manual JSON in Odyssey.
 - The `maxLastN` cap was an Odyssey concern. With Substrate, the Journal
   implementation handles its own capacity limits. Remove `maxLastN` from
   `OdysseyProperties`.
