@@ -23,6 +23,10 @@ import org.jwcarman.odyssey.spi.OdysseyEventLog;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 import tools.jackson.databind.ObjectMapper;
 
+/**
+ * Default implementation of {@link OdysseyStreamRegistry} that coordinates an {@link
+ * OdysseyEventLog} and {@link OdysseyStreamNotifier} to provide stream lifecycle management.
+ */
 public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
 
   private final OdysseyEventLog eventLog;
@@ -36,6 +40,16 @@ public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
   private final ConcurrentMap<String, StreamSubscriberGroup> subscriberGroups =
       new ConcurrentHashMap<>();
 
+  /**
+   * Creates a new registry.
+   *
+   * @param eventLog the event log for storing and retrieving events
+   * @param notifier the notifier for cross-node event notifications
+   * @param keepAliveInterval the keep-alive interval in milliseconds
+   * @param defaultSseTimeout the default SSE emitter timeout in milliseconds
+   * @param maxLastN the maximum number of events for replay-last operations
+   * @param objectMapper the Jackson object mapper for JSON serialization
+   */
   public DefaultOdysseyStreamRegistry(
       OdysseyEventLog eventLog,
       OdysseyStreamNotifier notifier,

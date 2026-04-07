@@ -19,6 +19,33 @@ import com.fasterxml.uuid.Generators;
 import com.fasterxml.uuid.impl.TimeBasedEpochGenerator;
 import java.util.UUID;
 
+/**
+ * Base class for {@link OdysseyEventLog} implementations. Provides stream key generation using
+ * configurable prefixes and a cluster-safe, time-ordered event ID generator based on UUID v7.
+ *
+ * <p>All event log implementations should extend this class rather than implementing {@link
+ * OdysseyEventLog} directly. Subclasses need only implement the storage operations: {@link
+ * #append(String, OdysseyEvent)}, {@link #readAfter(String, String)}, {@link #readLast(String,
+ * int)}, and {@link #delete(String)}.
+ *
+ * <p>Example subclass:
+ *
+ * <pre>{@code
+ * public class MyEventLog extends AbstractOdysseyEventLog {
+ *     public MyEventLog(String ephemeralPrefix, String channelPrefix, String broadcastPrefix) {
+ *         super(ephemeralPrefix, channelPrefix, broadcastPrefix);
+ *     }
+ *
+ *     @Override
+ *     public String append(String streamKey, OdysseyEvent event) {
+ *         String eventId = generateEventId();
+ *         // store the event...
+ *         return eventId;
+ *     }
+ *     // ... other methods
+ * }
+ * }</pre>
+ */
 public abstract class AbstractOdysseyEventLog implements OdysseyEventLog {
 
   private static final TimeBasedEpochGenerator UUID_GENERATOR =
@@ -28,6 +55,14 @@ public abstract class AbstractOdysseyEventLog implements OdysseyEventLog {
   private final String channelPrefix;
   private final String broadcastPrefix;
 
+  /**
+   * Creates an event log with the given key prefixes. The prefixes are prepended to stream names to
+   * form full stream keys (e.g., prefix {@code "odyssey:channel:"} + name {@code "user:123"}).
+   *
+   * @param ephemeralPrefix prefix for ephemeral stream keys
+   * @param channelPrefix prefix for channel stream keys
+   * @param broadcastPrefix prefix for broadcast stream keys
+   */
   protected AbstractOdysseyEventLog(
       String ephemeralPrefix, String channelPrefix, String broadcastPrefix) {
     this.ephemeralPrefix = ephemeralPrefix;
@@ -50,18 +85,39 @@ public abstract class AbstractOdysseyEventLog implements OdysseyEventLog {
     return broadcastPrefix + name;
   }
 
+  /**
+   * Generates a time-ordered, cluster-safe event ID using UUID v7. The generated IDs are
+   * lexicographically sortable by time, making them suitable for cursor-based pagination.
+   *
+   * @return a new UUID v7 string
+   */
   protected String generateEventId() {
     return UUID_GENERATOR.generate().toString();
   }
 
+  /**
+   * Returns the configured ephemeral key prefix.
+   *
+   * @return the ephemeral prefix
+   */
   protected String ephemeralPrefix() {
     return ephemeralPrefix;
   }
 
+  /**
+   * Returns the configured channel key prefix.
+   *
+   * @return the channel prefix
+   */
   protected String channelPrefix() {
     return channelPrefix;
   }
 
+  /**
+   * Returns the configured broadcast key prefix.
+   *
+   * @return the broadcast prefix
+   */
   protected String broadcastPrefix() {
     return broadcastPrefix;
   }

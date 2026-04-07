@@ -15,13 +15,39 @@
  */
 package org.jwcarman.odyssey.core;
 
+/**
+ * Callback interface for consuming stream events without an {@link
+ * org.springframework.web.servlet.mvc.method.annotation.SseEmitter}. Implement this interface to
+ * receive events programmatically rather than through an SSE connection.
+ *
+ * <p>Implementations must be thread-safe, as callbacks may be invoked from virtual threads managed
+ * by the OdySSEy engine.
+ */
 public interface StreamEventHandler {
 
+  /**
+   * Called when a new event is received from the stream.
+   *
+   * @param event the event that was published to the stream
+   */
   void onEvent(OdysseyEvent event);
 
+  /**
+   * Called when no events have been received within the configured keep-alive interval. This
+   * corresponds to the SSE keep-alive comment sent to emitter-based subscribers.
+   */
   void onKeepAlive();
 
+  /**
+   * Called when the stream is gracefully closed via {@link OdysseyStream#close()}. After this
+   * callback, no further events will be delivered to this handler.
+   */
   void onComplete();
 
+  /**
+   * Called when an error occurs during event delivery.
+   *
+   * @param e the exception that occurred
+   */
   void onError(Exception e);
 }

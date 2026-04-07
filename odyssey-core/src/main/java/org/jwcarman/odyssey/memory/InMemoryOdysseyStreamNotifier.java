@@ -20,7 +20,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import org.jwcarman.odyssey.spi.NotificationHandler;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 
+/**
+ * In-memory implementation of {@link OdysseyStreamNotifier} that delivers notifications directly
+ * within the same JVM. Suitable for single-node environments and testing only; does not support
+ * cross-node notification.
+ */
 public class InMemoryOdysseyStreamNotifier implements OdysseyStreamNotifier {
+
+  /** Creates a new in-memory stream notifier. */
+  public InMemoryOdysseyStreamNotifier() {}
 
   private final List<NotificationHandler> handlers = new CopyOnWriteArrayList<>();
 

@@ -15,8 +15,22 @@
  */
 package org.jwcarman.odyssey.spi;
 
+/**
+ * Functional interface for receiving event notifications from an {@link OdysseyStreamNotifier}.
+ * Implementations are invoked on the notifier's managed thread(s) and should return quickly without
+ * performing I/O. Typically, the handler looks up local subscribers for the given stream key and
+ * nudges them to read new events from the event log.
+ *
+ * @see OdysseyStreamNotifier#subscribe(NotificationHandler)
+ */
 @FunctionalInterface
 public interface NotificationHandler {
 
+  /**
+   * Called when a new event has been appended to a stream.
+   *
+   * @param streamKey the stream that received the new event
+   * @param eventId the ID of the newly appended event
+   */
   void onNotification(String streamKey, String eventId);
 }

@@ -25,6 +25,11 @@ import java.util.stream.Stream;
 import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.spi.AbstractOdysseyEventLog;
 
+/**
+ * In-memory implementation of {@link org.jwcarman.odyssey.spi.OdysseyEventLog} backed by a {@link
+ * ConcurrentHashMap}. Suitable for single-node environments and testing only; events do not survive
+ * restarts.
+ */
 public class InMemoryOdysseyEventLog extends AbstractOdysseyEventLog {
 
   private static final int DEFAULT_MAX_LEN = 100_000;
@@ -33,10 +38,16 @@ public class InMemoryOdysseyEventLog extends AbstractOdysseyEventLog {
   private final int maxLen;
   private final AtomicLong counter = new AtomicLong(0);
 
+  /** Creates an in-memory event log with the default maximum stream length (100,000 events). */
   public InMemoryOdysseyEventLog() {
     this(DEFAULT_MAX_LEN);
   }
 
+  /**
+   * Creates an in-memory event log with the specified maximum stream length.
+   *
+   * @param maxLen the maximum number of events to retain per stream
+   */
   public InMemoryOdysseyEventLog(int maxLen) {
     super("ephemeral:", "channel:", "broadcast:");
     this.maxLen = maxLen;
