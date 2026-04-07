@@ -23,7 +23,6 @@
     <artifactId>odyssey-redis-spring-boot-starter</artifactId>
     <name>Odyssey Redis Spring Boot Starter</name>
     <description>Odyssey SSE with Redis (Streams + Pub/Sub) — one dependency</description>
-    <packaging>pom</packaging>
     <dependencies>
         <dependency>
             <groupId>org.jwcarman.odyssey</groupId>

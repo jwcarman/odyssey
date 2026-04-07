@@ -23,7 +23,6 @@
     <artifactId>odyssey-inmemory-spring-boot-starter</artifactId>
     <name>Odyssey In-Memory Spring Boot Starter</name>
     <description>Odyssey SSE with in-memory storage — zero infrastructure, one dependency</description>
-    <packaging>pom</packaging>
     <dependencies>
         <dependency>
             <groupId>org.jwcarman.odyssey</groupId>

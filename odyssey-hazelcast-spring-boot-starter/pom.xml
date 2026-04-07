@@ -23,7 +23,6 @@
     <artifactId>odyssey-hazelcast-spring-boot-starter</artifactId>
     <name>Odyssey Hazelcast Spring Boot Starter</name>
     <description>Odyssey SSE with Hazelcast (Ringbuffer + ITopic) — one dependency</description>
-    <packaging>pom</packaging>
     <dependencies>
         <dependency>
             <groupId>org.jwcarman.odyssey</groupId>

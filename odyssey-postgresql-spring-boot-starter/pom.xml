@@ -23,7 +23,6 @@
     <artifactId>odyssey-postgresql-spring-boot-starter</artifactId>
     <name>Odyssey PostgreSQL Spring Boot Starter</name>
     <description>Odyssey SSE with PostgreSQL (table + LISTEN/NOTIFY) — one dependency</description>
-    <packaging>pom</packaging>
     <dependencies>
         <dependency>
             <groupId>org.jwcarman.odyssey</groupId>

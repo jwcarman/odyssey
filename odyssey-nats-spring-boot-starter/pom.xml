@@ -23,7 +23,6 @@
     <artifactId>odyssey-nats-spring-boot-starter</artifactId>
     <name>Odyssey NATS Spring Boot Starter</name>
     <description>Odyssey SSE with NATS (JetStream + Core) — one dependency</description>
-    <packaging>pom</packaging>
     <dependencies>
         <dependency>
             <groupId>org.jwcarman.odyssey</groupId>

@@ -48,7 +48,7 @@ Pick a starter for your infrastructure:
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-redis-spring-boot-starter</artifactId>
     <version>0.1.0</version>
-    <type>pom</type>
+
 </dependency>
 ```
 
@@ -58,7 +58,7 @@ Pick a starter for your infrastructure:
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-inmemory-spring-boot-starter</artifactId>
     <version>0.1.0</version>
-    <type>pom</type>
+
 </dependency>
 ```
 
