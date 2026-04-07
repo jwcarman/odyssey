@@ -195,19 +195,18 @@ return stream.resumeAfter(lastEventId);
 
 ## Architecture
 
-Each subscriber gets two virtual threads and a `BlockingQueue`:
+Each subscriber gets one virtual writer thread that polls a
+[Substrate](https://github.com/jwcarman/substrate) `JournalCursor`:
 
 ```
-[Pub/Sub Notification] → Semaphore → [Reader Thread] → BlockingQueue → [Writer Thread] → SseEmitter
+[Substrate: Notifier → Semaphore → Reader Thread → Queue] → JournalCursor.poll() → [Odyssey Writer Thread] → SseEmitter
 ```
 
-- **Reader thread**: wakes on semaphore nudge, reads from the event log, offers events
-  to the queue
-- **Writer thread**: polls the queue, sends events to the `SseEmitter`, sends keep-alive
-  on timeout
-
-The Pub/Sub notification listener does zero I/O -- it just releases semaphores. All
-event log reads happen on the reader thread via the shared connection.
+- **Substrate** handles storage reads, notification listening, and cursor management
+  internally — Odyssey doesn't manage reader threads, semaphores, or queues
+- **Writer thread** (Odyssey): polls `cursor.poll(keepAliveInterval)`, sends events
+  to the `SseEmitter`, sends keep-alive comments on timeout, handles cleanup on
+  disconnect
 
 ## Backend Support
 
