@@ -17,36 +17,43 @@ package org.jwcarman.odyssey.engine;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.jwcarman.codec.jackson.JacksonCodecFactory;
 import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.core.OdysseyStream;
-import org.jwcarman.odyssey.memory.InMemoryOdysseyEventLog;
-import org.jwcarman.odyssey.memory.InMemoryOdysseyStreamNotifier;
+import org.jwcarman.substrate.core.Journal;
+import org.jwcarman.substrate.core.JournalEntry;
+import org.jwcarman.substrate.core.JournalFactory;
+import org.jwcarman.substrate.memory.InMemoryJournalSpi;
+import org.jwcarman.substrate.memory.InMemoryNotifier;
 import tools.jackson.databind.ObjectMapper;
 
 class InMemoryEndToEndTest {
 
   private static final long KEEP_ALIVE_INTERVAL = 500;
   private static final long SSE_TIMEOUT = 0;
-  private static final int MAX_LAST_N = 500;
 
-  private InMemoryOdysseyEventLog eventLog;
-  private InMemoryOdysseyStreamNotifier notifier;
+  private InMemoryJournalSpi journalSpi;
+  private InMemoryNotifier notifier;
+  private JournalFactory journalFactory;
   private DefaultOdysseyStreamRegistry registry;
 
   @BeforeEach
   void setUp() {
-    eventLog = new InMemoryOdysseyEventLog(100);
-    notifier = new InMemoryOdysseyStreamNotifier();
+    ObjectMapper objectMapper = new ObjectMapper();
+    journalSpi = new InMemoryJournalSpi(100);
+    notifier = new InMemoryNotifier();
+    journalFactory =
+        new JournalFactory(journalSpi, new JacksonCodecFactory(objectMapper), notifier);
     registry =
         new DefaultOdysseyStreamRegistry(
-            eventLog, notifier, KEEP_ALIVE_INTERVAL, SSE_TIMEOUT, MAX_LAST_N, new ObjectMapper());
+            journalFactory, objectMapper, KEEP_ALIVE_INTERVAL, SSE_TIMEOUT);
   }
 
   @AfterEach
@@ -55,60 +62,14 @@ class InMemoryEndToEndTest {
   }
 
   @Test
-  void publishStoresEventsInEventLog() {
+  void publishStoresEventsInJournal() {
     OdysseyStream stream = registry.channel("test");
-    String streamKey = stream.getStreamKey();
+    String id1 = stream.publishRaw("greeting", "hello");
+    String id2 = stream.publishRaw("greeting", "world");
 
-    stream.publishRaw("greeting", "hello");
-    stream.publishRaw("greeting", "world");
-
-    List<OdysseyEvent> events = eventLog.readAfter(streamKey, "0-0").toList();
-    assertEquals(2, events.size());
-    assertEquals("hello", events.get(0).payload());
-    assertEquals("world", events.get(1).payload());
-  }
-
-  @Test
-  void publishTriggersNotificationToRegisteredHandlers() {
-    List<String> notifications = new ArrayList<>();
-    notifier.subscribe((streamKey, eventId) -> notifications.add(streamKey));
-
-    OdysseyStream stream = registry.channel("test");
-    String streamKey = stream.getStreamKey();
-    stream.publishRaw("msg", "data");
-
-    assertTrue(notifications.stream().anyMatch(k -> k.equals(streamKey)));
-  }
-
-  @Test
-  void resumeAfterReplaysStoredEvents() {
-    OdysseyStream stream = registry.channel("test");
-    String streamKey = stream.getStreamKey();
-    String id1 = stream.publishRaw("msg", "first");
-    stream.publishRaw("msg", "second");
-    stream.publishRaw("msg", "third");
-
-    List<OdysseyEvent> events = eventLog.readAfter(streamKey, id1).toList();
-
-    assertEquals(2, events.size());
-    assertEquals("second", events.get(0).payload());
-    assertEquals("third", events.get(1).payload());
-  }
-
-  @Test
-  void replayLastReturnsLastNEvents() {
-    OdysseyStream stream = registry.channel("test");
-    String streamKey = stream.getStreamKey();
-    stream.publishRaw("msg", "a");
-    stream.publishRaw("msg", "b");
-    stream.publishRaw("msg", "c");
-    stream.publishRaw("msg", "d");
-
-    List<OdysseyEvent> events = eventLog.readLast(streamKey, 2).toList();
-
-    assertEquals(2, events.size());
-    assertEquals("c", events.get(0).payload());
-    assertEquals("d", events.get(1).payload());
+    assertNotNull(id1);
+    assertNotNull(id2);
+    assertNotEquals(id1, id2);
   }
 
   @Test
@@ -126,8 +87,8 @@ class InMemoryEndToEndTest {
     OdysseyStream s2 = registry.ephemeral();
 
     assertNotEquals(s1.getStreamKey(), s2.getStreamKey());
-    assertTrue(s1.getStreamKey().startsWith("ephemeral:"));
-    assertTrue(s2.getStreamKey().startsWith("ephemeral:"));
+    assertTrue(s1.getStreamKey().contains("ephemeral:"));
+    assertTrue(s2.getStreamKey().contains("ephemeral:"));
 
     s1.close();
     s2.close();
@@ -139,7 +100,7 @@ class InMemoryEndToEndTest {
     OdysseyStream s2 = registry.channel("same");
 
     assertEquals(s1.getStreamKey(), s2.getStreamKey());
-    assertEquals("channel:same", s1.getStreamKey());
+    assertTrue(s1.getStreamKey().contains("channel:same"));
 
     s1.close();
   }
@@ -150,31 +111,58 @@ class InMemoryEndToEndTest {
     OdysseyStream s2 = registry.broadcast("news");
 
     assertEquals(s1.getStreamKey(), s2.getStreamKey());
-    assertEquals("broadcast:news", s1.getStreamKey());
+    assertTrue(s1.getStreamKey().contains("broadcast:news"));
 
     s1.close();
   }
 
   @Test
-  void deleteRemovesEventsFromLog() {
+  void publishAndReadThroughJournal() {
     OdysseyStream stream = registry.channel("test");
-    String streamKey = stream.getStreamKey();
+    String id1 = stream.publishRaw("msg", "hello");
+    String id2 = stream.publishRaw("msg", "world");
+
+    Journal<OdysseyEvent> journal = journalFactory.create("channel:test", OdysseyEvent.class);
+    var cursor = journal.readAfter(id1);
+    Optional<JournalEntry<OdysseyEvent>> entry = cursor.poll(Duration.ofSeconds(2));
+    assertTrue(entry.isPresent());
+    assertEquals("world", entry.get().data().payload());
+    cursor.close();
+  }
+
+  @Test
+  void replayLastReadsThroughJournal() {
+    OdysseyStream stream = registry.channel("test");
+    stream.publishRaw("msg", "a");
+    stream.publishRaw("msg", "b");
+    stream.publishRaw("msg", "c");
+    stream.publishRaw("msg", "d");
+
+    Journal<OdysseyEvent> journal = journalFactory.create("channel:test", OdysseyEvent.class);
+    var cursor = journal.readLast(2);
+    List<String> payloads = new ArrayList<>();
+    for (int i = 0; i < 2; i++) {
+      Optional<JournalEntry<OdysseyEvent>> entry = cursor.poll(Duration.ofSeconds(2));
+      entry.ifPresent(e -> payloads.add(e.data().payload()));
+    }
+    cursor.close();
+
+    assertEquals(2, payloads.size());
+    assertEquals("c", payloads.get(0));
+    assertEquals("d", payloads.get(1));
+  }
+
+  @Test
+  void deleteRemovesJournal() {
+    OdysseyStream stream = registry.channel("test");
     stream.publishRaw("msg", "hello");
 
     stream.delete();
 
-    List<OdysseyEvent> events = eventLog.readAfter(streamKey, "0-0").toList();
-    assertTrue(events.isEmpty());
-  }
-
-  @Test
-  void notificationFlowConnectsPublishToSubscriberNudge() throws InterruptedException {
-    CountDownLatch latch = new CountDownLatch(1);
-    notifier.subscribe((streamKey, eventId) -> latch.countDown());
-
-    OdysseyStream stream = registry.channel("test");
-    stream.publishRaw("msg", "trigger");
-
-    assertTrue(latch.await(2, TimeUnit.SECONDS));
+    Journal<OdysseyEvent> journal = journalFactory.create("channel:test", OdysseyEvent.class);
+    var cursor = journal.readLast(10);
+    Optional<JournalEntry<OdysseyEvent>> entry = cursor.poll(Duration.ofMillis(200));
+    assertFalse(entry.isPresent());
+    cursor.close();
   }
 }

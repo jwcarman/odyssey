@@ -20,16 +20,13 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Map;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.odyssey.core.OdysseyEvent;
-import org.jwcarman.odyssey.spi.OdysseyEventLog;
-import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
+import org.jwcarman.substrate.core.Journal;
+import org.jwcarman.substrate.core.JournalCursor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.ObjectMapper;
@@ -37,27 +34,22 @@ import tools.jackson.databind.ObjectMapper;
 @ExtendWith(MockitoExtension.class)
 class DefaultOdysseyStreamTest {
 
-  private static final String STREAM_KEY = "odyssey:channel:test";
+  private static final String STREAM_KEY = "substrate:journal:channel:test";
   private static final long KEEP_ALIVE = 30_000;
   private static final long SSE_TIMEOUT = 0;
-  private static final int MAX_LAST_N = 500;
 
-  @Mock private OdysseyEventLog eventLog;
-  @Mock private OdysseyStreamNotifier notifier;
+  @Mock private Journal<OdysseyEvent> journal;
+  @Mock private JournalCursor<OdysseyEvent> cursor;
 
-  private StreamSubscriberGroup subscriberGroup;
   private DefaultOdysseyStream stream;
 
   @BeforeEach
   void setUp() {
-    subscriberGroup = spy(new StreamSubscriberGroup());
+    lenient().when(journal.key()).thenReturn(STREAM_KEY);
     stream =
         new DefaultOdysseyStream(
-            STREAM_KEY,
-            eventLog,
-            notifier,
-            subscriberGroup,
-            new DefaultOdysseyStream.StreamConfig(KEEP_ALIVE, SSE_TIMEOUT, MAX_LAST_N),
+            journal,
+            new DefaultOdysseyStream.StreamConfig(KEEP_ALIVE, SSE_TIMEOUT),
             new ObjectMapper());
   }
 
@@ -67,28 +59,30 @@ class DefaultOdysseyStreamTest {
   }
 
   @Test
-  void publishCallsAppendAndNotify() {
-    when(eventLog.append(eq(STREAM_KEY), any(OdysseyEvent.class))).thenReturn("1-0");
+  void publishCallsAppendOnJournal() {
+    when(journal.append(any(OdysseyEvent.class))).thenReturn("1-0");
 
     String entryId = stream.publishRaw("test-event", "{\"data\":1}");
 
     assertEquals("1-0", entryId);
-    verify(eventLog).append(eq(STREAM_KEY), any(OdysseyEvent.class));
-    verify(notifier).notify(STREAM_KEY, "1-0");
+    verify(journal).append(any(OdysseyEvent.class));
   }
 
   @Test
   void subscribeReturnsEmitter() {
-    lenient().when(eventLog.readLast(STREAM_KEY, 1)).thenReturn(Stream.empty());
+    when(journal.read()).thenReturn(cursor);
+    lenient().when(cursor.isOpen()).thenReturn(false);
 
     var emitter = stream.subscribe();
 
     assertNotNull(emitter);
+    verify(journal).read();
   }
 
   @Test
   void subscribeWithTimeoutReturnsEmitter() {
-    lenient().when(eventLog.readLast(STREAM_KEY, 1)).thenReturn(Stream.empty());
+    when(journal.read()).thenReturn(cursor);
+    lenient().when(cursor.isOpen()).thenReturn(false);
 
     var emitter = stream.subscribe(Duration.ofSeconds(60));
 
@@ -96,26 +90,19 @@ class DefaultOdysseyStreamTest {
   }
 
   @Test
-  void subscribeQueriesCurrentLastId() {
-    when(eventLog.readLast(STREAM_KEY, 1)).thenReturn(Stream.empty());
-
-    stream.subscribe();
-
-    verify(eventLog).readLast(STREAM_KEY, 1);
-  }
-
-  @Test
-  void resumeAfterCallsReadAfter() {
-    when(eventLog.readAfter(STREAM_KEY, "5-0")).thenReturn(Stream.empty());
+  void resumeAfterCallsReadAfterOnJournal() {
+    when(journal.readAfter("5-0")).thenReturn(cursor);
+    lenient().when(cursor.isOpen()).thenReturn(false);
 
     stream.resumeAfter("5-0");
 
-    verify(eventLog).readAfter(STREAM_KEY, "5-0");
+    verify(journal).readAfter("5-0");
   }
 
   @Test
   void resumeAfterReturnsEmitter() {
-    when(eventLog.readAfter(STREAM_KEY, "5-0")).thenReturn(Stream.empty());
+    when(journal.readAfter("5-0")).thenReturn(cursor);
+    lenient().when(cursor.isOpen()).thenReturn(false);
 
     var emitter = stream.resumeAfter("5-0");
 
@@ -124,7 +111,8 @@ class DefaultOdysseyStreamTest {
 
   @Test
   void resumeAfterWithTimeoutReturnsEmitter() {
-    when(eventLog.readAfter(STREAM_KEY, "5-0")).thenReturn(Stream.empty());
+    when(journal.readAfter("5-0")).thenReturn(cursor);
+    lenient().when(cursor.isOpen()).thenReturn(false);
 
     var emitter = stream.resumeAfter("5-0", Duration.ofSeconds(60));
 
@@ -132,41 +120,19 @@ class DefaultOdysseyStreamTest {
   }
 
   @Test
-  void resumeAfterReplaysEventsFromReadAfter() {
-    OdysseyEvent evt1 = testEvent("6-0", "evt1", "p1");
-    OdysseyEvent evt2 = testEvent("7-0", "evt2", "p2");
-    when(eventLog.readAfter(STREAM_KEY, "5-0")).thenReturn(Stream.of(evt1, evt2));
-
-    var emitter = stream.resumeAfter("5-0");
-
-    assertNotNull(emitter);
-    verify(eventLog).readAfter(STREAM_KEY, "5-0");
-  }
-
-  @Test
-  void replayLastCallsReadLast() {
-    when(eventLog.readLast(STREAM_KEY, 10)).thenReturn(Stream.empty());
-    when(eventLog.readLast(STREAM_KEY, 1)).thenReturn(Stream.empty());
+  void replayLastCallsReadLastOnJournal() {
+    when(journal.readLast(10)).thenReturn(cursor);
+    lenient().when(cursor.isOpen()).thenReturn(false);
 
     stream.replayLast(10);
 
-    verify(eventLog).readLast(STREAM_KEY, 10);
-  }
-
-  @Test
-  void replayLastCapsCountAtMaxLastN() {
-    when(eventLog.readLast(STREAM_KEY, MAX_LAST_N)).thenReturn(Stream.empty());
-    when(eventLog.readLast(STREAM_KEY, 1)).thenReturn(Stream.empty());
-
-    stream.replayLast(1000);
-
-    verify(eventLog).readLast(STREAM_KEY, MAX_LAST_N);
+    verify(journal).readLast(10);
   }
 
   @Test
   void replayLastReturnsEmitter() {
-    when(eventLog.readLast(STREAM_KEY, 5)).thenReturn(Stream.empty());
-    when(eventLog.readLast(STREAM_KEY, 1)).thenReturn(Stream.empty());
+    when(journal.readLast(5)).thenReturn(cursor);
+    lenient().when(cursor.isOpen()).thenReturn(false);
 
     var emitter = stream.replayLast(5);
 
@@ -175,8 +141,8 @@ class DefaultOdysseyStreamTest {
 
   @Test
   void replayLastWithTimeoutReturnsEmitter() {
-    when(eventLog.readLast(STREAM_KEY, 5)).thenReturn(Stream.empty());
-    when(eventLog.readLast(STREAM_KEY, 1)).thenReturn(Stream.empty());
+    when(journal.readLast(5)).thenReturn(cursor);
+    lenient().when(cursor.isOpen()).thenReturn(false);
 
     var emitter = stream.replayLast(5, Duration.ofSeconds(60));
 
@@ -184,94 +150,53 @@ class DefaultOdysseyStreamTest {
   }
 
   @Test
-  void closeShutsFanoutGracefully() {
+  void closeCompletesJournal() {
     stream.close();
 
-    verify(subscriberGroup).shutdown();
+    verify(journal).complete();
   }
 
   @Test
-  void deleteShutsFanoutImmediatelyAndDeletesFromEventLog() {
+  void deleteDeletesJournal() {
     stream.delete();
 
-    verify(subscriberGroup).shutdownImmediately();
-    verify(eventLog).delete(STREAM_KEY);
+    verify(journal).delete();
   }
 
   @Test
-  void publishRawWithoutEventTypeCallsAppendAndNotify() {
-    when(eventLog.append(eq(STREAM_KEY), any(OdysseyEvent.class))).thenReturn("3-0");
+  void publishRawWithoutEventTypeCallsAppend() {
+    when(journal.append(any(OdysseyEvent.class))).thenReturn("3-0");
 
     String entryId = stream.publishRaw("{\"data\":1}");
 
     assertEquals("3-0", entryId);
-    verify(eventLog)
+    verify(journal)
         .append(
-            eq(STREAM_KEY),
             argThat(event -> event.eventType() == null && event.payload().equals("{\"data\":1}")));
-    verify(notifier).notify(STREAM_KEY, "3-0");
-  }
-
-  @Test
-  void publishJsonWithoutEventTypeSerializesAndPublishes() {
-    when(eventLog.append(eq(STREAM_KEY), any(OdysseyEvent.class))).thenReturn("4-0");
-
-    String entryId = stream.publishJson(Map.of("key", "value"));
-
-    assertEquals("4-0", entryId);
-    verify(eventLog)
-        .append(
-            eq(STREAM_KEY), argThat(event -> event.eventType() == null && event.payload() != null));
-    verify(notifier).notify(STREAM_KEY, "4-0");
   }
 
   @Test
   void publishJsonSerializesAndPublishes() {
-    when(eventLog.append(eq(STREAM_KEY), any(OdysseyEvent.class))).thenReturn("2-0");
+    when(journal.append(any(OdysseyEvent.class))).thenReturn("2-0");
 
-    String entryId = stream.publishJson("test-event", Map.of("key", "value"));
+    String entryId = stream.publishJson("test-event", java.util.Map.of("key", "value"));
 
     assertEquals("2-0", entryId);
-    verify(eventLog).append(eq(STREAM_KEY), any(OdysseyEvent.class));
-    verify(notifier).notify(STREAM_KEY, "2-0");
+    verify(journal).append(any(OdysseyEvent.class));
   }
 
   @Test
-  void replayLastWithEventsUsesLastEventId() {
-    OdysseyEvent evt1 = testEvent("8-0", "evt1", "p1");
-    OdysseyEvent evt2 = testEvent("9-0", "evt2", "p2");
-    when(eventLog.readLast(STREAM_KEY, 5)).thenReturn(Stream.of(evt1, evt2));
+  void publishJsonWithoutEventTypeSerializesAndPublishes() {
+    when(journal.append(any(OdysseyEvent.class))).thenReturn("4-0");
 
-    var emitter = stream.replayLast(5);
+    String entryId = stream.publishJson(java.util.Map.of("key", "value"));
 
-    assertNotNull(emitter);
-    verify(eventLog).readLast(STREAM_KEY, 5);
+    assertEquals("4-0", entryId);
+    verify(journal).append(argThat(event -> event.eventType() == null && event.payload() != null));
   }
 
   @Test
-  void replayLastWithCountGreaterThanMaxLastNCapsAndUsesLastEventId() {
-    OdysseyEvent evt = testEvent("10-0", "evt", "p");
-    when(eventLog.readLast(STREAM_KEY, MAX_LAST_N)).thenReturn(Stream.of(evt));
-
-    var emitter = stream.replayLast(MAX_LAST_N + 100);
-
-    assertNotNull(emitter);
-    verify(eventLog).readLast(STREAM_KEY, MAX_LAST_N);
-  }
-
-  @Test
-  void getStreamKeyReturnsKey() {
+  void getStreamKeyReturnsJournalKey() {
     assertEquals(STREAM_KEY, stream.getStreamKey());
-  }
-
-  private static OdysseyEvent testEvent(String id, String eventType, String payload) {
-    return OdysseyEvent.builder()
-        .id(id)
-        .streamKey(STREAM_KEY)
-        .eventType(eventType)
-        .payload(payload)
-        .timestamp(Instant.now())
-        .metadata(Map.of())
-        .build();
   }
 }

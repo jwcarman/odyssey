@@ -26,16 +26,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <ul>
  *   <li>{@code odyssey.keep-alive-interval} — {@code 30s}
  *   <li>{@code odyssey.sse-timeout} — {@code 0} (no timeout)
- *   <li>{@code odyssey.max-last-n} — {@code 500}
  * </ul>
  *
  * @param keepAliveInterval the interval between keep-alive comments sent to SSE subscribers and the
- *     poll timeout for reader threads (default 30 seconds)
+ *     poll timeout for cursor reads (default 30 seconds)
  * @param sseTimeout the {@link org.springframework.web.servlet.mvc.method.annotation.SseEmitter}
  *     timeout; {@link Duration#ZERO} means no timeout (default no timeout)
- * @param maxLastN the maximum number of events that {@link
- *     org.jwcarman.odyssey.core.OdysseyStream#replayLast(int)} will return, regardless of the
- *     requested count (default 500)
  */
 @ConfigurationProperties(prefix = "odyssey")
-public record OdysseyProperties(Duration keepAliveInterval, Duration sseTimeout, int maxLastN) {}
+public record OdysseyProperties(Duration keepAliveInterval, Duration sseTimeout) {}

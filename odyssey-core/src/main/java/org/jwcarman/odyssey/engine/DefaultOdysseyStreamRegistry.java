@@ -15,80 +15,64 @@
  */
 package org.jwcarman.odyssey.engine;
 
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.core.OdysseyStream;
 import org.jwcarman.odyssey.core.OdysseyStreamRegistry;
-import org.jwcarman.odyssey.spi.OdysseyEventLog;
-import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
+import org.jwcarman.substrate.core.Journal;
+import org.jwcarman.substrate.core.JournalFactory;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Default implementation of {@link OdysseyStreamRegistry} that coordinates an {@link
- * OdysseyEventLog} and {@link OdysseyStreamNotifier} to provide stream lifecycle management.
+ * Default implementation of {@link OdysseyStreamRegistry} that uses a {@link JournalFactory} to
+ * create journals for each stream.
  */
 public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
 
-  private final OdysseyEventLog eventLog;
-  private final OdysseyStreamNotifier notifier;
+  private final JournalFactory journalFactory;
+  private final ObjectMapper objectMapper;
   private final long keepAliveInterval;
   private final long defaultSseTimeout;
-  private final int maxLastN;
-  private final ObjectMapper objectMapper;
 
   private final ConcurrentMap<String, DefaultOdysseyStream> cache = new ConcurrentHashMap<>();
-  private final ConcurrentMap<String, StreamSubscriberGroup> subscriberGroups =
-      new ConcurrentHashMap<>();
 
   /**
    * Creates a new registry.
    *
-   * @param eventLog the event log for storing and retrieving events
-   * @param notifier the notifier for cross-node event notifications
+   * @param journalFactory the factory for creating journals
+   * @param objectMapper the Jackson object mapper for JSON serialization
    * @param keepAliveInterval the keep-alive interval in milliseconds
    * @param defaultSseTimeout the default SSE emitter timeout in milliseconds
-   * @param maxLastN the maximum number of events for replay-last operations
-   * @param objectMapper the Jackson object mapper for JSON serialization
    */
   public DefaultOdysseyStreamRegistry(
-      OdysseyEventLog eventLog,
-      OdysseyStreamNotifier notifier,
+      JournalFactory journalFactory,
+      ObjectMapper objectMapper,
       long keepAliveInterval,
-      long defaultSseTimeout,
-      int maxLastN,
-      ObjectMapper objectMapper) {
-    this.eventLog = eventLog;
-    this.notifier = notifier;
+      long defaultSseTimeout) {
+    this.journalFactory = journalFactory;
+    this.objectMapper = objectMapper;
     this.keepAliveInterval = keepAliveInterval;
     this.defaultSseTimeout = defaultSseTimeout;
-    this.maxLastN = maxLastN;
-    this.objectMapper = objectMapper;
-
-    notifier.subscribe(
-        (streamKey, eventId) -> {
-          StreamSubscriberGroup group = subscriberGroups.get(streamKey);
-          if (group != null && group.hasSubscribers()) {
-            group.nudgeAll();
-          }
-        });
   }
 
   @Override
   public OdysseyStream ephemeral() {
-    String streamKey = eventLog.ephemeralKey();
-    return createStream(streamKey);
+    String name = "ephemeral:" + UUID.randomUUID();
+    return createStream(name);
   }
 
   @Override
   public OdysseyStream channel(String name) {
-    String streamKey = eventLog.channelKey(name);
-    return cache.computeIfAbsent(streamKey, this::createStream);
+    String key = "channel:" + name;
+    return cache.computeIfAbsent(key, this::createStream);
   }
 
   @Override
   public OdysseyStream broadcast(String name) {
-    String streamKey = eventLog.broadcastKey(name);
-    return cache.computeIfAbsent(streamKey, this::createStream);
+    String key = "broadcast:" + name;
+    return cache.computeIfAbsent(key, this::createStream);
   }
 
   @Override
@@ -96,15 +80,11 @@ public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
     return cache.computeIfAbsent(streamKey, this::createStream);
   }
 
-  private DefaultOdysseyStream createStream(String streamKey) {
-    StreamSubscriberGroup group = new StreamSubscriberGroup();
-    subscriberGroups.put(streamKey, group);
+  private DefaultOdysseyStream createStream(String name) {
+    Journal<OdysseyEvent> journal = journalFactory.create(name, OdysseyEvent.class);
     return new DefaultOdysseyStream(
-        streamKey,
-        eventLog,
-        notifier,
-        group,
-        new DefaultOdysseyStream.StreamConfig(keepAliveInterval, defaultSseTimeout, maxLastN),
+        journal,
+        new DefaultOdysseyStream.StreamConfig(keepAliveInterval, defaultSseTimeout),
         objectMapper);
   }
 }

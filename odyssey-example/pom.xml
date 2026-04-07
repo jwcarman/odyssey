@@ -31,18 +31,6 @@
     <name>Odyssey Example Application</name>
     <description>Example Spring Boot application demonstrating Odyssey</description>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.jwcarman.odyssey</groupId>
-                <artifactId>odyssey-bom</artifactId>
-                <version>${project.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -51,14 +39,15 @@
         <dependency>
             <groupId>org.jwcarman.odyssey</groupId>
             <artifactId>odyssey-core</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.jwcarman.odyssey</groupId>
-            <artifactId>odyssey-eventlog-redis</artifactId>
+            <groupId>org.jwcarman.substrate</groupId>
+            <artifactId>substrate-journal-redis</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.jwcarman.odyssey</groupId>
-            <artifactId>odyssey-notifier-redis</artifactId>
+            <groupId>org.jwcarman.substrate</groupId>
+            <artifactId>substrate-notifier-redis</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -19,36 +19,27 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.core.OdysseyStream;
-import org.jwcarman.odyssey.spi.OdysseyEventLog;
-import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
+import org.jwcarman.substrate.core.Journal;
+import org.jwcarman.substrate.core.JournalCursor;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import tools.jackson.databind.ObjectMapper;
 
 class DefaultOdysseyStream implements OdysseyStream {
 
-  record StreamConfig(long keepAliveInterval, long defaultSseTimeout, int maxLastN) {}
+  record StreamConfig(long keepAliveInterval, long defaultSseTimeout) {}
 
-  private final String streamKey;
-  private final OdysseyEventLog eventLog;
-  private final OdysseyStreamNotifier notifier;
-  private final StreamSubscriberGroup subscriberGroup;
+  private final Journal<OdysseyEvent> journal;
   private final StreamConfig config;
   private final ObjectMapper objectMapper;
+  private final List<StreamSubscription> activeSubscriptions = new CopyOnWriteArrayList<>();
 
   DefaultOdysseyStream(
-      String streamKey,
-      OdysseyEventLog eventLog,
-      OdysseyStreamNotifier notifier,
-      StreamSubscriberGroup subscriberGroup,
-      StreamConfig config,
-      ObjectMapper objectMapper) {
-    this.streamKey = streamKey;
-    this.eventLog = eventLog;
-    this.notifier = notifier;
-    this.subscriberGroup = subscriberGroup;
+      Journal<OdysseyEvent> journal, StreamConfig config, ObjectMapper objectMapper) {
+    this.journal = journal;
     this.config = config;
     this.objectMapper = objectMapper;
   }
@@ -62,15 +53,12 @@ class DefaultOdysseyStream implements OdysseyStream {
   public String publishRaw(String eventType, String payload) {
     OdysseyEvent event =
         OdysseyEvent.builder()
-            .streamKey(streamKey)
             .eventType(eventType)
             .payload(payload)
             .timestamp(Instant.now())
             .metadata(Map.of())
             .build();
-    String entryId = eventLog.append(streamKey, event);
-    notifier.notify(streamKey, entryId);
-    return entryId;
+    return journal.append(event);
   }
 
   @Override
@@ -91,8 +79,8 @@ class DefaultOdysseyStream implements OdysseyStream {
 
   @Override
   public SseEmitter subscribe(Duration timeout) {
-    String lastId = getCurrentLastId();
-    return createSubscription(lastId, timeout, List.of());
+    JournalCursor<OdysseyEvent> cursor = journal.read();
+    return createSubscription(cursor, timeout);
   }
 
   @Override
@@ -102,9 +90,8 @@ class DefaultOdysseyStream implements OdysseyStream {
 
   @Override
   public SseEmitter resumeAfter(String lastEventId, Duration timeout) {
-    List<OdysseyEvent> replayEvents = eventLog.readAfter(streamKey, lastEventId).toList();
-    String lastId = replayEvents.isEmpty() ? lastEventId : replayEvents.getLast().id();
-    return createSubscription(lastId, timeout, replayEvents);
+    JournalCursor<OdysseyEvent> cursor = journal.readAfter(lastEventId);
+    return createSubscription(cursor, timeout);
   }
 
   @Override
@@ -114,58 +101,45 @@ class DefaultOdysseyStream implements OdysseyStream {
 
   @Override
   public SseEmitter replayLast(int count, Duration timeout) {
-    int cappedCount = Math.min(count, config.maxLastN());
-    List<OdysseyEvent> replayEvents = eventLog.readLast(streamKey, cappedCount).toList();
-    String lastId = replayEvents.isEmpty() ? getCurrentLastId() : replayEvents.getLast().id();
-    return createSubscription(lastId, timeout, replayEvents);
+    JournalCursor<OdysseyEvent> cursor = journal.readLast(count);
+    return createSubscription(cursor, timeout);
   }
 
   @Override
   public void close() {
-    subscriberGroup.shutdown();
+    journal.complete();
   }
 
   @Override
   public void delete() {
-    subscriberGroup.shutdownImmediately();
-    eventLog.delete(streamKey);
+    for (StreamSubscription sub : activeSubscriptions) {
+      sub.close();
+    }
+    journal.delete();
   }
 
   @Override
   public String getStreamKey() {
-    return streamKey;
+    return journal.key();
   }
 
-  private String getCurrentLastId() {
-    List<OdysseyEvent> latest = eventLog.readLast(streamKey, 1).toList();
-    return latest.isEmpty() ? "0-0" : latest.getFirst().id();
-  }
-
-  private SseEmitter createSubscription(
-      String lastId, Duration timeout, List<OdysseyEvent> replayEvents) {
+  private SseEmitter createSubscription(JournalCursor<OdysseyEvent> cursor, Duration timeout) {
     SseEmitter emitter = new SseEmitter(timeout.toMillis());
-    AtomicReference<StreamSubscriber> subscriberRef = new AtomicReference<>();
+    AtomicReference<StreamSubscription> subscriptionRef = new AtomicReference<>();
     Runnable cleanup =
         () -> {
-          StreamSubscriber s = subscriberRef.get();
-          if (s != null) {
-            subscriberGroup.removeSubscriber(s);
-            s.closeImmediately();
+          StreamSubscription sub = subscriptionRef.get();
+          if (sub != null) {
+            activeSubscriptions.remove(sub);
+            sub.close();
           }
         };
     SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
-    StreamSubscriber subscriber =
-        new StreamSubscriber(eventLog, handler, streamKey, lastId, config.keepAliveInterval());
-    subscriberRef.set(subscriber);
-    subscriberGroup.addSubscriber(subscriber);
-    try {
-      for (OdysseyEvent event : replayEvents) {
-        subscriber.enqueue(event);
-      }
-    } catch (InterruptedException _) {
-      Thread.currentThread().interrupt();
-    }
-    subscriber.start();
+    StreamSubscription subscription =
+        new StreamSubscription(cursor, handler, journal.key(), config.keepAliveInterval());
+    subscriptionRef.set(subscription);
+    activeSubscriptions.add(subscription);
+    subscription.start();
     return emitter;
   }
 }

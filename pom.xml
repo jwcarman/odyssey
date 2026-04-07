@@ -86,24 +86,26 @@
     </properties>
 
     <modules>
-        <module>odyssey-bom</module>
         <module>odyssey-core</module>
-        <module>odyssey-eventlog-redis</module>
-        <module>odyssey-eventlog-postgresql</module>
-        <module>odyssey-eventlog-cassandra</module>
-        <module>odyssey-eventlog-dynamodb</module>
-        <module>odyssey-eventlog-mongodb</module>
-        <module>odyssey-eventlog-rabbitmq</module>
-        <module>odyssey-eventlog-nats</module>
-        <module>odyssey-eventlog-hazelcast</module>
-        <module>odyssey-notifier-redis</module>
-        <module>odyssey-notifier-postgresql</module>
-        <module>odyssey-notifier-nats</module>
-        <module>odyssey-notifier-sns</module>
-        <module>odyssey-notifier-rabbitmq</module>
-        <module>odyssey-notifier-hazelcast</module>
         <module>odyssey-example</module>
     </modules>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.jwcarman.substrate</groupId>
+                <artifactId>substrate-bom</artifactId>
+                <version>1.0.0-SNAPSHOT</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.jwcarman.codec</groupId>
+                <artifactId>codec-jackson</artifactId>
+                <version>1.0.0-SNAPSHOT</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
