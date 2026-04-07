@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.jwcarman.odyssey.spi.NotificationHandler;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 import org.slf4j.Logger;
@@ -56,7 +57,7 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
   private final int sqsMessageRetentionSeconds;
   private final List<NotificationHandler> handlers = new CopyOnWriteArrayList<>();
 
-  private volatile boolean running;
+  private final AtomicBoolean running = new AtomicBoolean(false);
   private volatile String queueUrl;
   private volatile String queueArn;
   private volatile String subscriptionArn;
@@ -153,13 +154,13 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
                 .build());
     subscriptionArn = subscribeResponse.subscriptionArn();
 
+    running.set(true);
     pollerThread = Thread.ofVirtual().name("odyssey-sns-poller").start(this::pollLoop);
-    running = true;
   }
 
   @Override
   public void stop() {
-    running = false;
+    running.set(false);
     if (pollerThread != null) {
       pollerThread.interrupt();
       try {
@@ -190,11 +191,11 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
 
   @Override
   public boolean isRunning() {
-    return running;
+    return running.get();
   }
 
   private void pollLoop() {
-    while (running && !Thread.currentThread().isInterrupted()) {
+    while (running.get() && !Thread.currentThread().isInterrupted()) {
       try {
         ReceiveMessageResponse response =
             sqsClient.receiveMessage(
@@ -226,7 +227,7 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
         sqsClient.deleteMessageBatch(
             DeleteMessageBatchRequest.builder().queueUrl(queueUrl).entries(deleteEntries).build());
       } catch (Exception e) {
-        if (Thread.currentThread().isInterrupted() || !running) {
+        if (Thread.currentThread().isInterrupted() || !running.get()) {
           break;
         }
         log.warn("Error polling SQS queue: {}", e.getMessage());

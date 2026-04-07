@@ -18,6 +18,7 @@ package org.jwcarman.odyssey.notifier.rabbitmq;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.jwcarman.odyssey.spi.NotificationHandler;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 import org.springframework.amqp.core.BindingBuilder;
@@ -40,7 +41,7 @@ public class RabbitMqOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
   private final String exchangeName;
   private final List<NotificationHandler> handlers = new CopyOnWriteArrayList<>();
 
-  private volatile boolean running;
+  private final AtomicBoolean running = new AtomicBoolean(false);
   private volatile SimpleMessageListenerContainer listenerContainer;
 
   public RabbitMqOdysseyStreamNotifier(
@@ -78,12 +79,12 @@ public class RabbitMqOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
     listenerContainer.setMessageListener((MessageListener) this::handleMessage);
     listenerContainer.start();
 
-    running = true;
+    running.set(true);
   }
 
   @Override
   public void stop() {
-    running = false;
+    running.set(false);
     if (listenerContainer != null) {
       listenerContainer.stop();
       listenerContainer = null;
@@ -92,7 +93,7 @@ public class RabbitMqOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
 
   @Override
   public boolean isRunning() {
-    return running;
+    return running.get();
   }
 
   private void handleMessage(Message message) {

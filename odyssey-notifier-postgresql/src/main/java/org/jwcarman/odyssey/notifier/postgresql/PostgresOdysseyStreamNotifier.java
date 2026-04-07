@@ -21,6 +21,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import javax.sql.DataSource;
 import org.jwcarman.odyssey.spi.NotificationHandler;
@@ -45,7 +46,7 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
   private final int pollTimeoutMillis;
   private final List<NotificationHandler> handlers = new CopyOnWriteArrayList<>();
 
-  private volatile boolean running;
+  private final AtomicBoolean running = new AtomicBoolean(false);
   private volatile Thread listenerThread;
   private volatile Connection listenConnection;
 
@@ -82,13 +83,13 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
 
   @Override
   public void start() {
-    running = true;
+    running.set(true);
     listenerThread = Thread.ofVirtual().name("odyssey-pg-listener").start(this::listenLoop);
   }
 
   @Override
   public void stop() {
-    running = false;
+    running.set(false);
     Thread thread = listenerThread;
     if (thread != null) {
       thread.interrupt();
@@ -98,11 +99,11 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
 
   @Override
   public boolean isRunning() {
-    return running;
+    return running.get();
   }
 
   private void listenLoop() {
-    while (running) {
+    while (running.get()) {
       try {
         listenConnection = dataSource.getConnection();
         listenConnection.setAutoCommit(true);
@@ -116,7 +117,7 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
 
         log.info("Listening on PostgreSQL channel '{}'", channel);
 
-        while (running) {
+        while (running.get()) {
           PGNotification[] notifications = pgConnection.getNotifications(pollTimeoutMillis);
           if (notifications != null) {
             for (PGNotification notification : notifications) {
@@ -125,7 +126,7 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
           }
         }
       } catch (SQLException e) {
-        if (running) {
+        if (running.get()) {
           log.warn("PostgreSQL LISTEN connection lost, reconnecting", e);
           closeListenConnection();
           sleepBeforeReconnect();

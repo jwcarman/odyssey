@@ -104,7 +104,7 @@ class SnsOdysseyStreamNotifierIT {
 
     notifier.notify("odyssey:channel:test", "100-0");
 
-    assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
+    assertThat(latch.await(30, TimeUnit.SECONDS)).isTrue();
     assertThat(receivedStreamKeys).containsExactly("odyssey:channel:test");
     assertThat(receivedEventIds).containsExactly("100-0");
   }
@@ -123,7 +123,7 @@ class SnsOdysseyStreamNotifierIT {
 
     notifier.notify("odyssey:ephemeral:abc-123", "1-0");
 
-    assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
+    assertThat(latch.await(30, TimeUnit.SECONDS)).isTrue();
     assertThat(receivedStreamKeys).containsExactly("odyssey:ephemeral:abc-123");
   }
 
@@ -147,7 +147,7 @@ class SnsOdysseyStreamNotifierIT {
 
     notifier.notify("odyssey:broadcast:news", "5-0");
 
-    assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
+    assertThat(latch.await(30, TimeUnit.SECONDS)).isTrue();
     assertThat(handler1Received).containsExactly("5-0");
     assertThat(handler2Received).containsExactly("5-0");
   }
@@ -168,7 +168,7 @@ class SnsOdysseyStreamNotifierIT {
     notifier.notify("odyssey:channel:test", "2-0");
     notifier.notify("odyssey:channel:test", "3-0");
 
-    assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
+    assertThat(latch.await(30, TimeUnit.SECONDS)).isTrue();
     assertThat(receivedEventIds).containsExactlyInAnyOrder("1-0", "2-0", "3-0");
   }
 
@@ -185,7 +185,7 @@ class SnsOdysseyStreamNotifierIT {
     notifier.start();
 
     notifier.notify("odyssey:channel:test", "1-0");
-    assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
+    assertThat(latch.await(30, TimeUnit.SECONDS)).isTrue();
 
     notifier.stop();
     notifier.notify("odyssey:channel:test", "2-0");

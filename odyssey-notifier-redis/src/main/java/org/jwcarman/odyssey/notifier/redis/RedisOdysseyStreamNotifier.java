@@ -20,6 +20,7 @@ import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
 import io.lettuce.core.pubsub.api.sync.RedisPubSubCommands;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.jwcarman.odyssey.spi.NotificationHandler;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 import org.springframework.context.SmartLifecycle;
@@ -34,7 +35,7 @@ public class RedisOdysseyStreamNotifier extends RedisPubSubAdapter<String, Strin
   private final String subscribePattern;
   private final List<NotificationHandler> handlers = new CopyOnWriteArrayList<>();
 
-  private volatile boolean running;
+  private final AtomicBoolean running = new AtomicBoolean(false);
 
   public RedisOdysseyStreamNotifier(
       StatefulRedisPubSubConnection<String, String> pubSubConnection,
@@ -74,18 +75,18 @@ public class RedisOdysseyStreamNotifier extends RedisPubSubAdapter<String, Strin
   public void start() {
     pubSubConnection.addListener(this);
     pubSubCommands.psubscribe(subscribePattern);
-    running = true;
+    running.set(true);
   }
 
   @Override
   public void stop() {
-    running = false;
+    running.set(false);
     pubSubCommands.punsubscribe(subscribePattern);
     pubSubConnection.removeListener(this);
   }
 
   @Override
   public boolean isRunning() {
-    return running;
+    return running.get();
   }
 }

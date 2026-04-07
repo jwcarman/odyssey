@@ -21,6 +21,7 @@ import io.nats.client.Message;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.jwcarman.odyssey.spi.NotificationHandler;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 import org.springframework.context.SmartLifecycle;
@@ -31,7 +32,7 @@ public class NatsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLi
   private final String subjectPrefix;
   private final List<NotificationHandler> handlers = new CopyOnWriteArrayList<>();
 
-  private volatile boolean running;
+  private final AtomicBoolean running = new AtomicBoolean(false);
   private volatile Dispatcher dispatcher;
 
   public NatsOdysseyStreamNotifier(Connection connection, String subjectPrefix) {
@@ -54,12 +55,12 @@ public class NatsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLi
   public void start() {
     dispatcher = connection.createDispatcher(this::handleMessage);
     dispatcher.subscribe(subjectPrefix + ">");
-    running = true;
+    running.set(true);
   }
 
   @Override
   public void stop() {
-    running = false;
+    running.set(false);
     if (dispatcher != null) {
       connection.closeDispatcher(dispatcher);
       dispatcher = null;
@@ -68,7 +69,7 @@ public class NatsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLi
 
   @Override
   public boolean isRunning() {
-    return running;
+    return running.get();
   }
 
   private void handleMessage(Message message) {
