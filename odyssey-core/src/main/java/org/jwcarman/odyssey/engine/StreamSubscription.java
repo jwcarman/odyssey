@@ -98,13 +98,8 @@ class StreamSubscription {
       log.debug("[{}] Cursor closed, completing emitter", streamKey);
       emitter.complete();
     } catch (Exception e) {
-      if (e instanceof InterruptedException) {
-        log.debug("[{}] Writer thread interrupted", streamKey);
-        Thread.currentThread().interrupt();
-      } else {
-        log.debug("[{}] Writer thread error", streamKey, e);
-        emitter.completeWithError(e);
-      }
+      log.debug("[{}] Writer thread error", streamKey, e);
+      emitter.completeWithError(e);
     }
   }
 
