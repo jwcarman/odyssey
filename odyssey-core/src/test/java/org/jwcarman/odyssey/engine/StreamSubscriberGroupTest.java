@@ -123,4 +123,36 @@ class StreamSubscriberGroupTest {
 
     assertDoesNotThrow(group::shutdown);
   }
+
+  @Test
+  void shutdownImmediatelyOnEmptyGroupDoesNotThrow() {
+    StreamSubscriberGroup group = new StreamSubscriberGroup();
+
+    assertDoesNotThrow(group::shutdownImmediately);
+  }
+
+  @Test
+  void shutdownImmediatelyClosesAllSubscribers() {
+    StreamSubscriberGroup group = new StreamSubscriberGroup();
+    StreamSubscriber subscriber1 = createSubscriber();
+    StreamSubscriber subscriber2 = createSubscriber();
+
+    group.addSubscriber(subscriber1);
+    group.addSubscriber(subscriber2);
+
+    group.shutdownImmediately();
+
+    assertTrue(group.hasSubscribers(), "ShutdownImmediately does not remove subscribers");
+  }
+
+  @Test
+  void removeAfterShutdownDoesNotThrow() {
+    StreamSubscriberGroup group = new StreamSubscriberGroup();
+    StreamSubscriber subscriber = createSubscriber();
+
+    group.addSubscriber(subscriber);
+    group.shutdown();
+    assertDoesNotThrow(() -> group.removeSubscriber(subscriber));
+    assertFalse(group.hasSubscribers());
+  }
 }

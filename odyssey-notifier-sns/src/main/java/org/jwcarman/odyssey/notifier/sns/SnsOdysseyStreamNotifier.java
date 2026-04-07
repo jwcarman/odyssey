@@ -235,7 +235,7 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
     }
   }
 
-  private void parseAndDispatch(String body) {
+  void parseAndDispatch(String body) {
     // SNS wraps the message in a JSON envelope when delivering to SQS.
     // Extract the original message from the "Message" field.
     String payload = extractSnsMessage(body);
@@ -250,7 +250,7 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
     }
   }
 
-  private String extractSnsMessage(String body) {
+  String extractSnsMessage(String body) {
     // SNS wraps the original message in a JSON envelope when delivering to SQS.
     // Extract the "Message" field value using simple string parsing to avoid a JSON dependency.
     String marker = "\"Message\"";
@@ -274,7 +274,7 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
     return unescape(body.substring(openQuote + 1, closeQuote));
   }
 
-  private int findClosingQuote(String s, int from) {
+  int findClosingQuote(String s, int from) {
     int i = from;
     while (i < s.length()) {
       char c = s.charAt(i);
@@ -289,7 +289,7 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
     return -1;
   }
 
-  private String unescape(String s) {
+  String unescape(String s) {
     if (s.indexOf('\\') < 0) {
       return s;
     }

@@ -175,6 +175,70 @@ class StreamWriterTest {
   }
 
   @Test
+  void drainRemainingProcessesEventsAfterPoison() throws Exception {
+    OdysseyEvent event1 = testEvent("1-0");
+    OdysseyEvent event2 = testEvent("2-0");
+
+    BlockingQueue<OdysseyEvent> queue = new LinkedBlockingQueue<>();
+    // Simulate concurrent reader: POISON first, then events after it
+    queue.offer(StreamSubscriber.POISON);
+    queue.offer(event1);
+    queue.offer(event2);
+
+    CountDownLatch completeCalled = new CountDownLatch(1);
+    StreamEventHandler handler = mock(StreamEventHandler.class);
+    doAnswer(
+            inv -> {
+              completeCalled.countDown();
+              return null;
+            })
+        .when(handler)
+        .onComplete();
+
+    StreamWriter writer = new StreamWriter(queue, handler, 60_000);
+    Thread thread = Thread.ofVirtual().start(writer);
+
+    assertTrue(completeCalled.await(5, TimeUnit.SECONDS));
+    thread.join(2000);
+
+    // Events after POISON should have been processed by drainRemaining
+    verify(handler).onEvent(event1);
+    verify(handler).onEvent(event2);
+    verify(handler).onComplete();
+  }
+
+  @Test
+  void drainRemainingStopsAtSecondPoison() throws Exception {
+    OdysseyEvent event1 = testEvent("1-0");
+
+    BlockingQueue<OdysseyEvent> queue = new LinkedBlockingQueue<>();
+    queue.offer(StreamSubscriber.POISON);
+    queue.offer(event1);
+    queue.offer(StreamSubscriber.POISON);
+    queue.offer(testEvent("3-0")); // should not be processed
+
+    CountDownLatch completeCalled = new CountDownLatch(1);
+    StreamEventHandler handler = mock(StreamEventHandler.class);
+    doAnswer(
+            inv -> {
+              completeCalled.countDown();
+              return null;
+            })
+        .when(handler)
+        .onComplete();
+
+    StreamWriter writer = new StreamWriter(queue, handler, 60_000);
+    Thread thread = Thread.ofVirtual().start(writer);
+
+    assertTrue(completeCalled.await(5, TimeUnit.SECONDS));
+    thread.join(2000);
+
+    verify(handler).onEvent(event1);
+    verify(handler, times(1)).onEvent(any());
+    verify(handler).onComplete();
+  }
+
+  @Test
   void interruptExitsCleanly() throws Exception {
     BlockingQueue<OdysseyEvent> queue = new LinkedBlockingQueue<>();
     StreamEventHandler handler = mock(StreamEventHandler.class);

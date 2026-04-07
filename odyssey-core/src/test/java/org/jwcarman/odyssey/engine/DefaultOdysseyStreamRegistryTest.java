@@ -18,12 +18,15 @@ package org.jwcarman.odyssey.engine;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.odyssey.core.OdysseyStream;
+import org.jwcarman.odyssey.spi.NotificationHandler;
 import org.jwcarman.odyssey.spi.OdysseyEventLog;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.ObjectMapper;
@@ -154,7 +157,49 @@ class DefaultOdysseyStreamRegistryTest {
   }
 
   @Test
+  void streamReturnsCachedInstance() {
+    OdysseyStream first = registry.stream("odyssey:channel:cached");
+    OdysseyStream second = registry.stream("odyssey:channel:cached");
+
+    assertSame(first, second);
+  }
+
+  @Test
+  void streamCreatesNewInstanceForNewKey() {
+    OdysseyStream stream = registry.stream("odyssey:channel:newkey");
+
+    assertNotNull(stream);
+    assertEquals("odyssey:channel:newkey", stream.getStreamKey());
+  }
+
+  @Test
   void registrySubscribesToNotifier() {
     verify(notifier).subscribe(any());
+  }
+
+  @Test
+  void notificationNudgesSubscriberGroup() {
+    when(eventLog.channelKey("test")).thenReturn("channel:test");
+    lenient().when(eventLog.readLast("channel:test", 1)).thenReturn(Stream.empty());
+
+    OdysseyStream stream = registry.channel("test");
+    stream.subscribe();
+
+    ArgumentCaptor<NotificationHandler> handlerCaptor =
+        ArgumentCaptor.forClass(NotificationHandler.class);
+    verify(notifier).subscribe(handlerCaptor.capture());
+
+    // Simulate notification - should not throw
+    assertDoesNotThrow(() -> handlerCaptor.getValue().onNotification("channel:test", "1-0"));
+  }
+
+  @Test
+  void notificationForUnknownStreamDoesNotThrow() {
+    ArgumentCaptor<NotificationHandler> handlerCaptor =
+        ArgumentCaptor.forClass(NotificationHandler.class);
+    verify(notifier).subscribe(handlerCaptor.capture());
+
+    // Notification for a stream key with no registered subscriber group
+    assertDoesNotThrow(() -> handlerCaptor.getValue().onNotification("unknown:key", "1-0"));
   }
 }

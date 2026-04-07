@@ -137,7 +137,7 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
     }
   }
 
-  private void dispatchNotification(String payload) {
+  void dispatchNotification(String payload) {
     int delimiterIndex = payload.indexOf(PAYLOAD_DELIMITER);
     if (delimiterIndex < 0) {
       log.warn("Ignoring malformed notification payload: {}", payload);

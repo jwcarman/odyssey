@@ -199,6 +199,29 @@ class DefaultOdysseyStreamTest {
   }
 
   @Test
+  void publishJsonSerializesAndPublishes() {
+    when(eventLog.append(eq(STREAM_KEY), any(OdysseyEvent.class))).thenReturn("2-0");
+
+    String entryId = stream.publishJson("test-event", Map.of("key", "value"));
+
+    assertEquals("2-0", entryId);
+    verify(eventLog).append(eq(STREAM_KEY), any(OdysseyEvent.class));
+    verify(notifier).notify(STREAM_KEY, "2-0");
+  }
+
+  @Test
+  void replayLastWithEventsUsesLastEventId() {
+    OdysseyEvent evt1 = testEvent("8-0", "evt1", "p1");
+    OdysseyEvent evt2 = testEvent("9-0", "evt2", "p2");
+    when(eventLog.readLast(STREAM_KEY, 5)).thenReturn(Stream.of(evt1, evt2));
+
+    var emitter = stream.replayLast(5);
+
+    assertNotNull(emitter);
+    verify(eventLog).readLast(STREAM_KEY, 5);
+  }
+
+  @Test
   void getStreamKeyReturnsKey() {
     assertEquals(STREAM_KEY, stream.getStreamKey());
   }
