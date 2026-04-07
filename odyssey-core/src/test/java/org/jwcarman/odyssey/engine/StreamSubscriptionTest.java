@@ -179,16 +179,46 @@ class StreamSubscriptionTest {
   }
 
   @Test
-  void emitterCallbacksClose() {
+  void emitterCompletionCallbackCloses() {
     when(cursor.isOpen()).thenReturn(false);
 
     StreamSubscription sub = createSubscription();
     sub.start();
 
-    // Capture the callbacks
-    var completionCaptor = org.mockito.ArgumentCaptor.forClass(Runnable.class);
-    verify(emitter).onCompletion(completionCaptor.capture());
-    completionCaptor.getValue().run();
+    var captor = org.mockito.ArgumentCaptor.forClass(Runnable.class);
+    verify(emitter).onCompletion(captor.capture());
+    captor.getValue().run();
+
+    verify(cursor).close();
+    assertThat(subscriptionList).isEmpty();
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void emitterErrorCallbackCloses() {
+    when(cursor.isOpen()).thenReturn(false);
+
+    StreamSubscription sub = createSubscription();
+    sub.start();
+
+    var captor = org.mockito.ArgumentCaptor.forClass(java.util.function.Consumer.class);
+    verify(emitter).onError(captor.capture());
+    captor.getValue().accept(new RuntimeException("test error"));
+
+    verify(cursor).close();
+    assertThat(subscriptionList).isEmpty();
+  }
+
+  @Test
+  void emitterTimeoutCallbackCloses() {
+    when(cursor.isOpen()).thenReturn(false);
+
+    StreamSubscription sub = createSubscription();
+    sub.start();
+
+    var captor = org.mockito.ArgumentCaptor.forClass(Runnable.class);
+    verify(emitter).onTimeout(captor.capture());
+    captor.getValue().run();
 
     verify(cursor).close();
     assertThat(subscriptionList).isEmpty();

@@ -164,6 +164,19 @@ class DefaultOdysseyStreamTest {
   }
 
   @Test
+  void deleteClosesActiveSubscriptionsAndDeletesJournal() {
+    when(journal.read()).thenReturn(cursor);
+    lenient().when(cursor.isOpen()).thenReturn(false);
+
+    stream.subscribe();
+
+    stream.delete();
+
+    verify(cursor).close();
+    verify(journal).delete();
+  }
+
+  @Test
   void publishRawWithoutEventTypeCallsAppend() {
     when(journal.append(any(OdysseyEvent.class))).thenReturn("3-0");
 
