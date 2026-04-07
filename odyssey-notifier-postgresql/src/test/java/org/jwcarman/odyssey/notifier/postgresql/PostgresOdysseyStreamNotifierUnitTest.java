@@ -106,6 +106,36 @@ class PostgresOdysseyStreamNotifierUnitTest {
   }
 
   @Test
+  void closeListenConnectionWhenConnectionIsNull() {
+    // listenConnection starts as null — stop() calls closeListenConnection() internally,
+    // which should not throw even when no connection has ever been set.
+    PostgresOdysseyStreamNotifier notifier =
+        new PostgresOdysseyStreamNotifier(jdbcTemplate, dataSource, "test_channel", 100);
+    assertDoesNotThrow((org.junit.jupiter.api.function.Executable) notifier::stop);
+  }
+
+  @Test
+  void stopWhenThreadIsNull() {
+    // Never call start(), so listenerThread is null — stop() must not throw.
+    PostgresOdysseyStreamNotifier notifier =
+        new PostgresOdysseyStreamNotifier(jdbcTemplate, dataSource, "test_channel", 100);
+    assertDoesNotThrow((org.junit.jupiter.api.function.Executable) notifier::stop);
+  }
+
+  @Test
+  void dispatchNotificationSplitsOnFirstDelimiterOnly() {
+    PostgresOdysseyStreamNotifier notifier =
+        new PostgresOdysseyStreamNotifier(jdbcTemplate, dataSource, "test_channel", 100);
+    NotificationHandler handler = org.mockito.Mockito.mock(NotificationHandler.class);
+    notifier.subscribe(handler);
+
+    // Payload has multiple '|' characters — only the first should be used as delimiter.
+    notifier.dispatchNotification("stream:test|part1|part2");
+
+    verify(handler).onNotification("stream:test", "part1|part2");
+  }
+
+  @Test
   void dispatchNotificationWithMultipleHandlers() {
     PostgresOdysseyStreamNotifier notifier =
         new PostgresOdysseyStreamNotifier(jdbcTemplate, dataSource, "test_channel", 100);

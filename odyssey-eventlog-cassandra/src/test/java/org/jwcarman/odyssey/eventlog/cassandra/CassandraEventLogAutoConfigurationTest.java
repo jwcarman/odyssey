@@ -60,6 +60,21 @@ class CassandraEventLogAutoConfigurationTest {
             });
   }
 
+  @Test
+  void doesNotCreateSchemaWhenAutoCreateSchemaIsFalse() {
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(CassandraEventLogAutoConfiguration.class))
+        .withUserConfiguration(MockCassandraConfiguration.class)
+        .withPropertyValues("odyssey.eventlog.cassandra.auto-create-schema=false")
+        .run(
+            context -> {
+              assertThat(context).hasSingleBean(CassandraOdysseyEventLog.class);
+              CqlSession mockSession = context.getBean(CqlSession.class);
+              org.mockito.Mockito.verify(mockSession, org.mockito.Mockito.never())
+                  .execute(org.mockito.ArgumentMatchers.anyString());
+            });
+  }
+
   @Configuration(proxyBeanMethods = false)
   static class MockCassandraConfiguration {
 

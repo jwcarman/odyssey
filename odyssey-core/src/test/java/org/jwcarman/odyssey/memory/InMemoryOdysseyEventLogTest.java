@@ -151,6 +151,15 @@ class InMemoryOdysseyEventLogTest {
   }
 
   @Test
+  void readAfterHandlesIdWithoutDash() {
+    eventLog.append(STREAM_KEY, testEvent("evt1", "p1"));
+
+    List<OdysseyEvent> events = eventLog.readAfter(STREAM_KEY, "0").toList();
+
+    assertEquals(1, events.size());
+  }
+
+  @Test
   void separateStreamKeysAreIndependent() {
     String key1 = "odyssey:channel:one";
     String key2 = "odyssey:channel:two";

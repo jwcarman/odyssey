@@ -151,6 +151,16 @@ class StreamSubscriberTest {
   }
 
   @Test
+  void closeGracefullyBeforeStartDoesNotThrow() {
+    OdysseyEventLog eventLog = mock(OdysseyEventLog.class);
+    StreamEventHandler handler = mock(StreamEventHandler.class);
+    StreamSubscriber subscriber =
+        new StreamSubscriber(eventLog, handler, "test-stream", "0", 60_000);
+    subscriber.closeGracefully();
+    // readerThread is null — interrupt skipped; poison enqueued successfully
+  }
+
+  @Test
   void immediateShutdownStopsBothThreads() throws Exception {
     CountDownLatch readerStarted = new CountDownLatch(1);
 

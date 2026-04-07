@@ -17,8 +17,11 @@ package org.jwcarman.odyssey.eventlog.redis;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -244,6 +247,63 @@ class RedisOdysseyEventLogTest {
     eventLog.append("odyssey:broadcast:announcements", event);
 
     verify(commands).expire("odyssey:broadcast:announcements", 86400);
+  }
+
+  @Test
+  void readAfterReturnsEmptyWhenMessagesListIsEmpty() {
+    when(commands.xread(any(XReadArgs.class), any(XReadArgs.StreamOffset[].class)))
+        .thenReturn(List.of());
+
+    Stream<OdysseyEvent> result = eventLog.readAfter("odyssey:channel:test", "0-0");
+
+    assertThat(result.toList()).isEmpty();
+  }
+
+  @Test
+  void appendDoesNotSetTtlForUnknownPrefix() {
+    OdysseyEvent event =
+        OdysseyEvent.builder()
+            .eventType("test")
+            .payload("data")
+            .timestamp(Instant.now())
+            .streamKey("unknown:stream:key")
+            .build();
+
+    when(commands.xadd(eq("unknown:stream:key"), any(XAddArgs.class), any(Map.class)))
+        .thenReturn("1-0");
+
+    eventLog.append("unknown:stream:key", event);
+
+    verify(commands, never()).expire(anyString(), anyLong());
+  }
+
+  @Test
+  void toOdysseyEventUsesInstantNowWhenTimestampIsMissing() {
+    Map<String, String> body = Map.of("eventType", "test", "payload", "data");
+    StreamMessage<String, String> msg = new StreamMessage<>("odyssey:channel:test", "1-0", body);
+
+    when(commands.xread(any(XReadArgs.class), any(XReadArgs.StreamOffset[].class)))
+        .thenReturn(List.of(msg));
+
+    List<OdysseyEvent> events = eventLog.readAfter("odyssey:channel:test", "0-0").toList();
+
+    assertThat(events).hasSize(1);
+    assertThat(events.getFirst().timestamp()).isNotNull();
+  }
+
+  @Test
+  void toOdysseyEventReturnsEmptyMetadataWhenNoExtraFields() {
+    Map<String, String> body =
+        Map.of("eventType", "test", "payload", "data", "timestamp", "2026-04-06T12:00:00Z");
+    StreamMessage<String, String> msg = new StreamMessage<>("odyssey:channel:test", "1-0", body);
+
+    when(commands.xread(any(XReadArgs.class), any(XReadArgs.StreamOffset[].class)))
+        .thenReturn(List.of(msg));
+
+    List<OdysseyEvent> events = eventLog.readAfter("odyssey:channel:test", "0-0").toList();
+
+    assertThat(events).hasSize(1);
+    assertThat(events.getFirst().metadata()).isEmpty();
   }
 
   @Test

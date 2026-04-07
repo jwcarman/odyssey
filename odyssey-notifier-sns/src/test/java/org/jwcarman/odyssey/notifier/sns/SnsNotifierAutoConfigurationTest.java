@@ -30,6 +30,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.sns.model.CreateTopicResponse;
 import software.amazon.awssdk.services.sns.model.SubscribeRequest;
 import software.amazon.awssdk.services.sns.model.SubscribeResponse;
 import software.amazon.awssdk.services.sqs.SqsClient;
@@ -73,6 +74,54 @@ class SnsNotifierAutoConfigurationTest {
                   .isInstanceOf(SnsOdysseyStreamNotifier.class);
               assertThat(context).doesNotHaveBean(InMemoryOdysseyStreamNotifier.class);
             });
+  }
+
+  @Test
+  void autoCreatesTopicWhenNotConfigured() {
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(SnsNotifierAutoConfiguration.class))
+        .withUserConfiguration(MockAwsConfigurationWithAutoCreate.class)
+        .withPropertyValues("odyssey.notifier.sns.auto-create-topic=true")
+        .run(
+            context -> {
+              assertThat(context).hasSingleBean(SnsOdysseyStreamNotifier.class);
+              assertThat(context).hasSingleBean(OdysseyStreamNotifier.class);
+            });
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  static class MockAwsConfigurationWithAutoCreate {
+
+    @Bean
+    SnsClient snsClient() {
+      SnsClient client = mock(SnsClient.class);
+      when(client.createTopic(any(java.util.function.Consumer.class)))
+          .thenReturn(
+              CreateTopicResponse.builder()
+                  .topicArn("arn:aws:sns:us-east-1:123:odyssey-notifications")
+                  .build());
+      when(client.subscribe(any(SubscribeRequest.class)))
+          .thenReturn(
+              SubscribeResponse.builder().subscriptionArn("arn:aws:sns:us-east-1:123:sub").build());
+      return client;
+    }
+
+    @Bean
+    SqsClient sqsClient() {
+      SqsClient client = mock(SqsClient.class);
+      when(client.createQueue(any(CreateQueueRequest.class)))
+          .thenReturn(
+              CreateQueueResponse.builder().queueUrl("http://localhost/test-queue").build());
+      when(client.getQueueAttributes(any(GetQueueAttributesRequest.class)))
+          .thenReturn(
+              GetQueueAttributesResponse.builder()
+                  .attributes(
+                      Map.of(QueueAttributeName.QUEUE_ARN, "arn:aws:sqs:us-east-1:123:test-queue"))
+                  .build());
+      when(client.setQueueAttributes(any(SetQueueAttributesRequest.class)))
+          .thenReturn(SetQueueAttributesResponse.builder().build());
+      return client;
+    }
   }
 
   @Configuration(proxyBeanMethods = false)

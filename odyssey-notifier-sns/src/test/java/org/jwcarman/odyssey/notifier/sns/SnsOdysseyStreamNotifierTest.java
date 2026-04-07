@@ -16,8 +16,11 @@
 package org.jwcarman.odyssey.notifier.sns;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,7 +31,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
+import software.amazon.awssdk.services.sns.model.UnsubscribeRequest;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.DeleteQueueRequest;
 
 @ExtendWith(MockitoExtension.class)
 class SnsOdysseyStreamNotifierTest {
@@ -163,5 +168,97 @@ class SnsOdysseyStreamNotifierTest {
     assertEquals(1, keys.size());
     assertEquals("odyssey:channel:alpha", keys.getFirst());
     assertEquals("7-0", ids.getFirst());
+  }
+
+  @Test
+  void stopCleansUpSubscriptionAndQueue() throws Exception {
+    // Set subscriptionArn and queueUrl via reflection so we can test stop() in isolation.
+    Field subArnField = SnsOdysseyStreamNotifier.class.getDeclaredField("subscriptionArn");
+    subArnField.setAccessible(true);
+    subArnField.set(notifier, "arn:aws:sns:us-east-1:123456789012:sub-001");
+
+    Field queueUrlField = SnsOdysseyStreamNotifier.class.getDeclaredField("queueUrl");
+    queueUrlField.setAccessible(true);
+    queueUrlField.set(notifier, "https://sqs.us-east-1.amazonaws.com/123456789012/odyssey-test");
+
+    notifier.stop();
+
+    verify(snsClient).unsubscribe(any(UnsubscribeRequest.class));
+    verify(sqsClient).deleteQueue(any(DeleteQueueRequest.class));
+  }
+
+  @Test
+  void stopHandlesUnsubscribeFailure() throws Exception {
+    Field subArnField = SnsOdysseyStreamNotifier.class.getDeclaredField("subscriptionArn");
+    subArnField.setAccessible(true);
+    subArnField.set(notifier, "arn:aws:sns:us-east-1:123456789012:sub-001");
+
+    Field queueUrlField = SnsOdysseyStreamNotifier.class.getDeclaredField("queueUrl");
+    queueUrlField.setAccessible(true);
+    queueUrlField.set(notifier, "https://sqs.us-east-1.amazonaws.com/123456789012/odyssey-test");
+
+    doThrow(new RuntimeException("unsubscribe failed"))
+        .when(snsClient)
+        .unsubscribe(any(UnsubscribeRequest.class));
+
+    assertDoesNotThrow((org.junit.jupiter.api.function.Executable) notifier::stop);
+    // deleteQueue should still be called even though unsubscribe threw
+    verify(sqsClient).deleteQueue(any(DeleteQueueRequest.class));
+  }
+
+  @Test
+  void stopHandlesDeleteQueueFailure() throws Exception {
+    Field subArnField = SnsOdysseyStreamNotifier.class.getDeclaredField("subscriptionArn");
+    subArnField.setAccessible(true);
+    subArnField.set(notifier, "arn:aws:sns:us-east-1:123456789012:sub-001");
+
+    Field queueUrlField = SnsOdysseyStreamNotifier.class.getDeclaredField("queueUrl");
+    queueUrlField.setAccessible(true);
+    queueUrlField.set(notifier, "https://sqs.us-east-1.amazonaws.com/123456789012/odyssey-test");
+
+    doThrow(new RuntimeException("deleteQueue failed"))
+        .when(sqsClient)
+        .deleteQueue(any(DeleteQueueRequest.class));
+
+    assertDoesNotThrow((org.junit.jupiter.api.function.Executable) notifier::stop);
+  }
+
+  @Test
+  void extractSnsMessageNoColonAfterMessageKey() {
+    // "Message" key is present but there is no colon following it
+    String body = "{\"Message\" no-colon \"value\"}";
+    assertEquals(body, notifier.extractSnsMessage(body));
+  }
+
+  @Test
+  void extractSnsMessageNoOpenQuote() {
+    // colon present but no opening quote for the value
+    String body = "{\"Message\": no-quote-here}";
+    assertEquals(body, notifier.extractSnsMessage(body));
+  }
+
+  @Test
+  void extractSnsMessageNoClosingQuote() {
+    // opening quote present but string is never closed
+    String body = "{\"Message\": \"unterminated value";
+    assertEquals(body, notifier.extractSnsMessage(body));
+  }
+
+  @Test
+  void findClosingQuoteReturnsNegativeOneWhenNoClose() {
+    String s = "no closing quote here";
+    assertEquals(-1, notifier.findClosingQuote(s, 0));
+  }
+
+  @Test
+  void unescapeWithNoBackslash() {
+    String s = "hello world";
+    assertSame(s, notifier.unescape(s));
+  }
+
+  @Test
+  void parseAndDispatchWithEmptyHandlerList() {
+    // No handlers registered, malformed payload — should not throw
+    assertDoesNotThrow(() -> notifier.parseAndDispatch("malformed-no-delimiter"));
   }
 }

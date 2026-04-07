@@ -249,6 +249,17 @@ class DefaultOdysseyStreamTest {
   }
 
   @Test
+  void replayLastWithCountGreaterThanMaxLastNCapsAndUsesLastEventId() {
+    OdysseyEvent evt = testEvent("10-0", "evt", "p");
+    when(eventLog.readLast(STREAM_KEY, MAX_LAST_N)).thenReturn(Stream.of(evt));
+
+    var emitter = stream.replayLast(MAX_LAST_N + 100);
+
+    assertNotNull(emitter);
+    verify(eventLog).readLast(STREAM_KEY, MAX_LAST_N);
+  }
+
+  @Test
   void getStreamKeyReturnsKey() {
     assertEquals(STREAM_KEY, stream.getStreamKey());
   }

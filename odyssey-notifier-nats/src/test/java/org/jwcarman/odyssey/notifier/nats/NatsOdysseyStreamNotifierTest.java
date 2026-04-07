@@ -139,6 +139,12 @@ class NatsOdysseyStreamNotifierTest {
     assertThat(handler2Received).containsExactly("5-0");
   }
 
+  @Test
+  void stopWhenNotStartedDoesNotThrow() {
+    notifier.stop();
+    assertThat(notifier.isRunning()).isFalse();
+  }
+
   private static Message mockMessage(String subject, String data) {
     Message message = mock(Message.class);
     when(message.getSubject()).thenReturn(subject);

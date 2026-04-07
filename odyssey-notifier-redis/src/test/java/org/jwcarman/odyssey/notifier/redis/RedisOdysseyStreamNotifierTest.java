@@ -92,6 +92,14 @@ class RedisOdysseyStreamNotifierTest {
   }
 
   @Test
+  void nonPatternMessageIsIgnored() {
+    List<String> received = new ArrayList<>();
+    notifier.subscribe((streamKey, eventId) -> received.add(eventId));
+    notifier.message("odyssey:notify:odyssey:channel:test", "42-0");
+    assertThat(received).isEmpty();
+  }
+
+  @Test
   void multipleHandlersAllReceiveNotifications() {
     List<String> handler1Received = new ArrayList<>();
     List<String> handler2Received = new ArrayList<>();
