@@ -15,6 +15,8 @@
  */
 package org.jwcarman.odyssey.engine;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -180,7 +182,12 @@ class StreamWriterTest {
     StreamWriter writer = new StreamWriter(queue, handler, 60_000);
     Thread thread = Thread.ofVirtual().start(writer);
 
-    Thread.sleep(50);
+    await()
+        .atMost(5, SECONDS)
+        .until(
+            () ->
+                thread.getState() == Thread.State.WAITING
+                    || thread.getState() == Thread.State.TIMED_WAITING);
     thread.interrupt();
     thread.join(2000);
 

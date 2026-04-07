@@ -15,7 +15,10 @@
  */
 package org.jwcarman.odyssey.notifier.nats;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import io.nats.client.Connection;
 import io.nats.client.Nats;
@@ -161,7 +164,9 @@ class NatsOdysseyStreamNotifierIT {
     notifier.stop();
     notifier.notify("odyssey:channel:test", "2-0");
 
-    Thread.sleep(500);
-    assertThat(receivedEventIds).containsExactly("1-0");
+    await()
+        .during(500, MILLISECONDS)
+        .atMost(2, SECONDS)
+        .untilAsserted(() -> assertThat(receivedEventIds).containsExactly("1-0"));
   }
 }

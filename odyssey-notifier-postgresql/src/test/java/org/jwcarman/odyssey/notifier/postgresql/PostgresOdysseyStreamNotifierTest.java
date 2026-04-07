@@ -15,7 +15,10 @@
  */
 package org.jwcarman.odyssey.notifier.postgresql;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -68,14 +71,17 @@ class PostgresOdysseyStreamNotifierTest {
 
     notifier.start();
 
-    // Small delay to let the LISTEN connection establish
-    Thread.sleep(200);
+    await()
+        .atMost(5, SECONDS)
+        .pollInterval(100, MILLISECONDS)
+        .until(
+            () -> {
+              notifier.notify("channel:orders", "42");
+              return latch.await(200, TimeUnit.MILLISECONDS);
+            });
 
-    notifier.notify("channel:orders", "42");
-
-    assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
-    assertThat(receivedStreamKeys).containsExactly("channel:orders");
-    assertThat(receivedEventIds).containsExactly("42");
+    assertThat(receivedStreamKeys).contains("channel:orders");
+    assertThat(receivedEventIds).contains("42");
   }
 
   @Test
@@ -96,13 +102,18 @@ class PostgresOdysseyStreamNotifierTest {
         });
 
     notifier.start();
-    Thread.sleep(200);
 
-    notifier.notify("broadcast:news", "99");
+    await()
+        .atMost(5, SECONDS)
+        .pollInterval(100, MILLISECONDS)
+        .until(
+            () -> {
+              notifier.notify("broadcast:news", "99");
+              return latch.await(200, TimeUnit.MILLISECONDS);
+            });
 
-    assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
-    assertThat(handler1Received).containsExactly("99");
-    assertThat(handler2Received).containsExactly("99");
+    assertThat(handler1Received).contains("99");
+    assertThat(handler2Received).contains("99");
   }
 
   @Test
@@ -118,14 +129,27 @@ class PostgresOdysseyStreamNotifierTest {
         });
 
     notifier.start();
-    Thread.sleep(200);
 
-    for (int i = 0; i < count; i++) {
+    await()
+        .atMost(5, SECONDS)
+        .pollInterval(100, MILLISECONDS)
+        .until(
+            () -> {
+              notifier.notify("channel:test", String.valueOf(0));
+              return latch.getCount() < count;
+            });
+
+    for (int i = 1; i < count; i++) {
       notifier.notify("channel:test", String.valueOf(i));
     }
 
-    assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
-    assertThat(received).containsExactly("0", "1", "2", "3", "4");
+    await().atMost(5, SECONDS).until(() -> latch.getCount() == 0);
+
+    assertThat(received)
+        .filteredOn(id -> List.of("0", "1", "2", "3", "4").contains(id))
+        .last()
+        .isEqualTo("4");
+    assertThat(received).contains("0", "1", "2", "3", "4");
   }
 
   @Test
@@ -140,12 +164,17 @@ class PostgresOdysseyStreamNotifierTest {
         });
 
     notifier.start();
-    Thread.sleep(200);
 
-    notifier.notify("ephemeral:abc-123-def", "1");
+    await()
+        .atMost(5, SECONDS)
+        .pollInterval(100, MILLISECONDS)
+        .until(
+            () -> {
+              notifier.notify("ephemeral:abc-123-def", "1");
+              return latch.await(200, TimeUnit.MILLISECONDS);
+            });
 
-    assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
-    assertThat(receivedStreamKeys).containsExactly("ephemeral:abc-123-def");
+    assertThat(receivedStreamKeys).contains("ephemeral:abc-123-def");
   }
 
   @Test

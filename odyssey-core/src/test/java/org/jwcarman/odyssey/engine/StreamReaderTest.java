@@ -15,6 +15,9 @@
  */
 package org.jwcarman.odyssey.engine;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -76,12 +79,15 @@ class StreamReaderTest {
     StreamReader reader = new StreamReader(eventLog, "test-stream", nudge, queue, "0");
     Thread thread = Thread.ofVirtual().start(reader);
 
-    Thread.sleep(200);
-    verify(eventLog, never()).readAfter(anyString(), anyString());
+    await()
+        .during(200, MILLISECONDS)
+        .atMost(1, SECONDS)
+        .untilAsserted(() -> verify(eventLog, never()).readAfter(anyString(), anyString()));
 
     nudge.release();
-    Thread.sleep(100);
-    verify(eventLog, atLeastOnce()).readAfter("test-stream", "0");
+    await()
+        .atMost(5, SECONDS)
+        .untilAsserted(() -> verify(eventLog, atLeastOnce()).readAfter("test-stream", "0"));
 
     thread.interrupt();
   }
@@ -107,7 +113,7 @@ class StreamReaderTest {
 
     nudge.release();
     assertTrue(readCalled.await(5, TimeUnit.SECONDS));
-    Thread.sleep(100);
+    await().atMost(5, SECONDS).until(() -> queue.size() >= 2);
 
     assertEquals(event1, queue.poll());
     assertEquals(event2, queue.poll());
@@ -141,7 +147,7 @@ class StreamReaderTest {
     Thread thread = Thread.ofVirtual().start(reader);
 
     nudge.release();
-    Thread.sleep(100);
+    await().atMost(5, SECONDS).until(() -> callCount.get() >= 1);
     nudge.release();
     assertTrue(secondReadDone.await(5, TimeUnit.SECONDS));
 
@@ -180,7 +186,7 @@ class StreamReaderTest {
     nudge.release();
     secondReadAllowed.countDown();
 
-    Thread.sleep(200);
+    await().atMost(5, SECONDS).until(() -> readCount.get() >= 2);
 
     assertTrue(readCount.get() <= 3, "Piled-up nudges should be coalesced via drainPermits");
 
@@ -197,7 +203,12 @@ class StreamReaderTest {
     StreamReader reader = new StreamReader(eventLog, "test-stream", nudge, queue, "0");
     Thread thread = Thread.ofVirtual().start(reader);
 
-    Thread.sleep(50);
+    await()
+        .atMost(5, SECONDS)
+        .until(
+            () ->
+                thread.getState() == Thread.State.WAITING
+                    || thread.getState() == Thread.State.TIMED_WAITING);
     thread.interrupt();
     thread.join(2000);
 

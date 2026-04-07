@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T17:04:00-04:00
-ITERATION: 34
-SPEC_COMPLETED: 031-sse-send-helper.md
-WHAT_WAS_DONE: Extracted a private send(SseEmitter.SseEventBuilder) helper in SseStreamEventHandler that wraps emitter.send() with try/catch IOException → doCleanup(). Both onEvent() and onKeepAlive() now delegate to this helper, eliminating the duplicated try/catch pattern.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-06T21:07:00-04:00
+ITERATION: 35
+SPEC_COMPLETED: 032-awaitility.md
+WHAT_WAS_DONE: Replaced all Thread.sleep() calls in test code with Awaitility assertions. Added awaitility as a test dependency in the parent POM (version managed by Spring Boot). Updated 7 test files across odyssey-core, odyssey-notifier-postgresql, odyssey-notifier-nats, odyssey-notifier-sns, and odyssey-notifier-rabbitmq.
+VERIFICATION: ./mvnw verify -pl odyssey-core,odyssey-notifier-postgresql,odyssey-notifier-nats,odyssey-notifier-sns,odyssey-notifier-rabbitmq -am → BUILD SUCCESS (all 5 modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS; grep Thread.sleep in test code → 0 matches. Full ./mvnw clean verify fails in odyssey-eventlog-rabbitmq (pre-existing RabbitMQ Stream timeout, unrelated to this change).
 STATUS: DONE
 NEXT_SPEC: none
-NOTES: Pure refactor — no behavioral change. The send helper is private and handles the same IOException → cleanup pattern that was previously duplicated in onEvent() and onKeepAlive().
+NOTES: The odyssey-eventlog-rabbitmq module has a pre-existing Testcontainers timeout issue (RabbitMqOdysseyEventLogIT) unrelated to Awaitility changes. For PostgreSQL notifier tests, used poll-retry pattern to handle LISTEN establishment race condition instead of fixed sleep. For "stop prevents notifications" tests, used await().during().atMost().untilAsserted() to verify negative assertions. CountDownLatch patterns were preserved where they provided cleaner synchronization than Awaitility replacements (per spec guidance: "use judgment — CountDownLatch is fine for complex synchronization").

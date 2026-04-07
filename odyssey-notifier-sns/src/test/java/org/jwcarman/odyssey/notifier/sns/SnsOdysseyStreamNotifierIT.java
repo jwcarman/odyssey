@@ -15,7 +15,9 @@
  */
 package org.jwcarman.odyssey.notifier.sns;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.net.URI;
 import java.util.List;
@@ -190,8 +192,10 @@ class SnsOdysseyStreamNotifierIT {
     notifier.stop();
     notifier.notify("odyssey:channel:test", "2-0");
 
-    Thread.sleep(2000);
-    assertThat(receivedEventIds).containsExactly("1-0");
+    await()
+        .during(2, SECONDS)
+        .atMost(5, SECONDS)
+        .untilAsserted(() -> assertThat(receivedEventIds).containsExactly("1-0"));
   }
 
   @Test

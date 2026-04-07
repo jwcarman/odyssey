@@ -15,6 +15,8 @@
  */
 package org.jwcarman.odyssey.engine;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -143,13 +145,9 @@ class StreamSubscriberTest {
     subscriber.nudge();
     assertTrue(readCalled.await(5, TimeUnit.SECONDS));
 
-    Thread.sleep(200);
-
     subscriber.closeGracefully();
 
-    Thread.sleep(500);
-
-    verify(handler).onComplete();
+    await().atMost(5, SECONDS).untilAsserted(() -> verify(handler).onComplete());
   }
 
   @Test
@@ -172,8 +170,6 @@ class StreamSubscriberTest {
     assertTrue(readerStarted.await(5, TimeUnit.SECONDS));
 
     subscriber.closeImmediately();
-
-    Thread.sleep(500);
 
     // If we get here without hanging, both threads were interrupted successfully
   }
