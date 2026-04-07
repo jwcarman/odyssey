@@ -120,7 +120,7 @@ class InMemoryEndToEndTest {
   void publishAndReadThroughJournal() {
     OdysseyStream stream = registry.channel("test");
     String id1 = stream.publishRaw("msg", "hello");
-    String id2 = stream.publishRaw("msg", "world");
+    stream.publishRaw("msg", "world");
 
     Journal<OdysseyEvent> journal = journalFactory.create("channel:test", OdysseyEvent.class);
     var cursor = journal.readAfter(id1);

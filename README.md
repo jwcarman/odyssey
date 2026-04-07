@@ -23,7 +23,6 @@ The name **Odyssey** is a nod to **SSE** (**S**erver-**S**ent **E**vents) hidden
 
 - Java 25+
 - Spring Boot 4.x
-- Virtual threads enabled (`spring.threads.virtual.enabled=true`)
 
 ## Features
 
@@ -79,16 +78,7 @@ Use the BOM for version alignment:
 </dependencyManagement>
 ```
 
-### 2. Enable virtual threads
-
-```yaml
-spring:
-  threads:
-    virtual:
-      enabled: true
-```
-
-### 3. Use it
+### 2. Use it
 
 ```java
 @RestController
