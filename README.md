@@ -89,14 +89,33 @@ public class NotificationController {
     }
 
     @PostMapping("/notify/{userId}")
-    public void notify(@PathVariable String userId, @RequestBody String message) {
-        registry.channel("user:" + userId).publishRaw("notification", message);
+    public void notify(@PathVariable String userId, @RequestBody OrderEvent event) {
+        registry.channel("user:" + userId).publishJson("order.updated", event);
     }
 }
 ```
 
 That's it. No boilerplate, no thread management, no Redis commands. Odyssey handles
 subscriber coordination, keep-alive heartbeats, reconnect replay, and cleanup.
+
+### Publishing
+
+Odyssey supports two publishing styles:
+
+```java
+// Raw string payload
+stream.publishRaw("event-type", "{\"key\":\"value\"}");
+
+// Java object serialized to JSON automatically
+stream.publishJson("order.shipped", orderEvent);
+
+// Without an event type (SSE event: field omitted — useful for MCP)
+stream.publishRaw(jsonPayload);
+stream.publishJson(someObject);
+```
+
+`publishJson` uses Jackson to serialize the object. The SSE `data:` field contains
+the JSON string. Clients parse it with `JSON.parse(event.data)`.
 
 ## Stream Types
 
