@@ -95,6 +95,7 @@
         <module>odyssey-eventlog-mongodb</module>
         <module>odyssey-eventlog-rabbitmq</module>
         <module>odyssey-eventlog-nats</module>
+        <module>odyssey-eventlog-hazelcast</module>
         <module>odyssey-notifier-redis</module>
         <module>odyssey-notifier-postgresql</module>
         <module>odyssey-notifier-nats</module>
