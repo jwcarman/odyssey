@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.bson.Document;
 import org.jwcarman.odyssey.core.OdysseyEvent;
@@ -39,9 +38,6 @@ public class MongoOdysseyEventLog extends AbstractOdysseyEventLog {
   private final MongoTemplate mongoTemplate;
   private final String collectionName;
   private final Duration ttl;
-
-  private long lastMillis = -1;
-  private final AtomicInteger sequence = new AtomicInteger(0);
 
   public MongoOdysseyEventLog(
       MongoTemplate mongoTemplate,
@@ -121,21 +117,6 @@ public class MongoOdysseyEventLog extends AbstractOdysseyEventLog {
   public void delete(String streamKey) {
     Query query = new Query(Criteria.where("streamKey").is(streamKey));
     mongoTemplate.remove(query, collectionName);
-  }
-
-  private synchronized String generateEventId() {
-    long millis = System.currentTimeMillis();
-    if (millis == lastMillis) {
-      return formatEventId(millis, sequence.incrementAndGet());
-    } else {
-      lastMillis = millis;
-      sequence.set(0);
-      return formatEventId(millis, 0);
-    }
-  }
-
-  private String formatEventId(long millis, int seq) {
-    return String.format("%013d-%05d", millis, seq);
   }
 
   private OdysseyEvent mapDocument(Document doc) {

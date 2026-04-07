@@ -15,9 +15,14 @@
  */
 package org.jwcarman.odyssey.spi;
 
+import com.fasterxml.uuid.Generators;
+import com.fasterxml.uuid.impl.TimeBasedEpochGenerator;
 import java.util.UUID;
 
 public abstract class AbstractOdysseyEventLog implements OdysseyEventLog {
+
+  private static final TimeBasedEpochGenerator UUID_GENERATOR =
+      Generators.timeBasedEpochGenerator();
 
   private final String ephemeralPrefix;
   private final String channelPrefix;
@@ -43,6 +48,10 @@ public abstract class AbstractOdysseyEventLog implements OdysseyEventLog {
   @Override
   public String broadcastKey(String name) {
     return broadcastPrefix + name;
+  }
+
+  protected String generateEventId() {
+    return UUID_GENERATOR.generate().toString();
   }
 
   protected String ephemeralPrefix() {

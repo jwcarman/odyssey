@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.spi.AbstractOdysseyEventLog;
@@ -49,9 +48,6 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
   private final DynamoDbClient client;
   private final String tableName;
   private final Duration ttl;
-
-  private long lastMillis = -1;
-  private final AtomicInteger sequence = new AtomicInteger(0);
 
   public DynamoDbOdysseyEventLog(
       DynamoDbClient client,
@@ -222,21 +218,6 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
       exclusiveStartKey =
           response.lastEvaluatedKey().isEmpty() ? null : response.lastEvaluatedKey();
     } while (exclusiveStartKey != null);
-  }
-
-  private synchronized String generateEventId() {
-    long millis = System.currentTimeMillis();
-    if (millis == lastMillis) {
-      return formatEventId(millis, sequence.incrementAndGet());
-    } else {
-      lastMillis = millis;
-      sequence.set(0);
-      return formatEventId(millis, 0);
-    }
-  }
-
-  private String formatEventId(long millis, int seq) {
-    return String.format("%013d-%05d", millis, seq);
   }
 
   private OdysseyEvent mapItem(Map<String, AttributeValue> item) {

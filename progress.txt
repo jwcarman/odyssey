@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T21:07:00-04:00
-ITERATION: 35
-SPEC_COMPLETED: 032-awaitility.md
-WHAT_WAS_DONE: Replaced all Thread.sleep() calls in test code with Awaitility assertions. Added awaitility as a test dependency in the parent POM (version managed by Spring Boot). Updated 7 test files across odyssey-core, odyssey-notifier-postgresql, odyssey-notifier-nats, odyssey-notifier-sns, and odyssey-notifier-rabbitmq.
-VERIFICATION: ./mvnw verify -pl odyssey-core,odyssey-notifier-postgresql,odyssey-notifier-nats,odyssey-notifier-sns,odyssey-notifier-rabbitmq -am → BUILD SUCCESS (all 5 modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS; grep Thread.sleep in test code → 0 matches. Full ./mvnw clean verify fails in odyssey-eventlog-rabbitmq (pre-existing RabbitMQ Stream timeout, unrelated to this change).
-STATUS: DONE
-NEXT_SPEC: none
-NOTES: The odyssey-eventlog-rabbitmq module has a pre-existing Testcontainers timeout issue (RabbitMqOdysseyEventLogIT) unrelated to Awaitility changes. For PostgreSQL notifier tests, used poll-retry pattern to handle LISTEN establishment race condition instead of fixed sleep. For "stop prevents notifications" tests, used await().during().atMost().untilAsserted() to verify negative assertions. CountDownLatch patterns were preserved where they provided cleaner synchronization than Awaitility replacements (per spec guidance: "use judgment — CountDownLatch is fine for complex synchronization").
+LAST_RUN: 2026-04-06T21:17:00-04:00
+ITERATION: 36
+SPEC_COMPLETED: 033-uuid-v7-event-ids.md
+WHAT_WAS_DONE: Replaced duplicated timestamp+sequence event ID generation in MongoOdysseyEventLog, DynamoDbOdysseyEventLog, and RabbitMqOdysseyEventLog with UUID v7 generation via java-uuid-generator, centralized in AbstractOdysseyEventLog.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all 15 modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS; grep for lastMillis/formatEventId/AtomicInteger sequence in affected modules → 0 matches.
+STATUS: MORE_WORK
+NEXT_SPEC: 034-sonar-cleanups.md
+NOTES: Added com.fasterxml.uuid:java-uuid-generator 5.2.0 to odyssey-core (Spring Boot 4.0.5 does not manage this version, contrary to what the spec stated). UUID v7 generator stored as a static field on AbstractOdysseyEventLog for efficiency. Updated 3 integration test assertions from old \d{13}-\d{5} pattern to UUID v7 regex. NATS, Redis, PostgreSQL, Cassandra, and InMemory event logs were not affected (they use native ID strategies). readAfter comparisons work correctly with UUID v7 since it is lexicographically sortable.

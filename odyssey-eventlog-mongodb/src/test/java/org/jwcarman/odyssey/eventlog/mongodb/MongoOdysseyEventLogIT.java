@@ -50,11 +50,11 @@ class MongoOdysseyEventLogIT {
   }
 
   @Test
-  void appendReturnsTimestampBasedId() {
+  void appendReturnsUuidV7Id() {
     OdysseyEvent event = buildEvent("test-stream", "msg", "hello");
     String id = eventLog.append("test-stream", event);
 
-    assertThat(id).matches("\\d{13}-\\d{5}");
+    assertThat(id).matches("[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}");
   }
 
   @Test

@@ -35,7 +35,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import org.jwcarman.odyssey.core.OdysseyEvent;
@@ -50,9 +49,6 @@ public class RabbitMqOdysseyEventLog extends AbstractOdysseyEventLog implements 
   private final Duration maxAge;
   private final long maxLengthBytes;
   private final ConcurrentHashMap<String, Producer> producers = new ConcurrentHashMap<>();
-
-  private long lastMillis = -1;
-  private final AtomicInteger sequence = new AtomicInteger(0);
 
   public RabbitMqOdysseyEventLog(
       Environment environment,
@@ -242,20 +238,5 @@ public class RabbitMqOdysseyEventLog extends AbstractOdysseyEventLog implements 
                 : null)
         .metadata(metadata)
         .build();
-  }
-
-  private synchronized String generateEventId() {
-    long millis = System.currentTimeMillis();
-    if (millis == lastMillis) {
-      return formatEventId(millis, sequence.incrementAndGet());
-    } else {
-      lastMillis = millis;
-      sequence.set(0);
-      return formatEventId(millis, 0);
-    }
-  }
-
-  private String formatEventId(long millis, int seq) {
-    return String.format("%013d-%05d", millis, seq);
   }
 }
