@@ -15,43 +15,68 @@
  */
 package org.jwcarman.odyssey.engine;
 
+import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.jwcarman.odyssey.core.OdysseyEvent;
-import org.jwcarman.odyssey.core.StreamEventHandler;
 import org.jwcarman.substrate.core.JournalCursor;
 import org.jwcarman.substrate.core.JournalEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 class StreamSubscription {
 
   private static final Logger log = LoggerFactory.getLogger(StreamSubscription.class);
 
   private final JournalCursor<OdysseyEvent> cursor;
-  private final long keepAliveInterval;
+  private final SseEmitter emitter;
   private final String streamKey;
+  private final long keepAliveInterval;
+  private final AtomicBoolean closed = new AtomicBoolean(false);
+  private final List<StreamSubscription> subscriptionList;
 
-  private StreamEventHandler handler;
-  private Thread writerThread;
-
-  StreamSubscription(JournalCursor<OdysseyEvent> cursor, String streamKey, long keepAliveInterval) {
+  StreamSubscription(
+      JournalCursor<OdysseyEvent> cursor,
+      SseEmitter emitter,
+      String streamKey,
+      long keepAliveInterval,
+      List<StreamSubscription> subscriptionList) {
     this.cursor = cursor;
+    this.emitter = emitter;
     this.streamKey = streamKey;
     this.keepAliveInterval = keepAliveInterval;
+    this.subscriptionList = subscriptionList;
   }
 
-  void start(StreamEventHandler handler) {
-    this.handler = handler;
+  void start() {
+    emitter.onCompletion(
+        () -> {
+          log.debug("[{}] SseEmitter completed", streamKey);
+          close();
+        });
+    emitter.onError(
+        e -> {
+          log.debug("[{}] SseEmitter error: {}", streamKey, e.getMessage());
+          close();
+        });
+    emitter.onTimeout(
+        () -> {
+          log.debug("[{}] SseEmitter timed out", streamKey);
+          close();
+        });
+    sendComment("connected");
     log.debug("[{}] Starting writer thread", streamKey);
-    writerThread = Thread.ofVirtual().name("odyssey-writer-" + streamKey).start(this::writerLoop);
+    Thread.ofVirtual().name("odyssey-writer-" + streamKey).start(this::writerLoop);
   }
 
   void close() {
-    log.debug("[{}] Closing subscription", streamKey);
-    cursor.close();
-    if (writerThread != null) {
-      writerThread.interrupt();
+    if (closed.compareAndSet(false, true)) {
+      log.debug("[{}] Closing subscription", streamKey);
+      cursor.close();
+      subscriptionList.remove(this);
     }
   }
 
@@ -63,23 +88,44 @@ class StreamSubscription {
         Optional<JournalEntry<OdysseyEvent>> entry =
             cursor.poll(Duration.ofMillis(keepAliveInterval));
         if (entry.isPresent()) {
-          log.debug("[{}] Received entry id={}", streamKey, entry.get().id());
-          handler.onEvent(toOdysseyEvent(entry.get()));
+          log.debug("[{}] Sending event id={}", streamKey, entry.get().id());
+          sendEvent(toOdysseyEvent(entry.get()));
         } else if (cursor.isOpen()) {
-          log.trace("[{}] Poll timeout, sending keep-alive", streamKey);
-          handler.onKeepAlive();
+          log.trace("[{}] Sending keep-alive", streamKey);
+          sendComment("keep-alive");
         }
       }
-      log.debug("[{}] Cursor closed, completing stream", streamKey);
-      handler.onComplete();
+      log.debug("[{}] Cursor closed, completing emitter", streamKey);
+      emitter.complete();
     } catch (Exception e) {
       if (e instanceof InterruptedException) {
         log.debug("[{}] Writer thread interrupted", streamKey);
         Thread.currentThread().interrupt();
       } else {
         log.debug("[{}] Writer thread error", streamKey, e);
-        handler.onError(e);
+        emitter.completeWithError(e);
       }
+    }
+  }
+
+  private void sendEvent(OdysseyEvent event) {
+    SseEmitter.SseEventBuilder builder = SseEmitter.event().id(event.id()).data(event.payload());
+    if (event.eventType() != null) {
+      builder.name(event.eventType());
+    }
+    send(builder);
+  }
+
+  private void sendComment(String comment) {
+    send(SseEmitter.event().comment(comment));
+  }
+
+  private void send(SseEmitter.SseEventBuilder event) {
+    try {
+      emitter.send(event);
+    } catch (IOException e) {
+      log.debug("[{}] Send failed (client disconnected?): {}", streamKey, e.getMessage());
+      close();
     }
   }
 

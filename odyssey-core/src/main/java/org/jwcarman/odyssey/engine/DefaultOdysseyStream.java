@@ -15,7 +15,6 @@
  */
 package org.jwcarman.odyssey.engine;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -140,24 +139,10 @@ class DefaultOdysseyStream implements OdysseyStream {
   private SseEmitter createSubscription(JournalCursor<OdysseyEvent> cursor, Duration timeout) {
     SseEmitter emitter = new SseEmitter(timeout.toMillis());
     StreamSubscription subscription =
-        new StreamSubscription(cursor, journal.key(), config.keepAliveInterval());
-    Runnable cleanup =
-        () -> {
-          activeSubscriptions.remove(subscription);
-          subscription.close();
-        };
-    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup, journal.key());
+        new StreamSubscription(
+            cursor, emitter, journal.key(), config.keepAliveInterval(), activeSubscriptions);
     activeSubscriptions.add(subscription);
-    sendConnectedComment(emitter);
-    subscription.start(handler);
+    subscription.start();
     return emitter;
-  }
-
-  private void sendConnectedComment(SseEmitter emitter) {
-    try {
-      emitter.send(SseEmitter.event().comment("connected"));
-    } catch (IOException _) {
-      log.debug("Failed to send connected comment");
-    }
   }
 }
