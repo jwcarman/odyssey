@@ -21,7 +21,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicReference;
 import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.core.OdysseyStream;
 import org.jwcarman.substrate.core.Journal;
@@ -140,22 +139,17 @@ class DefaultOdysseyStream implements OdysseyStream {
 
   private SseEmitter createSubscription(JournalCursor<OdysseyEvent> cursor, Duration timeout) {
     SseEmitter emitter = new SseEmitter(timeout.toMillis());
-    sendConnectedComment(emitter);
-    AtomicReference<StreamSubscription> subscriptionRef = new AtomicReference<>();
+    StreamSubscription subscription =
+        new StreamSubscription(cursor, journal.key(), config.keepAliveInterval());
     Runnable cleanup =
         () -> {
-          StreamSubscription sub = subscriptionRef.get();
-          if (sub != null) {
-            activeSubscriptions.remove(sub);
-            sub.close();
-          }
+          activeSubscriptions.remove(subscription);
+          subscription.close();
         };
     SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup, journal.key());
-    StreamSubscription subscription =
-        new StreamSubscription(cursor, handler, journal.key(), config.keepAliveInterval());
-    subscriptionRef.set(subscription);
     activeSubscriptions.add(subscription);
-    subscription.start();
+    sendConnectedComment(emitter);
+    subscription.start(handler);
     return emitter;
   }
 

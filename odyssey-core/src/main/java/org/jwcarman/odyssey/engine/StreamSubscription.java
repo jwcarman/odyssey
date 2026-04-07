@@ -29,24 +29,20 @@ class StreamSubscription {
   private static final Logger log = LoggerFactory.getLogger(StreamSubscription.class);
 
   private final JournalCursor<OdysseyEvent> cursor;
-  private final StreamEventHandler handler;
   private final long keepAliveInterval;
   private final String streamKey;
 
+  private StreamEventHandler handler;
   private Thread writerThread;
 
-  StreamSubscription(
-      JournalCursor<OdysseyEvent> cursor,
-      StreamEventHandler handler,
-      String streamKey,
-      long keepAliveInterval) {
+  StreamSubscription(JournalCursor<OdysseyEvent> cursor, String streamKey, long keepAliveInterval) {
     this.cursor = cursor;
-    this.handler = handler;
     this.streamKey = streamKey;
     this.keepAliveInterval = keepAliveInterval;
   }
 
-  void start() {
+  void start(StreamEventHandler handler) {
+    this.handler = handler;
     log.debug("[{}] Starting writer thread", streamKey);
     writerThread = Thread.ofVirtual().name("odyssey-writer-" + streamKey).start(this::writerLoop);
   }
