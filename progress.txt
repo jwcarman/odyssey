@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-07T00:04:55-04:00
-ITERATION: 44
-SPEC_COMPLETED: 041-notifier-hazelcast.md
-WHAT_WAS_DONE: Created odyssey-notifier-hazelcast module — HazelcastOdysseyStreamNotifier backed by Hazelcast ITopic with streamKey|eventId payload format, SmartLifecycle management via AtomicReference<UUID> for listener registration, HazelcastNotifierProperties record with defaults, HazelcastNotifierAutoConfiguration with @ConditionalOnClass, and 10 tests (7 unit with embedded Hazelcast + 3 auto-configuration/properties tests). Updated parent POM modules list and BOM.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all 17 modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-07T00:10:00-04:00
+ITERATION: 45
+SPEC_COMPLETED: 042-update-bom-all-modules.md
+WHAT_WAS_DONE: Verified that all 15 published modules are already present in odyssey-bom/pom.xml and both Hazelcast modules are in the parent POM modules list. No changes needed — the BOM and parent POM were already up to date from previous iterations.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (0 failures across all 17 modules); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: MORE_WORK
-NEXT_SPEC: 042-update-bom-all-modules.md
-NOTES: Hazelcast ITopic provides true fan-out (all members receive every message), same as Redis Pub/Sub. The notifier uses a single topic name (default "odyssey-notifications") rather than per-stream-key topics — stream routing is handled by the payload format. Split on first pipe character to correctly handle event IDs that may contain pipes.
+NEXT_SPEC: 043-delete-custom-localstack.md
+NOTES: All acceptance criteria were already satisfied. The BOM contains all 15 published modules (no odyssey-example, no odyssey-bom self-reference). Parent POM modules section includes both odyssey-eventlog-hazelcast and odyssey-notifier-hazelcast.
