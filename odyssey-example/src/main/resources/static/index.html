@@ -182,8 +182,12 @@
                     appendInfo('task-log', '--- stream: ' + streamKey + ' ---');
                     const source = new EventSource('/api/task/' + encodeURIComponent(streamKey) + '/stream');
 
-                    source.addEventListener('progress', function(e) {
+                    source.onopen = function() {
                         setStatus('task-status', 'Running...', true);
+                        appendInfo('task-log', '--- connected ---');
+                    };
+
+                    source.addEventListener('progress', function(e) {
                         appendLog('task-log', 'progress', e.lastEventId, e.data);
                     });
 
