@@ -21,8 +21,12 @@ import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.core.StreamEventHandler;
 import org.jwcarman.substrate.core.JournalCursor;
 import org.jwcarman.substrate.core.JournalEntry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class StreamSubscription {
+
+  private static final Logger log = LoggerFactory.getLogger(StreamSubscription.class);
 
   private final JournalCursor<OdysseyEvent> cursor;
   private final StreamEventHandler handler;
@@ -43,10 +47,12 @@ class StreamSubscription {
   }
 
   void start() {
+    log.debug("[{}] Starting writer thread", streamKey);
     writerThread = Thread.ofVirtual().name("odyssey-writer-" + streamKey).start(this::writerLoop);
   }
 
   void close() {
+    log.debug("[{}] Closing subscription", streamKey);
     cursor.close();
     if (writerThread != null) {
       writerThread.interrupt();
@@ -54,21 +60,28 @@ class StreamSubscription {
   }
 
   private void writerLoop() {
+    log.debug(
+        "[{}] Writer thread started, polling with {}ms interval", streamKey, keepAliveInterval);
     try {
       while (cursor.isOpen()) {
         Optional<JournalEntry<OdysseyEvent>> entry =
             cursor.poll(Duration.ofMillis(keepAliveInterval));
         if (entry.isPresent()) {
+          log.debug("[{}] Received entry id={}", streamKey, entry.get().id());
           handler.onEvent(toOdysseyEvent(entry.get()));
         } else if (cursor.isOpen()) {
+          log.trace("[{}] Poll timeout, sending keep-alive", streamKey);
           handler.onKeepAlive();
         }
       }
+      log.debug("[{}] Cursor closed, completing stream", streamKey);
       handler.onComplete();
     } catch (Exception e) {
       if (e instanceof InterruptedException) {
+        log.debug("[{}] Writer thread interrupted", streamKey);
         Thread.currentThread().interrupt();
       } else {
+        log.debug("[{}] Writer thread error", streamKey, e);
         handler.onError(e);
       }
     }

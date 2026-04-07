@@ -15,6 +15,7 @@
  */
 package org.jwcarman.odyssey.engine;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -25,10 +26,14 @@ import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.core.OdysseyStream;
 import org.jwcarman.substrate.core.Journal;
 import org.jwcarman.substrate.core.JournalCursor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import tools.jackson.databind.ObjectMapper;
 
 class DefaultOdysseyStream implements OdysseyStream {
+
+  private static final Logger log = LoggerFactory.getLogger(DefaultOdysseyStream.class);
 
   record StreamConfig(long keepAliveInterval, long defaultSseTimeout) {}
 
@@ -58,7 +63,9 @@ class DefaultOdysseyStream implements OdysseyStream {
             .timestamp(Instant.now())
             .metadata(Map.of())
             .build();
-    return journal.append(event);
+    String id = journal.append(event);
+    log.debug("[{}] Published event id={} type={}", journal.key(), id, eventType);
+    return id;
   }
 
   @Override
@@ -79,6 +86,7 @@ class DefaultOdysseyStream implements OdysseyStream {
 
   @Override
   public SseEmitter subscribe(Duration timeout) {
+    log.debug("[{}] New subscriber (live)", journal.key());
     JournalCursor<OdysseyEvent> cursor = journal.read();
     return createSubscription(cursor, timeout);
   }
@@ -90,6 +98,7 @@ class DefaultOdysseyStream implements OdysseyStream {
 
   @Override
   public SseEmitter resumeAfter(String lastEventId, Duration timeout) {
+    log.debug("[{}] New subscriber (resumeAfter {})", journal.key(), lastEventId);
     JournalCursor<OdysseyEvent> cursor = journal.readAfter(lastEventId);
     return createSubscription(cursor, timeout);
   }
@@ -101,17 +110,23 @@ class DefaultOdysseyStream implements OdysseyStream {
 
   @Override
   public SseEmitter replayLast(int count, Duration timeout) {
+    log.debug("[{}] New subscriber (replayLast {})", journal.key(), count);
     JournalCursor<OdysseyEvent> cursor = journal.readLast(count);
     return createSubscription(cursor, timeout);
   }
 
   @Override
   public void close() {
+    log.debug("[{}] Closing stream", journal.key());
     journal.complete();
   }
 
   @Override
   public void delete() {
+    log.debug(
+        "[{}] Deleting stream ({} active subscriptions)",
+        journal.key(),
+        activeSubscriptions.size());
     for (StreamSubscription sub : activeSubscriptions) {
       sub.close();
     }
@@ -125,6 +140,7 @@ class DefaultOdysseyStream implements OdysseyStream {
 
   private SseEmitter createSubscription(JournalCursor<OdysseyEvent> cursor, Duration timeout) {
     SseEmitter emitter = new SseEmitter(timeout.toMillis());
+    sendConnectedComment(emitter);
     AtomicReference<StreamSubscription> subscriptionRef = new AtomicReference<>();
     Runnable cleanup =
         () -> {
@@ -134,12 +150,20 @@ class DefaultOdysseyStream implements OdysseyStream {
             sub.close();
           }
         };
-    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup, journal.key());
     StreamSubscription subscription =
         new StreamSubscription(cursor, handler, journal.key(), config.keepAliveInterval());
     subscriptionRef.set(subscription);
     activeSubscriptions.add(subscription);
     subscription.start();
     return emitter;
+  }
+
+  private void sendConnectedComment(SseEmitter emitter) {
+    try {
+      emitter.send(SseEmitter.event().comment("connected"));
+    } catch (IOException _) {
+      log.debug("Failed to send connected comment");
+    }
   }
 }

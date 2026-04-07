@@ -19,24 +19,43 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.core.StreamEventHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 class SseStreamEventHandler implements StreamEventHandler {
 
+  private static final Logger log = LoggerFactory.getLogger(SseStreamEventHandler.class);
+
   private final SseEmitter emitter;
   private final Runnable cleanup;
+  private final String streamKey;
   private final AtomicBoolean cleanedUp = new AtomicBoolean(false);
 
-  SseStreamEventHandler(SseEmitter emitter, Runnable cleanup) {
+  SseStreamEventHandler(SseEmitter emitter, Runnable cleanup, String streamKey) {
     this.emitter = emitter;
     this.cleanup = cleanup;
-    emitter.onCompletion(this::doCleanup);
-    emitter.onError(e -> doCleanup());
-    emitter.onTimeout(this::doCleanup);
+    this.streamKey = streamKey;
+    emitter.onCompletion(
+        () -> {
+          log.debug("[{}] SseEmitter completed", streamKey);
+          doCleanup();
+        });
+    emitter.onError(
+        e -> {
+          log.debug("[{}] SseEmitter error: {}", streamKey, e.getMessage());
+          doCleanup();
+        });
+    emitter.onTimeout(
+        () -> {
+          log.debug("[{}] SseEmitter timed out", streamKey);
+          doCleanup();
+        });
   }
 
   @Override
   public void onEvent(OdysseyEvent event) {
+    log.debug("[{}] Sending event id={} type={}", streamKey, event.id(), event.eventType());
     SseEmitter.SseEventBuilder builder = SseEmitter.event().id(event.id()).data(event.payload());
     if (event.eventType() != null) {
       builder.name(event.eventType());
@@ -46,29 +65,34 @@ class SseStreamEventHandler implements StreamEventHandler {
 
   @Override
   public void onKeepAlive() {
+    log.trace("[{}] Sending keep-alive", streamKey);
     send(SseEmitter.event().comment("keep-alive"));
   }
 
   private void send(SseEmitter.SseEventBuilder event) {
     try {
       emitter.send(event);
-    } catch (IOException _) {
+    } catch (IOException e) {
+      log.debug("[{}] Send failed (client disconnected?): {}", streamKey, e.getMessage());
       doCleanup();
     }
   }
 
   @Override
   public void onComplete() {
+    log.debug("[{}] Stream completed, closing SseEmitter", streamKey);
     emitter.complete();
   }
 
   @Override
   public void onError(Exception e) {
+    log.debug("[{}] Stream error, completing SseEmitter with error", streamKey, e);
     emitter.completeWithError(e);
   }
 
   private void doCleanup() {
     if (cleanedUp.compareAndSet(false, true)) {
+      log.debug("[{}] Cleaning up subscription", streamKey);
       cleanup.run();
     }
   }

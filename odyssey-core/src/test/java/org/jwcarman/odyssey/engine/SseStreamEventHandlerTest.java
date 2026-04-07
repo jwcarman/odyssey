@@ -55,7 +55,7 @@ class SseStreamEventHandlerTest {
   void onEventSendsToEmitter() throws Exception {
     SseEmitter emitter = spy(new SseEmitter(0L));
     Runnable cleanup = mock(Runnable.class);
-    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup, "test-stream");
 
     OdysseyEvent event = testEvent("1-0");
     handler.onEvent(event);
@@ -67,7 +67,7 @@ class SseStreamEventHandlerTest {
   void onEventWithNullEventTypeSendsToEmitter() throws Exception {
     SseEmitter emitter = spy(new SseEmitter(0L));
     Runnable cleanup = mock(Runnable.class);
-    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup, "test-stream");
 
     OdysseyEvent event = testEventWithNullType("1-0");
     handler.onEvent(event);
@@ -79,7 +79,7 @@ class SseStreamEventHandlerTest {
   void onEventWithNullEventTypeOmitsNameField() throws Exception {
     SseEmitter emitter = spy(new SseEmitter(0L));
     Runnable cleanup = mock(Runnable.class);
-    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup, "test-stream");
 
     OdysseyEvent event = testEventWithNullType("1-0");
     handler.onEvent(event);
@@ -99,7 +99,7 @@ class SseStreamEventHandlerTest {
   void onEventWithEventTypeIncludesNameField() throws Exception {
     SseEmitter emitter = spy(new SseEmitter(0L));
     Runnable cleanup = mock(Runnable.class);
-    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup, "test-stream");
 
     OdysseyEvent event = testEvent("1-0");
     handler.onEvent(event);
@@ -117,7 +117,7 @@ class SseStreamEventHandlerTest {
   void onKeepAliveSendsCommentToEmitter() throws Exception {
     SseEmitter emitter = spy(new SseEmitter(0L));
     Runnable cleanup = mock(Runnable.class);
-    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup, "test-stream");
 
     handler.onKeepAlive();
 
@@ -128,7 +128,7 @@ class SseStreamEventHandlerTest {
   void onCompleteCompletesEmitter() {
     SseEmitter emitter = spy(new SseEmitter(0L));
     Runnable cleanup = mock(Runnable.class);
-    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup, "test-stream");
 
     handler.onComplete();
 
@@ -139,7 +139,7 @@ class SseStreamEventHandlerTest {
   void onErrorCompletesEmitterWithError() {
     SseEmitter emitter = spy(new SseEmitter(0L));
     Runnable cleanup = mock(Runnable.class);
-    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup, "test-stream");
 
     Exception error = new RuntimeException("test error");
     handler.onError(error);
@@ -154,7 +154,7 @@ class SseStreamEventHandlerTest {
         .when(emitter)
         .send(any(SseEmitter.SseEventBuilder.class));
     Runnable cleanup = mock(Runnable.class);
-    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup, "test-stream");
 
     handler.onEvent(testEvent("1-0"));
 
@@ -168,7 +168,7 @@ class SseStreamEventHandlerTest {
         .when(emitter)
         .send(any(SseEmitter.SseEventBuilder.class));
     Runnable cleanup = mock(Runnable.class);
-    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup, "test-stream");
 
     handler.onKeepAlive();
 
@@ -183,7 +183,7 @@ class SseStreamEventHandlerTest {
         .send(any(SseEmitter.SseEventBuilder.class));
     AtomicInteger cleanupCount = new AtomicInteger(0);
     Runnable cleanup = cleanupCount::incrementAndGet;
-    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup, "test-stream");
 
     // Trigger cleanup multiple times
     handler.onEvent(testEvent("1-0"));
@@ -197,7 +197,7 @@ class SseStreamEventHandlerTest {
     SseEmitter emitter = spy(new SseEmitter(0L));
     Runnable cleanup = mock(Runnable.class);
 
-    new SseStreamEventHandler(emitter, cleanup);
+    new SseStreamEventHandler(emitter, cleanup, "test-stream");
 
     verify(emitter).onCompletion(any());
     verify(emitter).onError(any());
