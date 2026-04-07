@@ -54,6 +54,11 @@ class DefaultOdysseyStream implements OdysseyStream {
   }
 
   @Override
+  public String publishRaw(String payload) {
+    return publishRaw(null, payload);
+  }
+
+  @Override
   public String publishRaw(String eventType, String payload) {
     OdysseyEvent event =
         OdysseyEvent.builder()
@@ -66,6 +71,11 @@ class DefaultOdysseyStream implements OdysseyStream {
     String entryId = eventLog.append(streamKey, event);
     notifier.notify(streamKey, entryId);
     return entryId;
+  }
+
+  @Override
+  public String publishJson(Object payload) {
+    return publishJson(null, payload);
   }
 
   @Override

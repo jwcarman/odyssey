@@ -99,6 +99,15 @@ public interface OdysseyStream {
   SseEmitter replayLast(int count, Duration timeout);
 
   /**
+   * Publishes a raw string payload to this stream with no event type. The SSE output will not
+   * contain an {@code event:} field, causing browsers to fire the {@code onmessage} handler.
+   *
+   * @param payload the event data (sent as the {@code data:} field)
+   * @return the generated event ID, suitable for use with {@link #resumeAfter(String)}
+   */
+  String publishRaw(String payload);
+
+  /**
    * Publishes a raw string payload to this stream. The payload is stored as-is with no
    * serialization.
    *
@@ -108,6 +117,16 @@ public interface OdysseyStream {
    * @return the generated event ID, suitable for use with {@link #resumeAfter(String)}
    */
   String publishRaw(String eventType, String payload);
+
+  /**
+   * Publishes an object to this stream with no event type, serializing it to JSON using the
+   * configured {@link tools.jackson.databind.ObjectMapper}. The SSE output will not contain an
+   * {@code event:} field.
+   *
+   * @param payload the object to serialize as JSON for the event data
+   * @return the generated event ID, suitable for use with {@link #resumeAfter(String)}
+   */
+  String publishJson(Object payload);
 
   /**
    * Publishes an object to this stream, serializing it to JSON using the configured {@link

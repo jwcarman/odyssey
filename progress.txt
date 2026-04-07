@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T22:05:00-04:00
-ITERATION: 39
-SPEC_COMPLETED: 036-javadoc-public-api.md
-WHAT_WAS_DONE: Added comprehensive Javadoc to all public interfaces, classes, and methods in odyssey-core: OdysseyStream (class + 13 methods), OdysseyStreamRegistry (class + 4 methods), OdysseyEvent (record + compact constructor + builder class + 8 builder methods), StreamEventHandler (class + 4 methods), OdysseyEventLog (class + 7 methods), AbstractOdysseyEventLog (class + constructor + 4 protected methods), OdysseyStreamNotifier (class + 2 methods), NotificationHandler (class + 1 method), OdysseyProperties (record + 3 params), OdysseyAutoConfiguration (class + constructor + 3 bean methods). Also added Javadoc to DefaultOdysseyStreamRegistry, InMemoryOdysseyEventLog, and InMemoryOdysseyStreamNotifier to eliminate all javadoc warnings.
-VERIFICATION: ./mvnw clean javadoc:javadoc -pl odyssey-core → BUILD SUCCESS (0 warnings); ./mvnw clean verify → BUILD SUCCESS (all 16 modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
-STATUS: MORE_WORK
-NEXT_SPEC: 037-nullable-event-type.md
-NOTES: All Javadoc uses {@code ...} for inline code and {@link ...} for cross-references. Class-level docs include usage examples where helpful (OdysseyStreamRegistry, OdysseyEvent, AbstractOdysseyEventLog). SPI interfaces have implementer-focused documentation. Record params are documented in the record-level Javadoc. Explicit constructors with Javadoc were added to OdysseyAutoConfiguration and InMemoryOdysseyStreamNotifier to suppress "use of default constructor" javadoc warnings.
+LAST_RUN: 2026-04-06T22:10:00-04:00
+ITERATION: 40
+SPEC_COMPLETED: 037-nullable-event-type.md
+WHAT_WAS_DONE: Made eventType nullable in OdysseyEvent and SSE output: SseStreamEventHandler now skips .name() when eventType is null (no event: field in SSE output), added publishRaw(String payload) and publishJson(Object payload) overloads to OdysseyStream interface and DefaultOdysseyStream, with full unit test coverage for null eventType path and new overloads.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all 16 modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS; ./mvnw javadoc:javadoc -pl odyssey-core → BUILD SUCCESS (0 warnings)
+STATUS: DONE
+NEXT_SPEC: none
+NOTES: OdysseyEvent already accepted null eventType (record fields are nullable by default, builder had no validation). The new publishRaw(payload) and publishJson(payload) overloads delegate to publishRaw(null, payload) and publishJson(null, payload) respectively. MCP priming is supported via stream.publishRaw("") — no dedicated API needed.

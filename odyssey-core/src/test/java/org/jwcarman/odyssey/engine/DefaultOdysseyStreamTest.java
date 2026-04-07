@@ -199,6 +199,33 @@ class DefaultOdysseyStreamTest {
   }
 
   @Test
+  void publishRawWithoutEventTypeCallsAppendAndNotify() {
+    when(eventLog.append(eq(STREAM_KEY), any(OdysseyEvent.class))).thenReturn("3-0");
+
+    String entryId = stream.publishRaw("{\"data\":1}");
+
+    assertEquals("3-0", entryId);
+    verify(eventLog)
+        .append(
+            eq(STREAM_KEY),
+            argThat(event -> event.eventType() == null && event.payload().equals("{\"data\":1}")));
+    verify(notifier).notify(STREAM_KEY, "3-0");
+  }
+
+  @Test
+  void publishJsonWithoutEventTypeSerializesAndPublishes() {
+    when(eventLog.append(eq(STREAM_KEY), any(OdysseyEvent.class))).thenReturn("4-0");
+
+    String entryId = stream.publishJson(Map.of("key", "value"));
+
+    assertEquals("4-0", entryId);
+    verify(eventLog)
+        .append(
+            eq(STREAM_KEY), argThat(event -> event.eventType() == null && event.payload() != null));
+    verify(notifier).notify(STREAM_KEY, "4-0");
+  }
+
+  @Test
   void publishJsonSerializesAndPublishes() {
     when(eventLog.append(eq(STREAM_KEY), any(OdysseyEvent.class))).thenReturn("2-0");
 

@@ -37,7 +37,11 @@ class SseStreamEventHandler implements StreamEventHandler {
 
   @Override
   public void onEvent(OdysseyEvent event) {
-    send(SseEmitter.event().id(event.id()).name(event.eventType()).data(event.payload()));
+    SseEmitter.SseEventBuilder builder = SseEmitter.event().id(event.id()).data(event.payload());
+    if (event.eventType() != null) {
+      builder.name(event.eventType());
+    }
+    send(builder);
   }
 
   @Override

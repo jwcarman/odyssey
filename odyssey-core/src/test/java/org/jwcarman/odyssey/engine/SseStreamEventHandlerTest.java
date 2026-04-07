@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.odyssey.core.OdysseyEvent;
+import org.mockito.ArgumentCaptor;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 class SseStreamEventHandlerTest {
@@ -34,6 +35,16 @@ class SseStreamEventHandlerTest {
         .id(id)
         .streamKey("test-stream")
         .eventType("test")
+        .payload("{\"n\":" + id + "}")
+        .timestamp(Instant.now())
+        .metadata(Map.of())
+        .build();
+  }
+
+  private static OdysseyEvent testEventWithNullType(String id) {
+    return OdysseyEvent.builder()
+        .id(id)
+        .streamKey("test-stream")
         .payload("{\"n\":" + id + "}")
         .timestamp(Instant.now())
         .metadata(Map.of())
@@ -50,6 +61,56 @@ class SseStreamEventHandlerTest {
     handler.onEvent(event);
 
     verify(emitter).send(any(SseEmitter.SseEventBuilder.class));
+  }
+
+  @Test
+  void onEventWithNullEventTypeSendsToEmitter() throws Exception {
+    SseEmitter emitter = spy(new SseEmitter(0L));
+    Runnable cleanup = mock(Runnable.class);
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+
+    OdysseyEvent event = testEventWithNullType("1-0");
+    handler.onEvent(event);
+
+    verify(emitter).send(any(SseEmitter.SseEventBuilder.class));
+  }
+
+  @Test
+  void onEventWithNullEventTypeOmitsNameField() throws Exception {
+    SseEmitter emitter = spy(new SseEmitter(0L));
+    Runnable cleanup = mock(Runnable.class);
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+
+    OdysseyEvent event = testEventWithNullType("1-0");
+    handler.onEvent(event);
+
+    var captor = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
+    verify(emitter).send(captor.capture());
+    String sseOutput =
+        captor.getValue().build().stream()
+            .map(d -> d.getData().toString())
+            .collect(java.util.stream.Collectors.joining());
+    assertFalse(sseOutput.contains("event:"), "SSE output should not contain event: field");
+    assertTrue(sseOutput.contains("id:1-0"), "SSE output should contain id field");
+    assertTrue(sseOutput.contains("data:"), "SSE output should contain data field");
+  }
+
+  @Test
+  void onEventWithEventTypeIncludesNameField() throws Exception {
+    SseEmitter emitter = spy(new SseEmitter(0L));
+    Runnable cleanup = mock(Runnable.class);
+    SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
+
+    OdysseyEvent event = testEvent("1-0");
+    handler.onEvent(event);
+
+    var captor = ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
+    verify(emitter).send(captor.capture());
+    String sseOutput =
+        captor.getValue().build().stream()
+            .map(d -> d.getData().toString())
+            .collect(java.util.stream.Collectors.joining());
+    assertTrue(sseOutput.contains("event:test"), "SSE output should contain event: field");
   }
 
   @Test
