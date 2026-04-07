@@ -81,7 +81,7 @@ class DefaultOdysseyStreamTest {
 
   @Test
   void subscribeReturnsEmitter() {
-    lenient().when(eventLog.readLast(eq(STREAM_KEY), eq(1))).thenReturn(Stream.empty());
+    lenient().when(eventLog.readLast(STREAM_KEY, 1)).thenReturn(Stream.empty());
 
     var emitter = stream.subscribe();
 
@@ -90,7 +90,7 @@ class DefaultOdysseyStreamTest {
 
   @Test
   void subscribeWithTimeoutReturnsEmitter() {
-    lenient().when(eventLog.readLast(eq(STREAM_KEY), eq(1))).thenReturn(Stream.empty());
+    lenient().when(eventLog.readLast(STREAM_KEY, 1)).thenReturn(Stream.empty());
 
     var emitter = stream.subscribe(Duration.ofSeconds(60));
 
@@ -99,7 +99,7 @@ class DefaultOdysseyStreamTest {
 
   @Test
   void subscribeQueriesCurrentLastId() {
-    when(eventLog.readLast(eq(STREAM_KEY), eq(1))).thenReturn(Stream.empty());
+    when(eventLog.readLast(STREAM_KEY, 1)).thenReturn(Stream.empty());
 
     stream.subscribe();
 
@@ -108,7 +108,7 @@ class DefaultOdysseyStreamTest {
 
   @Test
   void resumeAfterCallsReadAfter() {
-    when(eventLog.readAfter(eq(STREAM_KEY), eq("5-0"))).thenReturn(Stream.empty());
+    when(eventLog.readAfter(STREAM_KEY, "5-0")).thenReturn(Stream.empty());
 
     stream.resumeAfter("5-0");
 
@@ -117,7 +117,7 @@ class DefaultOdysseyStreamTest {
 
   @Test
   void resumeAfterReturnsEmitter() {
-    when(eventLog.readAfter(eq(STREAM_KEY), eq("5-0"))).thenReturn(Stream.empty());
+    when(eventLog.readAfter(STREAM_KEY, "5-0")).thenReturn(Stream.empty());
 
     var emitter = stream.resumeAfter("5-0");
 
@@ -126,7 +126,7 @@ class DefaultOdysseyStreamTest {
 
   @Test
   void resumeAfterWithTimeoutReturnsEmitter() {
-    when(eventLog.readAfter(eq(STREAM_KEY), eq("5-0"))).thenReturn(Stream.empty());
+    when(eventLog.readAfter(STREAM_KEY, "5-0")).thenReturn(Stream.empty());
 
     var emitter = stream.resumeAfter("5-0", Duration.ofSeconds(60));
 
@@ -137,7 +137,7 @@ class DefaultOdysseyStreamTest {
   void resumeAfterReplaysEventsFromReadAfter() {
     OdysseyEvent evt1 = testEvent("6-0", "evt1", "p1");
     OdysseyEvent evt2 = testEvent("7-0", "evt2", "p2");
-    when(eventLog.readAfter(eq(STREAM_KEY), eq("5-0"))).thenReturn(Stream.of(evt1, evt2));
+    when(eventLog.readAfter(STREAM_KEY, "5-0")).thenReturn(Stream.of(evt1, evt2));
 
     var emitter = stream.resumeAfter("5-0");
 
@@ -147,8 +147,8 @@ class DefaultOdysseyStreamTest {
 
   @Test
   void replayLastCallsReadLast() {
-    when(eventLog.readLast(eq(STREAM_KEY), eq(10))).thenReturn(Stream.empty());
-    when(eventLog.readLast(eq(STREAM_KEY), eq(1))).thenReturn(Stream.empty());
+    when(eventLog.readLast(STREAM_KEY, 10)).thenReturn(Stream.empty());
+    when(eventLog.readLast(STREAM_KEY, 1)).thenReturn(Stream.empty());
 
     stream.replayLast(10);
 
@@ -157,8 +157,8 @@ class DefaultOdysseyStreamTest {
 
   @Test
   void replayLastCapsCountAtMaxLastN() {
-    when(eventLog.readLast(eq(STREAM_KEY), eq(MAX_LAST_N))).thenReturn(Stream.empty());
-    when(eventLog.readLast(eq(STREAM_KEY), eq(1))).thenReturn(Stream.empty());
+    when(eventLog.readLast(STREAM_KEY, MAX_LAST_N)).thenReturn(Stream.empty());
+    when(eventLog.readLast(STREAM_KEY, 1)).thenReturn(Stream.empty());
 
     stream.replayLast(1000);
 
@@ -167,8 +167,8 @@ class DefaultOdysseyStreamTest {
 
   @Test
   void replayLastReturnsEmitter() {
-    when(eventLog.readLast(eq(STREAM_KEY), eq(5))).thenReturn(Stream.empty());
-    when(eventLog.readLast(eq(STREAM_KEY), eq(1))).thenReturn(Stream.empty());
+    when(eventLog.readLast(STREAM_KEY, 5)).thenReturn(Stream.empty());
+    when(eventLog.readLast(STREAM_KEY, 1)).thenReturn(Stream.empty());
 
     var emitter = stream.replayLast(5);
 
@@ -177,8 +177,8 @@ class DefaultOdysseyStreamTest {
 
   @Test
   void replayLastWithTimeoutReturnsEmitter() {
-    when(eventLog.readLast(eq(STREAM_KEY), eq(5))).thenReturn(Stream.empty());
-    when(eventLog.readLast(eq(STREAM_KEY), eq(1))).thenReturn(Stream.empty());
+    when(eventLog.readLast(STREAM_KEY, 5)).thenReturn(Stream.empty());
+    when(eventLog.readLast(STREAM_KEY, 1)).thenReturn(Stream.empty());
 
     var emitter = stream.replayLast(5, Duration.ofSeconds(60));
 

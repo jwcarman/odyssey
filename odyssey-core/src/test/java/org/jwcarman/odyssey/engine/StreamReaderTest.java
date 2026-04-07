@@ -81,7 +81,7 @@ class StreamReaderTest {
 
     nudge.release();
     Thread.sleep(100);
-    verify(eventLog, atLeastOnce()).readAfter(eq("test-stream"), eq("0"));
+    verify(eventLog, atLeastOnce()).readAfter("test-stream", "0");
 
     thread.interrupt();
   }

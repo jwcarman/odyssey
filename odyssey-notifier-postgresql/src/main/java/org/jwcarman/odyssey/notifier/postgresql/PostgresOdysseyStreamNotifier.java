@@ -16,10 +16,12 @@
 package org.jwcarman.odyssey.notifier.postgresql;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.regex.Pattern;
 import javax.sql.DataSource;
 import org.jwcarman.odyssey.spi.NotificationHandler;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
@@ -35,6 +37,7 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
   private static final Logger log = LoggerFactory.getLogger(PostgresOdysseyStreamNotifier.class);
 
   private static final String PAYLOAD_DELIMITER = "|";
+  private static final Pattern VALID_CHANNEL = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
 
   private final JdbcTemplate jdbcTemplate;
   private final DataSource dataSource;
@@ -48,6 +51,10 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
 
   public PostgresOdysseyStreamNotifier(
       JdbcTemplate jdbcTemplate, DataSource dataSource, String channel, int pollTimeoutMillis) {
+    if (!VALID_CHANNEL.matcher(channel).matches()) {
+      throw new IllegalArgumentException(
+          "Invalid PostgreSQL channel name: '" + channel + "'. Must match [a-zA-Z_][a-zA-Z0-9_]*");
+    }
     this.jdbcTemplate = jdbcTemplate;
     this.dataSource = dataSource;
     this.channel = channel;
@@ -58,7 +65,14 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
   public void notify(String streamKey, String eventId) {
     String payload = streamKey + PAYLOAD_DELIMITER + eventId;
     jdbcTemplate.execute(
-        "SELECT pg_notify('" + channel + "', '" + payload.replace("'", "''") + "')");
+        (Connection conn) -> {
+          try (PreparedStatement ps = conn.prepareStatement("SELECT pg_notify(?, ?)")) {
+            ps.setString(1, channel);
+            ps.setString(2, payload);
+            ps.execute();
+            return null;
+          }
+        });
   }
 
   @Override
@@ -94,6 +108,8 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
         listenConnection.setAutoCommit(true);
         PGConnection pgConnection = listenConnection.unwrap(PGConnection.class);
 
+        // LISTEN does not support prepared statements in PostgreSQL.
+        // The channel name is validated at construction time against a strict pattern.
         try (Statement stmt = listenConnection.createStatement()) {
           stmt.execute("LISTEN " + channel);
         }
