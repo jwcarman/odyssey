@@ -122,13 +122,17 @@ the JSON string. Clients parse it with `JSON.parse(event.data)`.
 ## Stream Types
 
 All three stream types use the same API and architecture. The difference is naming
-convention and default TTL configuration.
+convention and caching behavior.
 
-| Type | Factory Method | Use Case | Default TTL |
-|------|---------------|----------|-------------|
-| Ephemeral | `registry.ephemeral()` | Short-lived request/response (MCP tool calls) | 5 minutes |
-| Channel | `registry.channel(name)` | Per-user or per-entity notifications | 1 hour |
-| Broadcast | `registry.broadcast(name)` | System-wide announcements | 24 hours |
+| Type | Factory Method | Use Case |
+|------|---------------|----------|
+| Ephemeral | `registry.ephemeral()` | Short-lived request/response (MCP tool calls) |
+| Channel | `registry.channel(name)` | Per-user or per-entity notifications |
+| Broadcast | `registry.broadcast(name)` | System-wide announcements |
+
+Event TTL and retention are configured at the Substrate layer (e.g.,
+`substrate.journal.redis.default-ttl=1h`). See your Substrate backend's
+documentation for details.
 
 ### Ephemeral Streams
 
