@@ -64,7 +64,11 @@ class StreamSubscriber {
     if (readerThread != null) {
       readerThread.interrupt();
     }
-    queue.offer(POISON);
+    try {
+      queue.put(POISON);
+    } catch (InterruptedException _) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   void closeImmediately() {

@@ -55,9 +55,7 @@ class RedisOdysseyEventLogTest {
             "odyssey:ephemeral:",
             "odyssey:channel:",
             "odyssey:broadcast:",
-            300,
-            3600,
-            86400);
+            new RedisOdysseyEventLog.TtlConfig(300, 3600, 86400));
   }
 
   @Test

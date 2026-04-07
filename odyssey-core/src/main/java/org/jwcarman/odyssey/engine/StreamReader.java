@@ -55,7 +55,7 @@ class StreamReader implements Runnable {
           lastReadId = event.id();
         }
       }
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
     }
   }

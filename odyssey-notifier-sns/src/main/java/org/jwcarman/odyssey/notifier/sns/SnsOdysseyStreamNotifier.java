@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.jwcarman.odyssey.spi.NotificationHandler;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 import org.slf4j.Logger;
@@ -59,9 +60,8 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
 
   private final AtomicBoolean running = new AtomicBoolean(false);
   private volatile String queueUrl;
-  private volatile String queueArn;
   private volatile String subscriptionArn;
-  private volatile Thread pollerThread;
+  private final AtomicReference<Thread> pollerThread = new AtomicReference<>();
 
   public SnsOdysseyStreamNotifier(
       SnsClient snsClient, SqsClient sqsClient, String topicArn, int sqsMessageRetentionSeconds) {
@@ -107,7 +107,7 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
                     .build())
             .queueUrl();
 
-    queueArn =
+    String queueArn =
         sqsClient
             .getQueueAttributes(
                 GetQueueAttributesRequest.builder()
@@ -155,20 +155,20 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
     subscriptionArn = subscribeResponse.subscriptionArn();
 
     running.set(true);
-    pollerThread = Thread.ofVirtual().name("odyssey-sns-poller").start(this::pollLoop);
+    pollerThread.set(Thread.ofVirtual().name("odyssey-sns-poller").start(this::pollLoop));
   }
 
   @Override
   public void stop() {
     running.set(false);
-    if (pollerThread != null) {
-      pollerThread.interrupt();
+    Thread thread = pollerThread.getAndSet(null);
+    if (thread != null) {
+      thread.interrupt();
       try {
-        pollerThread.join(5000);
-      } catch (InterruptedException e) {
+        thread.join(5000);
+      } catch (InterruptedException _) {
         Thread.currentThread().interrupt();
       }
-      pollerThread = null;
     }
     if (subscriptionArn != null) {
       try {
@@ -206,26 +206,26 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
                     .build());
 
         List<Message> messages = response.messages();
-        if (messages.isEmpty()) {
-          continue;
-        }
+        if (!messages.isEmpty()) {
+          List<DeleteMessageBatchRequestEntry> deleteEntries =
+              new java.util.ArrayList<>(messages.size());
 
-        List<DeleteMessageBatchRequestEntry> deleteEntries =
-            new java.util.ArrayList<>(messages.size());
+          for (int i = 0; i < messages.size(); i++) {
+            Message message = messages.get(i);
+            parseAndDispatch(message.body());
+            deleteEntries.add(
+                DeleteMessageBatchRequestEntry.builder()
+                    .id(String.valueOf(i))
+                    .receiptHandle(message.receiptHandle())
+                    .build());
+          }
 
-        for (int i = 0; i < messages.size(); i++) {
-          Message message = messages.get(i);
-          String body = message.body();
-          parseAndDispatch(body);
-          deleteEntries.add(
-              DeleteMessageBatchRequestEntry.builder()
-                  .id(String.valueOf(i))
-                  .receiptHandle(message.receiptHandle())
+          sqsClient.deleteMessageBatch(
+              DeleteMessageBatchRequest.builder()
+                  .queueUrl(queueUrl)
+                  .entries(deleteEntries)
                   .build());
         }
-
-        sqsClient.deleteMessageBatch(
-            DeleteMessageBatchRequest.builder().queueUrl(queueUrl).entries(deleteEntries).build());
       } catch (Exception e) {
         if (Thread.currentThread().isInterrupted() || !running.get()) {
           break;
@@ -251,8 +251,8 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
   }
 
   private String extractSnsMessage(String body) {
-    // SNS delivers to SQS in a JSON envelope: {"Type":"Notification","Message":"...","..."}
-    // We extract the "Message" field value. Using simple string parsing to avoid a JSON dependency.
+    // SNS wraps the original message in a JSON envelope when delivering to SQS.
+    // Extract the "Message" field value using simple string parsing to avoid a JSON dependency.
     String marker = "\"Message\"";
     int keyIndex = body.indexOf(marker);
     if (keyIndex < 0) {
@@ -275,12 +275,15 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
   }
 
   private int findClosingQuote(String s, int from) {
-    for (int i = from; i < s.length(); i++) {
+    int i = from;
+    while (i < s.length()) {
       char c = s.charAt(i);
       if (c == '\\') {
-        i++; // skip escaped character
+        i += 2; // skip escaped character
       } else if (c == '"') {
         return i;
+      } else {
+        i++;
       }
     }
     return -1;
@@ -291,7 +294,8 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
       return s;
     }
     StringBuilder sb = new StringBuilder(s.length());
-    for (int i = 0; i < s.length(); i++) {
+    int i = 0;
+    while (i < s.length()) {
       char c = s.charAt(i);
       if (c == '\\' && i + 1 < s.length()) {
         i++;
@@ -299,6 +303,7 @@ public class SnsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLif
       } else {
         sb.append(c);
       }
+      i++;
     }
     return sb.toString();
   }

@@ -23,8 +23,6 @@ import io.lettuce.core.XReadArgs;
 import io.lettuce.core.XReadArgs.StreamOffset;
 import io.lettuce.core.api.sync.RedisCommands;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,11 +37,11 @@ public class RedisOdysseyEventLog extends AbstractOdysseyEventLog {
   private static final String FIELD_PAYLOAD = "payload";
   private static final String FIELD_TIMESTAMP = "timestamp";
 
+  record TtlConfig(long ephemeralSeconds, long channelSeconds, long broadcastSeconds) {}
+
   private final RedisCommands<String, String> commands;
   private final long maxLen;
-  private final long ephemeralTtlSeconds;
-  private final long channelTtlSeconds;
-  private final long broadcastTtlSeconds;
+  private final TtlConfig ttlConfig;
 
   public RedisOdysseyEventLog(
       RedisCommands<String, String> commands,
@@ -51,15 +49,11 @@ public class RedisOdysseyEventLog extends AbstractOdysseyEventLog {
       String ephemeralPrefix,
       String channelPrefix,
       String broadcastPrefix,
-      long ephemeralTtlSeconds,
-      long channelTtlSeconds,
-      long broadcastTtlSeconds) {
+      TtlConfig ttlConfig) {
     super(ephemeralPrefix, channelPrefix, broadcastPrefix);
     this.commands = commands;
     this.maxLen = maxLen;
-    this.ephemeralTtlSeconds = ephemeralTtlSeconds;
-    this.channelTtlSeconds = channelTtlSeconds;
-    this.broadcastTtlSeconds = broadcastTtlSeconds;
+    this.ttlConfig = ttlConfig;
   }
 
   @Override
@@ -97,9 +91,8 @@ public class RedisOdysseyEventLog extends AbstractOdysseyEventLog {
   @Override
   public Stream<OdysseyEvent> readLast(String streamKey, int count) {
     List<StreamMessage<String, String>> messages =
-        new ArrayList<>(commands.xrevrange(streamKey, Range.unbounded(), Limit.create(0, count)));
-    Collections.reverse(messages);
-    return messages.stream().map(msg -> toOdysseyEvent(streamKey, msg));
+        commands.xrevrange(streamKey, Range.unbounded(), Limit.create(0, count));
+    return messages.reversed().stream().map(msg -> toOdysseyEvent(streamKey, msg));
   }
 
   @Override
@@ -109,11 +102,11 @@ public class RedisOdysseyEventLog extends AbstractOdysseyEventLog {
 
   private long resolveTtl(String streamKey) {
     if (streamKey.startsWith(ephemeralPrefix())) {
-      return ephemeralTtlSeconds;
+      return ttlConfig.ephemeralSeconds();
     } else if (streamKey.startsWith(channelPrefix())) {
-      return channelTtlSeconds;
+      return ttlConfig.channelSeconds();
     } else if (streamKey.startsWith(broadcastPrefix())) {
-      return broadcastTtlSeconds;
+      return ttlConfig.broadcastSeconds();
     }
     return 0;
   }

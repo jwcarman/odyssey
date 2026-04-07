@@ -57,9 +57,7 @@ class DefaultOdysseyStreamTest {
             eventLog,
             notifier,
             subscriberGroup,
-            KEEP_ALIVE,
-            SSE_TIMEOUT,
-            MAX_LAST_N,
+            new DefaultOdysseyStream.StreamConfig(KEEP_ALIVE, SSE_TIMEOUT, MAX_LAST_N),
             new ObjectMapper());
   }
 

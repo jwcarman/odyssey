@@ -34,6 +34,7 @@ import io.nats.client.api.Subject;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.NatsMessage;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -69,7 +70,7 @@ public class NatsOdysseyEventLog extends AbstractOdysseyEventLog {
       this.jsm = connection.jetStreamManagement();
       ensureStreamExists(maxAge, maxMessages);
     } catch (IOException e) {
-      throw new RuntimeException("Failed to initialize NATS JetStream", e);
+      throw new UncheckedIOException("Failed to initialize NATS JetStream", e);
     }
   }
 
@@ -96,8 +97,10 @@ public class NatsOdysseyEventLog extends AbstractOdysseyEventLog {
 
       var ack = jetStream.publish(message);
       return String.valueOf(ack.getSeqno());
-    } catch (IOException | JetStreamApiException e) {
-      throw new RuntimeException("Failed to publish to NATS JetStream", e);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Failed to publish to NATS JetStream", e);
+    } catch (JetStreamApiException e) {
+      throw new IllegalStateException("Failed to publish to NATS JetStream", e);
     }
   }
 
@@ -113,7 +116,7 @@ public class NatsOdysseyEventLog extends AbstractOdysseyEventLog {
         return Stream.empty();
       }
       return fetchMessages(subject, DeliverPolicy.ByStartSequence, startSeq, streamKey);
-    } catch (IOException | JetStreamApiException e) {
+    } catch (IOException | JetStreamApiException _) {
       return Stream.empty();
     }
   }
@@ -131,7 +134,7 @@ public class NatsOdysseyEventLog extends AbstractOdysseyEventLog {
       List<OdysseyEvent> allEvents = fetchAllForSubject(subject, streamKey);
       int start = Math.max(0, allEvents.size() - count);
       return allEvents.subList(start, allEvents.size()).stream();
-    } catch (IOException | JetStreamApiException e) {
+    } catch (IOException | JetStreamApiException _) {
       return Stream.empty();
     }
   }
@@ -141,7 +144,7 @@ public class NatsOdysseyEventLog extends AbstractOdysseyEventLog {
     String subject = toSubject(streamKey);
     try {
       jsm.purgeStream(streamName, PurgeOptions.subject(subject));
-    } catch (IOException | JetStreamApiException e) {
+    } catch (IOException | JetStreamApiException _) {
       // Stream or subject doesn't exist — safe to ignore
     }
   }
@@ -162,14 +165,16 @@ public class NatsOdysseyEventLog extends AbstractOdysseyEventLog {
       if (e.getApiErrorCode() == 10058) {
         try {
           jsm.updateStream(config);
-        } catch (IOException | JetStreamApiException ex) {
-          throw new RuntimeException("Failed to update NATS JetStream stream", ex);
+        } catch (IOException ex) {
+          throw new UncheckedIOException("Failed to update NATS JetStream stream", ex);
+        } catch (JetStreamApiException ex) {
+          throw new IllegalStateException("Failed to update NATS JetStream stream", ex);
         }
       } else {
-        throw new RuntimeException("Failed to create NATS JetStream stream", e);
+        throw new IllegalStateException("Failed to create NATS JetStream stream", e);
       }
     } catch (IOException e) {
-      throw new RuntimeException("Failed to create NATS JetStream stream", e);
+      throw new UncheckedIOException("Failed to create NATS JetStream stream", e);
     }
   }
 
@@ -203,7 +208,7 @@ public class NatsOdysseyEventLog extends AbstractOdysseyEventLog {
         sub.unsubscribe();
       }
       return events.stream();
-    } catch (IOException | JetStreamApiException e) {
+    } catch (IOException | JetStreamApiException _) {
       return Stream.empty();
     }
   }
@@ -247,18 +252,7 @@ public class NatsOdysseyEventLog extends AbstractOdysseyEventLog {
 
   private OdysseyEvent deserializeMessage(Message message, String streamKey) {
     Headers headers = message.getHeaders();
-
-    Map<String, String> metadata = new HashMap<>();
-    if (headers != null) {
-      for (String key : headers.keySet()) {
-        if (key.startsWith("meta.")) {
-          List<String> values = headers.get(key);
-          if (values != null && !values.isEmpty()) {
-            metadata.put(key.substring(5), values.getFirst());
-          }
-        }
-      }
-    }
+    Map<String, String> metadata = extractMetadata(headers);
 
     String payload =
         message.getData() != null && message.getData().length > 0
@@ -276,6 +270,22 @@ public class NatsOdysseyEventLog extends AbstractOdysseyEventLog {
         .timestamp(timestamp != null ? Instant.parse(timestamp) : null)
         .metadata(metadata)
         .build();
+  }
+
+  private Map<String, String> extractMetadata(Headers headers) {
+    Map<String, String> metadata = new HashMap<>();
+    if (headers == null) {
+      return metadata;
+    }
+    for (String key : headers.keySet()) {
+      if (key.startsWith("meta.")) {
+        List<String> values = headers.get(key);
+        if (values != null && !values.isEmpty()) {
+          metadata.put(key.substring(5), values.getFirst());
+        }
+      }
+    }
+    return metadata;
   }
 
   private String getSingleHeader(Headers headers, String key) {

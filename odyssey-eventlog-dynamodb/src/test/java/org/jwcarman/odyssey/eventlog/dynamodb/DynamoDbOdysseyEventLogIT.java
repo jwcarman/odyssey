@@ -17,7 +17,6 @@ package org.jwcarman.odyssey.eventlog.dynamodb;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -25,9 +24,9 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.odyssey.core.OdysseyEvent;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -42,7 +41,7 @@ class DynamoDbOdysseyEventLogIT {
   @Container
   static LocalStackContainer localstack =
       new LocalStackContainer(DockerImageName.parse("localstack/localstack:3.8"))
-          .withServices(LocalStackContainer.Service.DYNAMODB);
+          .withServices("dynamodb");
 
   private DynamoDbOdysseyEventLog eventLog;
   private DynamoDbClient client;
@@ -51,11 +50,7 @@ class DynamoDbOdysseyEventLogIT {
   void setUp() {
     client =
         DynamoDbClient.builder()
-            .endpointOverride(
-                URI.create(
-                    localstack
-                        .getEndpointOverride(LocalStackContainer.Service.DYNAMODB)
-                        .toString()))
+            .endpointOverride(localstack.getEndpoint())
             .credentialsProvider(
                 StaticCredentialsProvider.create(
                     AwsBasicCredentials.create(
@@ -65,7 +60,7 @@ class DynamoDbOdysseyEventLogIT {
 
     try {
       client.deleteTable(DeleteTableRequest.builder().tableName("odyssey_events").build());
-    } catch (ResourceNotFoundException ignored) {
+    } catch (ResourceNotFoundException _) {
       // table doesn't exist yet
     }
 

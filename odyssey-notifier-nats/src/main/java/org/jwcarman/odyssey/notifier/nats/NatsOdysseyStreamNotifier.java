@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.jwcarman.odyssey.spi.NotificationHandler;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 import org.springframework.context.SmartLifecycle;
@@ -33,7 +34,7 @@ public class NatsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLi
   private final List<NotificationHandler> handlers = new CopyOnWriteArrayList<>();
 
   private final AtomicBoolean running = new AtomicBoolean(false);
-  private volatile Dispatcher dispatcher;
+  private final AtomicReference<Dispatcher> dispatcher = new AtomicReference<>();
 
   public NatsOdysseyStreamNotifier(Connection connection, String subjectPrefix) {
     this.connection = connection;
@@ -53,17 +54,18 @@ public class NatsOdysseyStreamNotifier implements OdysseyStreamNotifier, SmartLi
 
   @Override
   public void start() {
-    dispatcher = connection.createDispatcher(this::handleMessage);
-    dispatcher.subscribe(subjectPrefix + ">");
+    Dispatcher d = connection.createDispatcher(this::handleMessage);
+    d.subscribe(subjectPrefix + ">");
+    dispatcher.set(d);
     running.set(true);
   }
 
   @Override
   public void stop() {
     running.set(false);
-    if (dispatcher != null) {
-      connection.closeDispatcher(dispatcher);
-      dispatcher = null;
+    Dispatcher d = dispatcher.getAndSet(null);
+    if (d != null) {
+      connection.closeDispatcher(d);
     }
   }
 

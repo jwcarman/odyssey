@@ -46,8 +46,9 @@ public class RedisEventLogAutoConfiguration {
         properties.ephemeralPrefix(),
         properties.channelPrefix(),
         properties.broadcastPrefix(),
-        properties.ephemeralTtl().toSeconds(),
-        properties.channelTtl().toSeconds(),
-        properties.broadcastTtl().toSeconds());
+        new RedisOdysseyEventLog.TtlConfig(
+            properties.ephemeralTtl().toSeconds(),
+            properties.channelTtl().toSeconds(),
+            properties.broadcastTtl().toSeconds()));
   }
 }

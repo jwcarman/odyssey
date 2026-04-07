@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.jwcarman.odyssey.spi.NotificationHandler;
 import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 import org.springframework.amqp.core.BindingBuilder;
@@ -42,7 +43,8 @@ public class RabbitMqOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
   private final List<NotificationHandler> handlers = new CopyOnWriteArrayList<>();
 
   private final AtomicBoolean running = new AtomicBoolean(false);
-  private volatile SimpleMessageListenerContainer listenerContainer;
+  private final AtomicReference<SimpleMessageListenerContainer> listenerContainer =
+      new AtomicReference<>();
 
   public RabbitMqOdysseyStreamNotifier(
       RabbitTemplate rabbitTemplate, ConnectionFactory connectionFactory, String exchangeName) {
@@ -74,10 +76,12 @@ public class RabbitMqOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
 
     admin.declareBinding(BindingBuilder.bind(queue).to(exchange));
 
-    listenerContainer = new SimpleMessageListenerContainer(connectionFactory);
-    listenerContainer.setQueueNames(queueName);
-    listenerContainer.setMessageListener((MessageListener) this::handleMessage);
-    listenerContainer.start();
+    SimpleMessageListenerContainer container =
+        new SimpleMessageListenerContainer(connectionFactory);
+    container.setQueueNames(queueName);
+    container.setMessageListener((MessageListener) this::handleMessage);
+    container.start();
+    listenerContainer.set(container);
 
     running.set(true);
   }
@@ -85,9 +89,9 @@ public class RabbitMqOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
   @Override
   public void stop() {
     running.set(false);
-    if (listenerContainer != null) {
-      listenerContainer.stop();
-      listenerContainer = null;
+    SimpleMessageListenerContainer container = listenerContainer.getAndSet(null);
+    if (container != null) {
+      container.stop();
     }
   }
 

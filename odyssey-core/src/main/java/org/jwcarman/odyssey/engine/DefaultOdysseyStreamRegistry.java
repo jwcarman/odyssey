@@ -90,9 +90,7 @@ public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
         eventLog,
         notifier,
         group,
-        keepAliveInterval,
-        defaultSseTimeout,
-        maxLastN,
+        new DefaultOdysseyStream.StreamConfig(keepAliveInterval, defaultSseTimeout, maxLastN),
         objectMapper);
   }
 }

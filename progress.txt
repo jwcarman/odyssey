@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-06T21:17:00-04:00
-ITERATION: 36
-SPEC_COMPLETED: 033-uuid-v7-event-ids.md
-WHAT_WAS_DONE: Replaced duplicated timestamp+sequence event ID generation in MongoOdysseyEventLog, DynamoDbOdysseyEventLog, and RabbitMqOdysseyEventLog with UUID v7 generation via java-uuid-generator, centralized in AbstractOdysseyEventLog.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all 15 modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS; grep for lastMillis/formatEventId/AtomicInteger sequence in affected modules → 0 matches.
-STATUS: MORE_WORK
-NEXT_SPEC: 034-sonar-cleanups.md
-NOTES: Added com.fasterxml.uuid:java-uuid-generator 5.2.0 to odyssey-core (Spring Boot 4.0.5 does not manage this version, contrary to what the spec stated). UUID v7 generator stored as a static field on AbstractOdysseyEventLog for efficiency. Updated 3 integration test assertions from old \d{13}-\d{5} pattern to UUID v7 regex. NATS, Redis, PostgreSQL, Cassandra, and InMemory event logs were not affected (they use native ID strategies). readAfter comparisons work correctly with UUID v7 since it is lexicographically sortable.
+LAST_RUN: 2026-04-06T21:36:00-04:00
+ITERATION: 37
+SPEC_COMPLETED: 034-sonar-cleanups.md
+WHAT_WAS_DONE: Fixed all 91 SonarCloud issues across 18 rule categories: unnamed catch patterns (S7467), deprecated LocalStack APIs (S1874), duplicate string literals (S1192), generic exceptions (S112), volatile Thread fields replaced with AtomicReference (S3077), empty test stubs (S1186), constructor parameter reduction via config records (S107), SNS JSON parser loop refactoring (S127), .reversed() usage (S6877), unnecessary eq() removal (S6068), DynamoDB consumer builder style (S6244), SNS poll loop simplification (S135), queueArn made local (S1450), commented-out code cleanup (S125), NatsOdysseyEventLog cognitive complexity reduction (S3776), test lambda fix (S5778), regex character class (S6353), and POISON offer→put (S899).
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (all 15 modules, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+STATUS: DONE
+NEXT_SPEC: none
+NOTES: The S5738 (deprecated MongoDB API) items from the spec were likely false positives in the original SonarCloud scan — no deprecated MongoDB API calls were found in MongoOdysseyEventLog (the driver APIs used are current). The LocalStack test migration (S1874) changed from org.testcontainers.containers.localstack to org.testcontainers.localstack and from Service enum to string-based withServices(). RedisOdysseyEventLog.TtlConfig and DefaultOdysseyStream.StreamConfig are new inner records introduced for S107.

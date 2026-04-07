@@ -17,7 +17,6 @@ package org.jwcarman.odyssey.notifier.nats;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -55,8 +54,8 @@ class NatsOdysseyStreamNotifierTest {
 
     verify(connection)
         .publish(
-            eq("odyssey.notify.odyssey.channel.my-channel"),
-            eq("1712404800000-0".getBytes(StandardCharsets.UTF_8)));
+            "odyssey.notify.odyssey.channel.my-channel",
+            "1712404800000-0".getBytes(StandardCharsets.UTF_8));
   }
 
   @Test
@@ -65,8 +64,7 @@ class NatsOdysseyStreamNotifierTest {
 
     verify(connection)
         .publish(
-            eq("odyssey.notify.odyssey.ephemeral.abc-123"),
-            eq("42-0".getBytes(StandardCharsets.UTF_8)));
+            "odyssey.notify.odyssey.ephemeral.abc-123", "42-0".getBytes(StandardCharsets.UTF_8));
   }
 
   @Test

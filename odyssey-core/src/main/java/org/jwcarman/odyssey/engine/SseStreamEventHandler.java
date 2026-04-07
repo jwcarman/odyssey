@@ -48,7 +48,7 @@ class SseStreamEventHandler implements StreamEventHandler {
   private void send(SseEmitter.SseEventBuilder event) {
     try {
       emitter.send(event);
-    } catch (IOException e) {
+    } catch (IOException _) {
       doCleanup();
     }
   }

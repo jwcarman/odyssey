@@ -29,13 +29,13 @@ import tools.jackson.databind.ObjectMapper;
 
 class DefaultOdysseyStream implements OdysseyStream {
 
+  record StreamConfig(long keepAliveInterval, long defaultSseTimeout, int maxLastN) {}
+
   private final String streamKey;
   private final OdysseyEventLog eventLog;
   private final OdysseyStreamNotifier notifier;
   private final StreamSubscriberGroup subscriberGroup;
-  private final long keepAliveInterval;
-  private final long defaultSseTimeout;
-  private final int maxLastN;
+  private final StreamConfig config;
   private final ObjectMapper objectMapper;
 
   DefaultOdysseyStream(
@@ -43,17 +43,13 @@ class DefaultOdysseyStream implements OdysseyStream {
       OdysseyEventLog eventLog,
       OdysseyStreamNotifier notifier,
       StreamSubscriberGroup subscriberGroup,
-      long keepAliveInterval,
-      long defaultSseTimeout,
-      int maxLastN,
+      StreamConfig config,
       ObjectMapper objectMapper) {
     this.streamKey = streamKey;
     this.eventLog = eventLog;
     this.notifier = notifier;
     this.subscriberGroup = subscriberGroup;
-    this.keepAliveInterval = keepAliveInterval;
-    this.defaultSseTimeout = defaultSseTimeout;
-    this.maxLastN = maxLastN;
+    this.config = config;
     this.objectMapper = objectMapper;
   }
 
@@ -80,7 +76,7 @@ class DefaultOdysseyStream implements OdysseyStream {
 
   @Override
   public SseEmitter subscribe() {
-    return subscribe(Duration.ofMillis(defaultSseTimeout));
+    return subscribe(Duration.ofMillis(config.defaultSseTimeout()));
   }
 
   @Override
@@ -91,7 +87,7 @@ class DefaultOdysseyStream implements OdysseyStream {
 
   @Override
   public SseEmitter resumeAfter(String lastEventId) {
-    return resumeAfter(lastEventId, Duration.ofMillis(defaultSseTimeout));
+    return resumeAfter(lastEventId, Duration.ofMillis(config.defaultSseTimeout()));
   }
 
   @Override
@@ -103,12 +99,12 @@ class DefaultOdysseyStream implements OdysseyStream {
 
   @Override
   public SseEmitter replayLast(int count) {
-    return replayLast(count, Duration.ofMillis(defaultSseTimeout));
+    return replayLast(count, Duration.ofMillis(config.defaultSseTimeout()));
   }
 
   @Override
   public SseEmitter replayLast(int count, Duration timeout) {
-    int cappedCount = Math.min(count, maxLastN);
+    int cappedCount = Math.min(count, config.maxLastN());
     List<OdysseyEvent> replayEvents = eventLog.readLast(streamKey, cappedCount).toList();
     String lastId = replayEvents.isEmpty() ? getCurrentLastId() : replayEvents.getLast().id();
     return createSubscription(lastId, timeout, replayEvents);
@@ -149,14 +145,14 @@ class DefaultOdysseyStream implements OdysseyStream {
         };
     SseStreamEventHandler handler = new SseStreamEventHandler(emitter, cleanup);
     StreamSubscriber subscriber =
-        new StreamSubscriber(eventLog, handler, streamKey, lastId, keepAliveInterval);
+        new StreamSubscriber(eventLog, handler, streamKey, lastId, config.keepAliveInterval());
     subscriberRef.set(subscriber);
     subscriberGroup.addSubscriber(subscriber);
     try {
       for (OdysseyEvent event : replayEvents) {
         subscriber.enqueue(event);
       }
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
     }
     subscriber.start();

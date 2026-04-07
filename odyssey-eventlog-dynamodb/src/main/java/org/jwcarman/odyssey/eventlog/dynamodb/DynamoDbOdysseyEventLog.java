@@ -26,14 +26,10 @@ import java.util.stream.Stream;
 import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.spi.AbstractOdysseyEventLog;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.CreateTableRequest;
 import software.amazon.awssdk.services.dynamodb.model.DeleteRequest;
-import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
 import software.amazon.awssdk.services.dynamodb.model.KeyType;
-import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughput;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
@@ -44,6 +40,8 @@ import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
 
   private static final int BATCH_DELETE_SIZE = 25;
+  private static final String FIELD_STREAM_KEY = "stream_key";
+  private static final String FIELD_EVENT_ID = "event_id";
 
   private final DynamoDbClient client;
   private final String tableName;
@@ -65,33 +63,16 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
   public void createTable() {
     try {
       client.createTable(
-          CreateTableRequest.builder()
-              .tableName(tableName)
-              .keySchema(
-                  KeySchemaElement.builder()
-                      .attributeName("stream_key")
-                      .keyType(KeyType.HASH)
-                      .build(),
-                  KeySchemaElement.builder()
-                      .attributeName("event_id")
-                      .keyType(KeyType.RANGE)
-                      .build())
-              .attributeDefinitions(
-                  AttributeDefinition.builder()
-                      .attributeName("stream_key")
-                      .attributeType(ScalarAttributeType.S)
-                      .build(),
-                  AttributeDefinition.builder()
-                      .attributeName("event_id")
-                      .attributeType(ScalarAttributeType.S)
-                      .build())
-              .provisionedThroughput(
-                  ProvisionedThroughput.builder()
-                      .readCapacityUnits(5L)
-                      .writeCapacityUnits(5L)
-                      .build())
-              .build());
-    } catch (ResourceInUseException ignored) {
+          b ->
+              b.tableName(tableName)
+                  .keySchema(
+                      ks -> ks.attributeName(FIELD_STREAM_KEY).keyType(KeyType.HASH),
+                      ks -> ks.attributeName(FIELD_EVENT_ID).keyType(KeyType.RANGE))
+                  .attributeDefinitions(
+                      ad -> ad.attributeName(FIELD_STREAM_KEY).attributeType(ScalarAttributeType.S),
+                      ad -> ad.attributeName(FIELD_EVENT_ID).attributeType(ScalarAttributeType.S))
+                  .provisionedThroughput(pt -> pt.readCapacityUnits(5L).writeCapacityUnits(5L)));
+    } catch (ResourceInUseException _) {
       // table already exists
     }
   }
@@ -101,8 +82,8 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
     String eventId = generateEventId();
 
     Map<String, AttributeValue> item = new HashMap<>();
-    item.put("stream_key", AttributeValue.builder().s(streamKey).build());
-    item.put("event_id", AttributeValue.builder().s(eventId).build());
+    item.put(FIELD_STREAM_KEY, AttributeValue.builder().s(streamKey).build());
+    item.put(FIELD_EVENT_ID, AttributeValue.builder().s(eventId).build());
     item.put("event_type", AttributeValue.builder().s(event.eventType()).build());
     item.put("payload", AttributeValue.builder().s(event.payload()).build());
     item.put("timestamp", AttributeValue.builder().s(event.timestamp().toString()).build());
@@ -132,7 +113,7 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
       QueryRequest.Builder queryBuilder =
           QueryRequest.builder()
               .tableName(tableName)
-              .keyConditionExpression("stream_key = :sk AND event_id > :eid")
+              .keyConditionExpression(FIELD_STREAM_KEY + " = :sk AND " + FIELD_EVENT_ID + " > :eid")
               .expressionAttributeValues(
                   Map.of(
                       ":sk", AttributeValue.builder().s(streamKey).build(),
@@ -160,7 +141,7 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
         client.query(
             QueryRequest.builder()
                 .tableName(tableName)
-                .keyConditionExpression("stream_key = :sk")
+                .keyConditionExpression(FIELD_STREAM_KEY + " = :sk")
                 .expressionAttributeValues(
                     Map.of(":sk", AttributeValue.builder().s(streamKey).build()))
                 .scanIndexForward(false)
@@ -183,10 +164,10 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
       QueryRequest.Builder queryBuilder =
           QueryRequest.builder()
               .tableName(tableName)
-              .keyConditionExpression("stream_key = :sk")
+              .keyConditionExpression(FIELD_STREAM_KEY + " = :sk")
               .expressionAttributeValues(
                   Map.of(":sk", AttributeValue.builder().s(streamKey).build()))
-              .projectionExpression("stream_key, event_id");
+              .projectionExpression(FIELD_STREAM_KEY + ", " + FIELD_EVENT_ID);
 
       if (exclusiveStartKey != null) {
         queryBuilder.exclusiveStartKey(exclusiveStartKey);
@@ -205,8 +186,8 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
                                 DeleteRequest.builder()
                                     .key(
                                         Map.of(
-                                            "stream_key", item.get("stream_key"),
-                                            "event_id", item.get("event_id")))
+                                            FIELD_STREAM_KEY, item.get(FIELD_STREAM_KEY),
+                                            FIELD_EVENT_ID, item.get(FIELD_EVENT_ID)))
                                     .build())
                             .build())
                 .toList();
@@ -229,8 +210,8 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
     }
 
     return OdysseyEvent.builder()
-        .id(item.get("event_id").s())
-        .streamKey(item.get("stream_key").s())
+        .id(item.get(FIELD_EVENT_ID).s())
+        .streamKey(item.get(FIELD_STREAM_KEY).s())
         .eventType(item.get("event_type").s())
         .payload(item.get("payload").s())
         .timestamp(Instant.parse(item.get("timestamp").s()))

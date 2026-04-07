@@ -73,7 +73,8 @@ class OdysseyEventTest {
   void metadataIsUnmodifiable() {
     OdysseyEvent event = OdysseyEvent.builder().metadata(Map.of("key", "value")).build();
 
-    assertThrows(UnsupportedOperationException.class, () -> event.metadata().put("new", "entry"));
+    Map<String, String> metadata = event.metadata();
+    assertThrows(UnsupportedOperationException.class, () -> metadata.put("new", "entry"));
   }
 
   @Test

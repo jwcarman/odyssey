@@ -32,6 +32,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/task")
 public class TaskController {
 
+  private static final String EVENT_PROGRESS = "progress";
+
   private final OdysseyStreamRegistry registry;
   private final ConcurrentHashMap<String, OdysseyStream> activeStreams = new ConcurrentHashMap<>();
 
@@ -49,14 +51,14 @@ public class TaskController {
         .start(
             () -> {
               try {
-                stream.publishRaw("progress", "{\"percent\":0,\"status\":\"Starting...\"}");
+                stream.publishRaw(EVENT_PROGRESS, "{\"percent\":0,\"status\":\"Starting...\"}");
                 Thread.sleep(1500);
-                stream.publishRaw("progress", "{\"percent\":33,\"status\":\"Processing...\"}");
+                stream.publishRaw(EVENT_PROGRESS, "{\"percent\":33,\"status\":\"Processing...\"}");
                 Thread.sleep(1500);
-                stream.publishRaw("progress", "{\"percent\":66,\"status\":\"Almost done...\"}");
+                stream.publishRaw(EVENT_PROGRESS, "{\"percent\":66,\"status\":\"Almost done...\"}");
                 Thread.sleep(1500);
                 stream.publishRaw("complete", "{\"percent\":100,\"status\":\"Done!\"}");
-              } catch (InterruptedException e) {
+              } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
               } finally {
                 stream.close();

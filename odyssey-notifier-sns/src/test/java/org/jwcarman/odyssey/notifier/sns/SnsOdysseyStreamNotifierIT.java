@@ -27,9 +27,9 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -43,7 +43,7 @@ class SnsOdysseyStreamNotifierIT {
   @Container
   static LocalStackContainer localstack =
       new LocalStackContainer(DockerImageName.parse("localstack/localstack:3.8"))
-          .withServices(LocalStackContainer.Service.SNS, LocalStackContainer.Service.SQS);
+          .withServices("sns", "sqs");
 
   private SnsClient snsClient;
   private SqsClient sqsClient;
@@ -52,7 +52,7 @@ class SnsOdysseyStreamNotifierIT {
 
   @BeforeEach
   void setUp() {
-    URI endpoint = localstack.getEndpointOverride(LocalStackContainer.Service.SNS);
+    URI endpoint = localstack.getEndpoint();
     StaticCredentialsProvider credentials =
         StaticCredentialsProvider.create(
             AwsBasicCredentials.create(localstack.getAccessKey(), localstack.getSecretKey()));

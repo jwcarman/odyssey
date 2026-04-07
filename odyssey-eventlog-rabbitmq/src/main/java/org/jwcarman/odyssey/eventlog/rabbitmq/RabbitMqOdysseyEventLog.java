@@ -44,6 +44,7 @@ public class RabbitMqOdysseyEventLog extends AbstractOdysseyEventLog implements 
 
   private static final long CONSUME_TIMEOUT_MS = 200;
   private static final long PUBLISH_TIMEOUT_SECONDS = 5;
+  private static final String FIELD_TIMESTAMP = "timestamp";
 
   private final Environment environment;
   private final Duration maxAge;
@@ -86,7 +87,7 @@ public class RabbitMqOdysseyEventLog extends AbstractOdysseyEventLog implements 
       if (!latch.await(PUBLISH_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
         throw new StreamException("Publish confirmation timed out");
       }
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
       throw new StreamException("Interrupted while waiting for publish confirmation");
     }
@@ -118,7 +119,7 @@ public class RabbitMqOdysseyEventLog extends AbstractOdysseyEventLog implements 
     }
     try {
       environment.deleteStream(streamKey);
-    } catch (StreamException e) {
+    } catch (StreamException _) {
       // Stream doesn't exist — safe to ignore
     }
   }
@@ -135,7 +136,7 @@ public class RabbitMqOdysseyEventLog extends AbstractOdysseyEventLog implements 
           .maxAge(maxAge)
           .maxLengthBytes(ByteCapacity.B(maxLengthBytes))
           .create();
-    } catch (StreamException e) {
+    } catch (StreamException _) {
       // Stream already exists — safe to ignore
     }
   }
@@ -154,7 +155,7 @@ public class RabbitMqOdysseyEventLog extends AbstractOdysseyEventLog implements 
             .entry("eventId", eventId)
             .entry("streamKey", streamKey)
             .entry("eventType", event.eventType())
-            .entry("timestamp", event.timestamp().toString());
+            .entry(FIELD_TIMESTAMP, event.timestamp().toString());
 
     if (event.metadata() != null && !event.metadata().isEmpty()) {
       for (var entry : event.metadata().entrySet()) {
@@ -181,7 +182,7 @@ public class RabbitMqOdysseyEventLog extends AbstractOdysseyEventLog implements 
               .offset(OffsetSpecification.first())
               .messageHandler((ctx, msg) -> queue.add(deserializeMessage(msg)))
               .build();
-    } catch (StreamException e) {
+    } catch (StreamException _) {
       return List.of();
     }
 
@@ -191,7 +192,7 @@ public class RabbitMqOdysseyEventLog extends AbstractOdysseyEventLog implements 
       while ((event = queue.poll(CONSUME_TIMEOUT_MS, TimeUnit.MILLISECONDS)) != null) {
         events.add(event);
       }
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
     } finally {
       consumer.close();
@@ -204,7 +205,7 @@ public class RabbitMqOdysseyEventLog extends AbstractOdysseyEventLog implements 
     try {
       environment.queryStreamStats(streamKey);
       return true;
-    } catch (StreamException e) {
+    } catch (StreamException _) {
       return false;
     }
   }
@@ -233,8 +234,8 @@ public class RabbitMqOdysseyEventLog extends AbstractOdysseyEventLog implements 
         .eventType(props != null ? (String) props.get("eventType") : null)
         .payload(payload)
         .timestamp(
-            props != null && props.get("timestamp") != null
-                ? Instant.parse((String) props.get("timestamp"))
+            props != null && props.get(FIELD_TIMESTAMP) != null
+                ? Instant.parse((String) props.get(FIELD_TIMESTAMP))
                 : null)
         .metadata(metadata)
         .build();

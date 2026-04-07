@@ -48,7 +48,7 @@ class StreamWriter implements Runnable {
           handler.onEvent(event);
         }
       }
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
     } catch (Exception e) {
       handler.onError(e);

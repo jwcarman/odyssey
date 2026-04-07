@@ -194,15 +194,21 @@ class OdysseyAutoConfigurationTest {
     }
 
     @Override
-    public void delete(String streamKey) {}
+    public void delete(String streamKey) {
+      // no-op
+    }
   }
 
   static class StubOdysseyStreamNotifier implements OdysseyStreamNotifier {
 
     @Override
-    public void notify(String streamKey, String eventId) {}
+    public void notify(String streamKey, String eventId) {
+      // no-op
+    }
 
     @Override
-    public void subscribe(org.jwcarman.odyssey.spi.NotificationHandler handler) {}
+    public void subscribe(org.jwcarman.odyssey.spi.NotificationHandler handler) {
+      // no-op
+    }
   }
 }

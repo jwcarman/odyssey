@@ -16,6 +16,8 @@
 package org.jwcarman.odyssey.eventlog.cassandra;
 
 import com.datastax.oss.driver.api.core.CqlSession;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import org.jwcarman.odyssey.autoconfigure.OdysseyAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -39,8 +41,8 @@ public class CassandraEventLogAutoConfiguration {
       try {
         String cql = new String(schemaResource.getInputStream().readAllBytes());
         cqlSession.execute(cql);
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to execute Cassandra schema", e);
+      } catch (IOException e) {
+        throw new UncheckedIOException("Failed to read Cassandra schema", e);
       }
     }
 

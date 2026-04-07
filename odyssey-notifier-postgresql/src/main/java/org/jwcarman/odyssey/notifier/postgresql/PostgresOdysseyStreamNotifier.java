@@ -22,6 +22,7 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import javax.sql.DataSource;
 import org.jwcarman.odyssey.spi.NotificationHandler;
@@ -38,7 +39,7 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
   private static final Logger log = LoggerFactory.getLogger(PostgresOdysseyStreamNotifier.class);
 
   private static final String PAYLOAD_DELIMITER = "|";
-  private static final Pattern VALID_CHANNEL = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
+  private static final Pattern VALID_CHANNEL = Pattern.compile("^[a-zA-Z_]\\w*$");
 
   private final JdbcTemplate jdbcTemplate;
   private final DataSource dataSource;
@@ -47,8 +48,8 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
   private final List<NotificationHandler> handlers = new CopyOnWriteArrayList<>();
 
   private final AtomicBoolean running = new AtomicBoolean(false);
-  private volatile Thread listenerThread;
-  private volatile Connection listenConnection;
+  private final AtomicReference<Thread> listenerThread = new AtomicReference<>();
+  private final AtomicReference<Connection> listenConnection = new AtomicReference<>();
 
   public PostgresOdysseyStreamNotifier(
       JdbcTemplate jdbcTemplate, DataSource dataSource, String channel, int pollTimeoutMillis) {
@@ -84,13 +85,13 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
   @Override
   public void start() {
     running.set(true);
-    listenerThread = Thread.ofVirtual().name("odyssey-pg-listener").start(this::listenLoop);
+    listenerThread.set(Thread.ofVirtual().name("odyssey-pg-listener").start(this::listenLoop));
   }
 
   @Override
   public void stop() {
     running.set(false);
-    Thread thread = listenerThread;
+    Thread thread = listenerThread.getAndSet(null);
     if (thread != null) {
       thread.interrupt();
     }
@@ -105,13 +106,14 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
   private void listenLoop() {
     while (running.get()) {
       try {
-        listenConnection = dataSource.getConnection();
-        listenConnection.setAutoCommit(true);
-        PGConnection pgConnection = listenConnection.unwrap(PGConnection.class);
+        Connection conn = dataSource.getConnection();
+        listenConnection.set(conn);
+        conn.setAutoCommit(true);
+        PGConnection pgConnection = conn.unwrap(PGConnection.class);
 
         // LISTEN does not support prepared statements in PostgreSQL.
         // The channel name is validated at construction time against a strict pattern.
-        try (Statement stmt = listenConnection.createStatement()) {
+        try (Statement stmt = conn.createStatement()) {
           stmt.execute("LISTEN " + channel);
         }
 
@@ -149,8 +151,7 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
   }
 
   private void closeListenConnection() {
-    Connection conn = listenConnection;
-    listenConnection = null;
+    Connection conn = listenConnection.getAndSet(null);
     if (conn != null) {
       try {
         conn.close();
@@ -163,7 +164,7 @@ public class PostgresOdysseyStreamNotifier implements OdysseyStreamNotifier, Sma
   private void sleepBeforeReconnect() {
     try {
       Thread.sleep(1000);
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
     }
   }

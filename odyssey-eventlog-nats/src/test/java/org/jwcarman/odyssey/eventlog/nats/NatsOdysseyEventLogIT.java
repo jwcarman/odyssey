@@ -64,7 +64,7 @@ class NatsOdysseyEventLogIT {
     if (connection != null) {
       try {
         connection.jetStreamManagement().deleteStream(STREAM_NAME);
-      } catch (Exception ignored) {
+      } catch (Exception _) {
         // Stream may not exist
       }
       connection.close();
