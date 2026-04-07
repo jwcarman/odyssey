@@ -47,7 +47,9 @@ import tools.jackson.databind.ObjectMapper;
 public class OdysseyAutoConfiguration {
 
   /** Creates a new auto-configuration instance. */
-  public OdysseyAutoConfiguration() {}
+  public OdysseyAutoConfiguration() {
+    // no-op
+  }
 
   private static final Log log = LogFactory.getLog(OdysseyAutoConfiguration.class);
 

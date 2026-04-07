@@ -57,7 +57,7 @@ class PostgresOdysseyStreamNotifierTest {
   }
 
   @Test
-  void notifyAndSubscribeDeliversNotification() throws Exception {
+  void notifyAndSubscribeDeliversNotification() {
     CountDownLatch latch = new CountDownLatch(1);
     List<String> receivedStreamKeys = new CopyOnWriteArrayList<>();
     List<String> receivedEventIds = new CopyOnWriteArrayList<>();
@@ -85,7 +85,7 @@ class PostgresOdysseyStreamNotifierTest {
   }
 
   @Test
-  void multipleHandlersAllReceiveNotifications() throws Exception {
+  void multipleHandlersAllReceiveNotifications() {
     CountDownLatch latch = new CountDownLatch(2);
     List<String> handler1Received = new CopyOnWriteArrayList<>();
     List<String> handler2Received = new CopyOnWriteArrayList<>();
@@ -117,7 +117,7 @@ class PostgresOdysseyStreamNotifierTest {
   }
 
   @Test
-  void multipleNotificationsAreDeliveredInOrder() throws Exception {
+  void multipleNotificationsAreDeliveredInOrder() {
     int count = 5;
     CountDownLatch latch = new CountDownLatch(count);
     List<String> received = new CopyOnWriteArrayList<>();
@@ -153,7 +153,7 @@ class PostgresOdysseyStreamNotifierTest {
   }
 
   @Test
-  void streamKeyWithSpecialCharactersIsPreserved() throws Exception {
+  void streamKeyWithSpecialCharactersIsPreserved() {
     CountDownLatch latch = new CountDownLatch(1);
     List<String> receivedStreamKeys = new CopyOnWriteArrayList<>();
 

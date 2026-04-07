@@ -17,16 +17,15 @@ package org.jwcarman.odyssey.eventlog.dynamodb;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.URI;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.odyssey.autoconfigure.OdysseyAutoConfiguration;
 import org.jwcarman.odyssey.memory.InMemoryOdysseyEventLog;
 import org.jwcarman.odyssey.spi.OdysseyEventLog;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -40,7 +39,7 @@ class DynamoDbEventLogAutoConfigurationIT {
   @Container
   static LocalStackContainer localstack =
       new LocalStackContainer(DockerImageName.parse("localstack/localstack:3.8"))
-          .withServices(LocalStackContainer.Service.DYNAMODB);
+          .withServices("dynamodb");
 
   @Test
   void createsDynamoDbEventLogBean() {
@@ -74,11 +73,7 @@ class DynamoDbEventLogAutoConfigurationIT {
             DynamoDbClient.class,
             () ->
                 DynamoDbClient.builder()
-                    .endpointOverride(
-                        URI.create(
-                            localstack
-                                .getEndpointOverride(LocalStackContainer.Service.DYNAMODB)
-                                .toString()))
+                    .endpointOverride(localstack.getEndpoint())
                     .credentialsProvider(
                         StaticCredentialsProvider.create(
                             AwsBasicCredentials.create(

@@ -28,7 +28,9 @@ import org.jwcarman.odyssey.spi.OdysseyStreamNotifier;
 public class InMemoryOdysseyStreamNotifier implements OdysseyStreamNotifier {
 
   /** Creates a new in-memory stream notifier. */
-  public InMemoryOdysseyStreamNotifier() {}
+  public InMemoryOdysseyStreamNotifier() {
+    // no-op
+  }
 
   private final List<NotificationHandler> handlers = new CopyOnWriteArrayList<>();
 

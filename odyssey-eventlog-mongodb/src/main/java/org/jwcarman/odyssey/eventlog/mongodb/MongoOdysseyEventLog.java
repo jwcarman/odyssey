@@ -58,12 +58,12 @@ public class MongoOdysseyEventLog extends AbstractOdysseyEventLog {
     var indexOps = mongoTemplate.indexOps(collectionName);
 
     // Compound index for cursor-based reads
-    indexOps.ensureIndex(
+    indexOps.createIndex(
         new CompoundIndexDefinition(new Document(FIELD_STREAM_KEY, 1).append(FIELD_EVENT_ID, 1)));
 
     // TTL index for automatic expiration
     if (!ttl.isZero()) {
-      indexOps.ensureIndex(new Index().on("expireAt", Sort.Direction.ASC).expire(0));
+      indexOps.createIndex(new Index().on("expireAt", Sort.Direction.ASC).expire(0));
     }
   }
 

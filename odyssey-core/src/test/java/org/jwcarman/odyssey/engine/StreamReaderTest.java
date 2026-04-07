@@ -70,7 +70,7 @@ class StreamReaderTest {
   }
 
   @Test
-  void readerBlocksUntilNudged() throws Exception {
+  void readerBlocksUntilNudged() {
     OdysseyEventLog eventLog = mock(OdysseyEventLog.class);
     when(eventLog.readAfter(eq("test-stream"), anyString())).thenReturn(Stream.empty());
 

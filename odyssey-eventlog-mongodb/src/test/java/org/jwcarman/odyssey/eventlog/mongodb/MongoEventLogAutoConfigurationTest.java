@@ -40,7 +40,7 @@ class MongoEventLogAutoConfigurationTest {
     IndexOperations indexOps = mock(IndexOperations.class);
 
     when(mongoTemplate.indexOps(anyString())).thenReturn(indexOps);
-    when(indexOps.ensureIndex(any())).thenReturn("mock-index");
+    when(indexOps.createIndex(any())).thenReturn("mock-index");
 
     return mongoTemplate;
   }

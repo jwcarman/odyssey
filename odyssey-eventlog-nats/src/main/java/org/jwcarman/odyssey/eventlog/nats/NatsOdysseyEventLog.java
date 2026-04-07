@@ -240,9 +240,6 @@ public class NatsOdysseyEventLog extends AbstractOdysseyEventLog {
 
   private long getSubjectMessageCount(String subject) throws IOException, JetStreamApiException {
     StreamInfo info = jsm.getStreamInfo(streamName, StreamInfoOptions.filterSubjects(subject));
-    if (info.getStreamState().getSubjectCount() == 0) {
-      return 0;
-    }
     List<Subject> subjects = info.getStreamState().getSubjects();
     if (subjects == null || subjects.isEmpty()) {
       return 0;

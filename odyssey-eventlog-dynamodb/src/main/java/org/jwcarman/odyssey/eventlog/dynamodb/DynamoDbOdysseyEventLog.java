@@ -28,7 +28,6 @@ import org.jwcarman.odyssey.spi.AbstractOdysseyEventLog;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.DeleteRequest;
 import software.amazon.awssdk.services.dynamodb.model.KeyType;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
@@ -42,6 +41,7 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
   private static final int BATCH_DELETE_SIZE = 25;
   private static final String FIELD_STREAM_KEY = "stream_key";
   private static final String FIELD_EVENT_ID = "event_id";
+  private static final String FIELD_METADATA = "metadata";
 
   private final DynamoDbClient client;
   private final String tableName;
@@ -91,7 +91,7 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
     if (event.metadata() != null && !event.metadata().isEmpty()) {
       Map<String, AttributeValue> metadataMap = new HashMap<>();
       event.metadata().forEach((k, v) -> metadataMap.put(k, AttributeValue.builder().s(v).build()));
-      item.put("metadata", AttributeValue.builder().m(metadataMap).build());
+      item.put(FIELD_METADATA, AttributeValue.builder().m(metadataMap).build());
     }
 
     if (!ttl.isZero()) {
@@ -183,12 +183,11 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
                     item ->
                         WriteRequest.builder()
                             .deleteRequest(
-                                DeleteRequest.builder()
-                                    .key(
+                                b ->
+                                    b.key(
                                         Map.of(
                                             FIELD_STREAM_KEY, item.get(FIELD_STREAM_KEY),
-                                            FIELD_EVENT_ID, item.get(FIELD_EVENT_ID)))
-                                    .build())
+                                            FIELD_EVENT_ID, item.get(FIELD_EVENT_ID))))
                             .build())
                 .toList();
 
@@ -203,9 +202,9 @@ public class DynamoDbOdysseyEventLog extends AbstractOdysseyEventLog {
 
   private OdysseyEvent mapItem(Map<String, AttributeValue> item) {
     Map<String, String> metadata = Map.of();
-    if (item.containsKey("metadata") && item.get("metadata").m() != null) {
+    if (item.containsKey(FIELD_METADATA) && item.get(FIELD_METADATA).m() != null) {
       Map<String, String> metadataMap = new HashMap<>();
-      item.get("metadata").m().forEach((k, v) -> metadataMap.put(k, v.s()));
+      item.get(FIELD_METADATA).m().forEach((k, v) -> metadataMap.put(k, v.s()));
       metadata = metadataMap;
     }
 
