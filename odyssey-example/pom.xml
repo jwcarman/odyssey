@@ -22,13 +22,20 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.jwcarman.odyssey</groupId>
-        <artifactId>odyssey-parent</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.0.5</version>
+        <relativePath/>
     </parent>
 
+    <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-example</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
     <name>Odyssey Example Application</name>
+
+    <properties>
+        <java.version>25</java.version>
+    </properties>
     <description>Example Spring Boot application demonstrating Odyssey</description>
 
     <dependencies>
@@ -44,10 +51,12 @@
         <dependency>
             <groupId>org.jwcarman.substrate</groupId>
             <artifactId>substrate-journal-redis</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.jwcarman.substrate</groupId>
             <artifactId>substrate-notifier-redis</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
