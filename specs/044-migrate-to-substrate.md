@@ -176,12 +176,20 @@ public class OdysseyAutoConfiguration {
 
 No in-memory fallback warnings — that's Substrate's job now.
 
-### Phase 5: Update BOM
+### Phase 5: Remove BOM and flatten project
 
-`odyssey-bom` shrinks to just:
-- `odyssey-core`
+With only one published artifact (`odyssey-core`), the BOM is unnecessary. Delete
+`odyssey-bom`. The project becomes:
 
-All backend modules are in `substrate-bom`.
+```
+odyssey/
+├── pom.xml              # parent
+├── odyssey-core/        # the library (published to Maven Central)
+└── odyssey-example/     # demo app (not published)
+```
+
+Update the parent POM modules to just these two. Remove all backend module
+directories.
 
 ### Phase 6: Update example app
 
