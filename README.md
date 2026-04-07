@@ -3,6 +3,7 @@
 [![CI](https://github.com/jwcarman/odyssey/actions/workflows/maven.yml/badge.svg)](https://github.com/jwcarman/odyssey/actions/workflows/maven.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Java](https://img.shields.io/badge/dynamic/xml?url=https://raw.githubusercontent.com/jwcarman/odyssey/main/pom.xml&query=//*[local-name()='java.version']/text()&label=Java&color=orange)](https://openjdk.org/)
+[![Maven Central](https://img.shields.io/maven-central/v/org.jwcarman.odyssey/odyssey-core)](https://central.sonatype.com/artifact/org.jwcarman.odyssey/odyssey-core)
 
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=jwcarman_odyssey&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=jwcarman_odyssey)
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=jwcarman_odyssey&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=jwcarman_odyssey)
@@ -46,7 +47,7 @@ Pick a starter for your infrastructure:
 <dependency>
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-redis-spring-boot-starter</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <type>pom</type>
 </dependency>
 ```
@@ -56,7 +57,7 @@ Pick a starter for your infrastructure:
 <dependency>
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-inmemory-spring-boot-starter</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <type>pom</type>
 </dependency>
 ```
