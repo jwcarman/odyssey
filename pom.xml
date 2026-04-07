@@ -87,6 +87,11 @@
 
     <modules>
         <module>odyssey-core</module>
+        <module>odyssey-redis-spring-boot-starter</module>
+        <module>odyssey-postgresql-spring-boot-starter</module>
+        <module>odyssey-hazelcast-spring-boot-starter</module>
+        <module>odyssey-nats-spring-boot-starter</module>
+        <module>odyssey-inmemory-spring-boot-starter</module>
         <module>odyssey-example</module>
     </modules>
 
