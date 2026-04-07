@@ -39,44 +39,32 @@ The name **Odyssey** is a nod to **SSE** (**S**erver-**S**ent **E**vents) hidden
 
 ### 1. Add the dependency
 
-For the simplest setup (in-memory, no external infrastructure):
+Pick a starter for your infrastructure:
 
+**Redis** (most common):
 ```xml
 <dependency>
     <groupId>org.jwcarman.odyssey</groupId>
-    <artifactId>odyssey-core</artifactId>
+    <artifactId>odyssey-redis-spring-boot-starter</artifactId>
     <version>1.0.0-SNAPSHOT</version>
+    <type>pom</type>
 </dependency>
 ```
 
-For Redis-backed clustering:
-
+**In-memory** (no infrastructure, great for development):
 ```xml
 <dependency>
     <groupId>org.jwcarman.odyssey</groupId>
-    <artifactId>odyssey-eventlog-redis</artifactId>
+    <artifactId>odyssey-inmemory-spring-boot-starter</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-</dependency>
-<dependency>
-    <groupId>org.jwcarman.odyssey</groupId>
-    <artifactId>odyssey-notifier-redis</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <type>pom</type>
 </dependency>
 ```
 
-Use the BOM for version alignment:
+Other starters: `odyssey-postgresql-spring-boot-starter`,
+`odyssey-hazelcast-spring-boot-starter`, `odyssey-nats-spring-boot-starter`.
 
-```xml
-<dependencyManagement>
-    <dependency>
-        <groupId>org.jwcarman.odyssey</groupId>
-        <artifactId>odyssey-bom</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
-        <type>pom</type>
-        <scope>import</scope>
-    </dependency>
-</dependencyManagement>
-```
+Each starter includes everything you need — one dependency.
 
 ### 2. Use it
 
@@ -191,69 +179,23 @@ Each subscriber gets two virtual threads and a `BlockingQueue`:
 The Pub/Sub notification listener does zero I/O -- it just releases semaphores. All
 event log reads happen on the reader thread via the shared connection.
 
-## Pluggable Backends
+## Backend Support
 
-Odyssey separates storage and notification into two SPIs:
+Odyssey uses [Substrate](https://github.com/jwcarman/substrate) for distributed
+storage and notifications. Pick a starter that matches your infrastructure:
 
-```java
-public interface OdysseyEventLog {
-    String append(String streamKey, OdysseyEvent event);
-    Stream<OdysseyEvent> readAfter(String streamKey, String lastId);
-    Stream<OdysseyEvent> readLast(String streamKey, int count);
-    void delete(String streamKey);
-}
+| Starter | Backend |
+|---------|---------|
+| `odyssey-redis-spring-boot-starter` | Redis (Streams + Pub/Sub) |
+| `odyssey-postgresql-spring-boot-starter` | PostgreSQL (table + LISTEN/NOTIFY) |
+| `odyssey-hazelcast-spring-boot-starter` | Hazelcast (Ringbuffer + ITopic) |
+| `odyssey-nats-spring-boot-starter` | NATS (JetStream + Core) |
+| `odyssey-inmemory-spring-boot-starter` | In-memory (no infrastructure) |
 
-public interface OdysseyStreamNotifier {
-    void notify(String streamKey, String eventId);
-    void subscribe(NotificationHandler handler);
-}
-```
-
-Mix and match backends to fit your infrastructure:
-
-### Event Log Modules
-
-| Module | Backend | Artifact |
-|--------|---------|----------|
-| Redis Streams | `odyssey-eventlog-redis` | Redis |
-| PostgreSQL | `odyssey-eventlog-postgresql` | PostgreSQL |
-| Cassandra | `odyssey-eventlog-cassandra` | Apache Cassandra |
-| DynamoDB | `odyssey-eventlog-dynamodb` | AWS DynamoDB |
-| MongoDB | `odyssey-eventlog-mongodb` | MongoDB |
-| RabbitMQ Streams | `odyssey-eventlog-rabbitmq` | RabbitMQ |
-| NATS JetStream | `odyssey-eventlog-nats` | NATS |
-| In-Memory | Built into `odyssey-core` | None (default fallback) |
-
-### Notifier Modules
-
-| Module | Backend | Artifact |
-|--------|---------|----------|
-| Redis Pub/Sub | `odyssey-notifier-redis` | Redis |
-| PostgreSQL LISTEN/NOTIFY | `odyssey-notifier-postgresql` | PostgreSQL |
-| NATS | `odyssey-notifier-nats` | NATS |
-| AWS SNS | `odyssey-notifier-sns` | AWS SNS + SQS |
-| RabbitMQ | `odyssey-notifier-rabbitmq` | RabbitMQ |
-| In-Memory | Built into `odyssey-core` | None (default fallback) |
-
-### Common Combinations
-
-| Stack | Event Log | Notifier |
-|-------|-----------|----------|
-| Redis | `odyssey-eventlog-redis` | `odyssey-notifier-redis` |
-| PostgreSQL | `odyssey-eventlog-postgresql` | `odyssey-notifier-postgresql` |
-| RabbitMQ | `odyssey-eventlog-rabbitmq` | `odyssey-notifier-rabbitmq` |
-| NATS | `odyssey-eventlog-nats` | `odyssey-notifier-nats` |
-| AWS | `odyssey-eventlog-dynamodb` | `odyssey-notifier-sns` |
-
-### Auto-Detection
-
-Each backend module self-registers via Spring Boot auto-configuration. If no external
-backend is detected, Odyssey falls back to in-memory with a warning:
-
-```
-WARN  No OdysseyEventLog bean found; falling back to in-memory implementation.
-      Suitable for single-node environments and testing only.
-```
+For advanced use cases, you can mix and match Substrate modules directly.
+See the [Substrate documentation](https://github.com/jwcarman/substrate) for
+details on all available backends (Cassandra, DynamoDB, MongoDB, RabbitMQ, SNS,
+and more).
 
 ## Configuration
 
