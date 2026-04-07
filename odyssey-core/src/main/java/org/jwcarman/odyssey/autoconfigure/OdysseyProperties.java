@@ -19,19 +19,18 @@ import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Configuration properties for OdySSEy, bound under the {@code odyssey} prefix.
+ * Configuration properties for Odyssey, bound under the {@code odyssey} prefix.
  *
- * <p>Default values are loaded from {@code odyssey-defaults.properties} on the classpath:
- *
- * <ul>
- *   <li>{@code odyssey.keep-alive-interval} — {@code 30s}
- *   <li>{@code odyssey.sse-timeout} — {@code 0} (no timeout)
- * </ul>
- *
- * @param keepAliveInterval the interval between keep-alive comments sent to SSE subscribers and the
- *     poll timeout for cursor reads (default 30 seconds)
- * @param sseTimeout the {@link org.springframework.web.servlet.mvc.method.annotation.SseEmitter}
- *     timeout; {@link Duration#ZERO} means no timeout (default no timeout)
+ * @param keepAliveInterval the interval between keep-alive comments sent to SSE subscribers
+ * @param sseTimeout the SseEmitter timeout; zero means no timeout
+ * @param ephemeralTtl default TTL for ephemeral stream events
+ * @param channelTtl default TTL for channel stream events
+ * @param broadcastTtl default TTL for broadcast stream events
  */
 @ConfigurationProperties(prefix = "odyssey")
-public record OdysseyProperties(Duration keepAliveInterval, Duration sseTimeout) {}
+public record OdysseyProperties(
+    Duration keepAliveInterval,
+    Duration sseTimeout,
+    Duration ephemeralTtl,
+    Duration channelTtl,
+    Duration broadcastTtl) {}

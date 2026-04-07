@@ -15,6 +15,7 @@
  */
 package org.jwcarman.odyssey.engine;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -35,56 +36,57 @@ public class DefaultOdysseyStreamRegistry implements OdysseyStreamRegistry {
   private final ObjectMapper objectMapper;
   private final long keepAliveInterval;
   private final long defaultSseTimeout;
+  private final Duration ephemeralTtl;
+  private final Duration channelTtl;
+  private final Duration broadcastTtl;
 
   private final ConcurrentMap<String, DefaultOdysseyStream> cache = new ConcurrentHashMap<>();
 
-  /**
-   * Creates a new registry.
-   *
-   * @param journalFactory the factory for creating journals
-   * @param objectMapper the Jackson object mapper for JSON serialization
-   * @param keepAliveInterval the keep-alive interval in milliseconds
-   * @param defaultSseTimeout the default SSE emitter timeout in milliseconds
-   */
   public DefaultOdysseyStreamRegistry(
       JournalFactory journalFactory,
       ObjectMapper objectMapper,
       long keepAliveInterval,
-      long defaultSseTimeout) {
+      long defaultSseTimeout,
+      Duration ephemeralTtl,
+      Duration channelTtl,
+      Duration broadcastTtl) {
     this.journalFactory = journalFactory;
     this.objectMapper = objectMapper;
     this.keepAliveInterval = keepAliveInterval;
     this.defaultSseTimeout = defaultSseTimeout;
+    this.ephemeralTtl = ephemeralTtl;
+    this.channelTtl = channelTtl;
+    this.broadcastTtl = broadcastTtl;
   }
 
   @Override
   public OdysseyStream ephemeral() {
     String name = "ephemeral:" + UUID.randomUUID();
-    return createStream(name);
+    return createStream(name, ephemeralTtl);
   }
 
   @Override
   public OdysseyStream channel(String name) {
     String key = "channel:" + name;
-    return cache.computeIfAbsent(key, this::createStream);
+    return cache.computeIfAbsent(key, k -> createStream(k, channelTtl));
   }
 
   @Override
   public OdysseyStream broadcast(String name) {
     String key = "broadcast:" + name;
-    return cache.computeIfAbsent(key, this::createStream);
+    return cache.computeIfAbsent(key, k -> createStream(k, broadcastTtl));
   }
 
   @Override
   public OdysseyStream stream(String streamKey) {
-    return cache.computeIfAbsent(streamKey, this::createStream);
+    return cache.computeIfAbsent(streamKey, k -> createStream(k, null));
   }
 
-  private DefaultOdysseyStream createStream(String name) {
+  private DefaultOdysseyStream createStream(String name, Duration ttl) {
     Journal<OdysseyEvent> journal = journalFactory.create(name, OdysseyEvent.class);
     return new DefaultOdysseyStream(
         journal,
-        new DefaultOdysseyStream.StreamConfig(keepAliveInterval, defaultSseTimeout),
+        new DefaultOdysseyStream.StreamConfig(keepAliveInterval, defaultSseTimeout, ttl),
         objectMapper);
   }
 }

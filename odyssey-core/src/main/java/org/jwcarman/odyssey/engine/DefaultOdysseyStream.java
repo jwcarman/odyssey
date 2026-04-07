@@ -33,7 +33,7 @@ class DefaultOdysseyStream implements OdysseyStream {
 
   private static final Logger log = LoggerFactory.getLogger(DefaultOdysseyStream.class);
 
-  record StreamConfig(long keepAliveInterval, long defaultSseTimeout) {}
+  record StreamConfig(long keepAliveInterval, long defaultSseTimeout, Duration ttl) {}
 
   private final Journal<OdysseyEvent> journal;
   private final String key;
@@ -63,7 +63,7 @@ class DefaultOdysseyStream implements OdysseyStream {
             .timestamp(Instant.now())
             .metadata(Map.of())
             .build();
-    String id = journal.append(event);
+    String id = config.ttl() != null ? journal.append(event, config.ttl()) : journal.append(event);
     log.debug("[{}] Published event id={} type={}", key, id, eventType);
     return id;
   }

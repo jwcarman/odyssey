@@ -45,7 +45,13 @@ class DefaultOdysseyStreamRegistryTest {
   void setUp() {
     registry =
         new DefaultOdysseyStreamRegistry(
-            journalFactory, new ObjectMapper(), KEEP_ALIVE, SSE_TIMEOUT);
+            journalFactory,
+            new ObjectMapper(),
+            KEEP_ALIVE,
+            SSE_TIMEOUT,
+            java.time.Duration.ofMinutes(5),
+            java.time.Duration.ofHours(1),
+            java.time.Duration.ofHours(24));
   }
 
   @Test

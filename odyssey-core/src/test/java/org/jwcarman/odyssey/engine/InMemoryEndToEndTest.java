@@ -53,7 +53,13 @@ class InMemoryEndToEndTest {
         new JournalFactory(journalSpi, new JacksonCodecFactory(objectMapper), notifier);
     registry =
         new DefaultOdysseyStreamRegistry(
-            journalFactory, objectMapper, KEEP_ALIVE_INTERVAL, SSE_TIMEOUT);
+            journalFactory,
+            objectMapper,
+            KEEP_ALIVE_INTERVAL,
+            SSE_TIMEOUT,
+            java.time.Duration.ofMinutes(5),
+            java.time.Duration.ofHours(1),
+            java.time.Duration.ofHours(24));
   }
 
   @AfterEach

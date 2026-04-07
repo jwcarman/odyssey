@@ -48,7 +48,7 @@ Pick a starter for your infrastructure:
 <dependency>
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-redis-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 
 </dependency>
 ```
@@ -58,7 +58,7 @@ Pick a starter for your infrastructure:
 <dependency>
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-inmemory-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 
 </dependency>
 ```
@@ -130,9 +130,14 @@ convention and caching behavior.
 | Channel | `registry.channel(name)` | Per-user or per-entity notifications |
 | Broadcast | `registry.broadcast(name)` | System-wide announcements |
 
-Event TTL and retention are configured at the Substrate layer (e.g.,
-`substrate.journal.redis.default-ttl=1h`). See your Substrate backend's
-documentation for details.
+Each stream type has a configurable TTL that controls how long events are retained:
+
+```yaml
+odyssey:
+  ephemeral-ttl: 5m    # short-lived request/response
+  channel-ttl: 1h      # per-user notifications
+  broadcast-ttl: 24h   # system-wide announcements
+```
 
 ### Ephemeral Streams
 
@@ -224,17 +229,17 @@ and more).
 
 ## Configuration
 
-Core properties (all backends):
-
 ```yaml
 odyssey:
-  keep-alive-interval: 30s   # heartbeat interval
+  keep-alive-interval: 30s   # heartbeat / disconnect detection interval
   sse-timeout: 0              # SseEmitter timeout (0 = no timeout)
-  max-last-n: 500             # cap for replayLast()
+  ephemeral-ttl: 5m           # TTL for ephemeral stream events
+  channel-ttl: 1h             # TTL for channel stream events
+  broadcast-ttl: 24h          # TTL for broadcast stream events
 ```
 
-Each backend module has its own properties under `odyssey.eventlog.<backend>.*` or
-`odyssey.notifier.<backend>.*`. See module documentation for details.
+Backend-specific properties (storage, connection, etc.) are configured via
+[Substrate](https://github.com/jwcarman/substrate). See your backend's documentation.
 
 ## Example Application
 

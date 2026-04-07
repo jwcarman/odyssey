@@ -49,7 +49,8 @@ class DefaultOdysseyStreamTest {
     stream =
         new DefaultOdysseyStream(
             journal,
-            new DefaultOdysseyStream.StreamConfig(KEEP_ALIVE, SSE_TIMEOUT),
+            new DefaultOdysseyStream.StreamConfig(
+                KEEP_ALIVE, SSE_TIMEOUT, java.time.Duration.ofHours(1)),
             new ObjectMapper());
   }
 
@@ -60,12 +61,12 @@ class DefaultOdysseyStreamTest {
 
   @Test
   void publishCallsAppendOnJournal() {
-    when(journal.append(any(OdysseyEvent.class))).thenReturn("1-0");
+    when(journal.append(any(OdysseyEvent.class), any())).thenReturn("1-0");
 
     String entryId = stream.publishRaw("test-event", "{\"data\":1}");
 
     assertEquals("1-0", entryId);
-    verify(journal).append(any(OdysseyEvent.class));
+    verify(journal).append(any(OdysseyEvent.class), any());
   }
 
   @Test
@@ -178,34 +179,36 @@ class DefaultOdysseyStreamTest {
 
   @Test
   void publishRawWithoutEventTypeCallsAppend() {
-    when(journal.append(any(OdysseyEvent.class))).thenReturn("3-0");
+    when(journal.append(any(OdysseyEvent.class), any())).thenReturn("3-0");
 
     String entryId = stream.publishRaw("{\"data\":1}");
 
     assertEquals("3-0", entryId);
     verify(journal)
         .append(
-            argThat(event -> event.eventType() == null && event.payload().equals("{\"data\":1}")));
+            argThat(event -> event.eventType() == null && event.payload().equals("{\"data\":1}")),
+            any());
   }
 
   @Test
   void publishJsonSerializesAndPublishes() {
-    when(journal.append(any(OdysseyEvent.class))).thenReturn("2-0");
+    when(journal.append(any(OdysseyEvent.class), any())).thenReturn("2-0");
 
     String entryId = stream.publishJson("test-event", java.util.Map.of("key", "value"));
 
     assertEquals("2-0", entryId);
-    verify(journal).append(any(OdysseyEvent.class));
+    verify(journal).append(any(OdysseyEvent.class), any());
   }
 
   @Test
   void publishJsonWithoutEventTypeSerializesAndPublishes() {
-    when(journal.append(any(OdysseyEvent.class))).thenReturn("4-0");
+    when(journal.append(any(OdysseyEvent.class), any())).thenReturn("4-0");
 
     String entryId = stream.publishJson(java.util.Map.of("key", "value"));
 
     assertEquals("4-0", entryId);
-    verify(journal).append(argThat(event -> event.eventType() == null && event.payload() != null));
+    verify(journal)
+        .append(argThat(event -> event.eventType() == null && event.payload() != null), any());
   }
 
   @Test

@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-04-07
+
+### Added
+
+- **Per-type TTL configuration**: `odyssey.ephemeral-ttl`, `odyssey.channel-ttl`,
+  `odyssey.broadcast-ttl` control event retention per stream type (defaults: 5m, 1h, 24h)
+- **Starters as jars**: convenience starters are now proper jar artifacts — no
+  `<type>pom</type>` needed in dependency declarations
+- Comprehensive debug logging across all lifecycle events
+- `comment("connected")` sent immediately on subscribe for fast client detection
+- CodeQL badge in README
+
+### Fixed
+
+- Subscription race condition: cleanup is wired before writer thread starts
+- Exception handling in writer loop simplified (no more `instanceof` check)
+- Removed false TTL claims from README — TTLs are now actually enforced
+
+### Changed
+
+- `SseStreamEventHandler` and `StreamEventHandler` merged into `StreamSubscription`
+  for simplicity — one class handles cursor polling, SSE writing, and cleanup
+
+## [0.1.1] - 2026-04-07
+
+### Fixed
+
+- Starters now use `jar` packaging instead of `pom`
+
 ## [0.1.0] - 2026-04-07
 
 ### Initial Release

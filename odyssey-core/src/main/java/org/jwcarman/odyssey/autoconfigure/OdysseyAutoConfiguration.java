@@ -55,6 +55,9 @@ public class OdysseyAutoConfiguration {
         journalFactory,
         objectMapper,
         properties.keepAliveInterval().toMillis(),
-        properties.sseTimeout().toMillis());
+        properties.sseTimeout().toMillis(),
+        properties.ephemeralTtl(),
+        properties.channelTtl(),
+        properties.broadcastTtl());
   }
 }
