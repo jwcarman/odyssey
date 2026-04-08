@@ -136,22 +136,6 @@ class DefaultOdysseyStream implements OdysseyStream {
     return key;
   }
 
-  private SseEmitter createSubscription(
-      JournalCursor<OdysseyEvent> cursor, Duration timeout, SseEventMapper mapper) {
-    SseEmitter emitter = new SseEmitter(timeout.toMillis());
-    StreamSubscription subscription =
-        new StreamSubscription(
-            cursor,
-            emitter,
-            journal.key(),
-            config.keepAliveInterval(),
-            activeSubscriptions,
-            mapper);
-    activeSubscriptions.add(subscription);
-    subscription.start();
-    return emitter;
-  }
-
   private class DefaultStreamSubscriberBuilder implements StreamSubscriberBuilder {
 
     private Duration timeout = Duration.ofMillis(config.defaultSseTimeout());
@@ -172,22 +156,34 @@ class DefaultOdysseyStream implements OdysseyStream {
     @Override
     public SseEmitter subscribe() {
       log.debug("[{}] New subscriber (live)", key);
-      JournalCursor<OdysseyEvent> cursor = journal.read();
-      return createSubscription(cursor, timeout, mapper);
+      return createSubscription(journal.read());
     }
 
     @Override
     public SseEmitter resumeAfter(String lastEventId) {
       log.debug("[{}] New subscriber (resumeAfter {})", key, lastEventId);
-      JournalCursor<OdysseyEvent> cursor = journal.readAfter(lastEventId);
-      return createSubscription(cursor, timeout, mapper);
+      return createSubscription(journal.readAfter(lastEventId));
     }
 
     @Override
     public SseEmitter replayLast(int count) {
       log.debug("[{}] New subscriber (replayLast {})", key, count);
-      JournalCursor<OdysseyEvent> cursor = journal.readLast(count);
-      return createSubscription(cursor, timeout, mapper);
+      return createSubscription(journal.readLast(count));
+    }
+
+    private SseEmitter createSubscription(JournalCursor<OdysseyEvent> cursor) {
+      SseEmitter emitter = new SseEmitter(timeout.toMillis());
+      StreamSubscription subscription =
+          new StreamSubscription(
+              cursor,
+              emitter,
+              journal.key(),
+              config.keepAliveInterval(),
+              activeSubscriptions,
+              mapper);
+      activeSubscriptions.add(subscription);
+      subscription.start();
+      return emitter;
     }
   }
 }
