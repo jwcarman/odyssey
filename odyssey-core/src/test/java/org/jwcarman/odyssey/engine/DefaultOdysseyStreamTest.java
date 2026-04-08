@@ -15,6 +15,7 @@
  */
 package org.jwcarman.odyssey.engine;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.odyssey.core.OdysseyEvent;
+import org.jwcarman.odyssey.core.SseEventMapper;
 import org.jwcarman.substrate.core.Journal;
 import org.jwcarman.substrate.core.JournalCursor;
 import org.mockito.Mock;
@@ -214,5 +216,72 @@ class DefaultOdysseyStreamTest {
   @Test
   void getStreamKeyReturnsJournalKey() {
     assertEquals(STREAM_KEY, stream.getStreamKey());
+  }
+
+  @Test
+  void subscriberBuilderReturnsEmitter() {
+    when(journal.read()).thenReturn(cursor);
+    lenient().when(cursor.isOpen()).thenReturn(false);
+
+    var emitter = stream.subscriber().subscribe();
+
+    assertNotNull(emitter);
+    verify(journal).read();
+  }
+
+  @Test
+  void subscriberBuilderWithTimeoutReturnsEmitter() {
+    when(journal.read()).thenReturn(cursor);
+    lenient().when(cursor.isOpen()).thenReturn(false);
+
+    var emitter = stream.subscriber().timeout(Duration.ofSeconds(60)).subscribe();
+
+    assertNotNull(emitter);
+  }
+
+  @Test
+  void subscriberBuilderWithMapperReturnsEmitter() {
+    when(journal.read()).thenReturn(cursor);
+    lenient().when(cursor.isOpen()).thenReturn(false);
+
+    var emitter = stream.subscriber().mapper(SseEventMapper.DEFAULT).subscribe();
+
+    assertNotNull(emitter);
+  }
+
+  @Test
+  void subscriberBuilderResumeAfterReturnsEmitter() {
+    when(journal.readAfter("5-0")).thenReturn(cursor);
+    lenient().when(cursor.isOpen()).thenReturn(false);
+
+    var emitter = stream.subscriber().resumeAfter("5-0");
+
+    assertNotNull(emitter);
+    verify(journal).readAfter("5-0");
+  }
+
+  @Test
+  void subscriberBuilderReplayLastReturnsEmitter() {
+    when(journal.readLast(10)).thenReturn(cursor);
+    lenient().when(cursor.isOpen()).thenReturn(false);
+
+    var emitter = stream.subscriber().replayLast(10);
+
+    assertNotNull(emitter);
+    verify(journal).readLast(10);
+  }
+
+  @Test
+  void subscriberBuilderRejectsNullMapper() {
+    assertThatThrownBy(() -> stream.subscriber().mapper(null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessageContaining("mapper");
+  }
+
+  @Test
+  void subscriberBuilderRejectsNullTimeout() {
+    assertThatThrownBy(() -> stream.subscriber().timeout(null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessageContaining("timeout");
   }
 }

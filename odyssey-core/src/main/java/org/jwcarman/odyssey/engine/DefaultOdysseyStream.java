@@ -19,6 +19,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.core.OdysseyStream;
@@ -143,13 +144,13 @@ class DefaultOdysseyStream implements OdysseyStream {
 
     @Override
     public StreamSubscriberBuilder timeout(Duration timeout) {
-      this.timeout = timeout;
+      this.timeout = Objects.requireNonNull(timeout, "timeout must not be null");
       return this;
     }
 
     @Override
     public StreamSubscriberBuilder mapper(SseEventMapper mapper) {
-      this.mapper = mapper;
+      this.mapper = Objects.requireNonNull(mapper, "mapper must not be null");
       return this;
     }
 
