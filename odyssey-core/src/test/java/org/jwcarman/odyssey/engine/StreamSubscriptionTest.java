@@ -29,6 +29,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.odyssey.core.OdysseyEvent;
+import org.jwcarman.odyssey.core.SseEventMapper;
 import org.jwcarman.substrate.core.JournalCursor;
 import org.jwcarman.substrate.core.JournalEntry;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -51,8 +52,13 @@ class StreamSubscriptionTest {
   }
 
   private StreamSubscription createSubscription() {
+    return createSubscription(SseEventMapper.DEFAULT);
+  }
+
+  private StreamSubscription createSubscription(SseEventMapper mapper) {
     StreamSubscription sub =
-        new StreamSubscription(cursor, emitter, STREAM_KEY, KEEP_ALIVE_INTERVAL, subscriptionList);
+        new StreamSubscription(
+            cursor, emitter, STREAM_KEY, KEEP_ALIVE_INTERVAL, subscriptionList, mapper);
     subscriptionList.add(sub);
     return sub;
   }

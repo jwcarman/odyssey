@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.jwcarman.odyssey.core.OdysseyEvent;
 import org.jwcarman.odyssey.core.OdysseyStream;
+import org.jwcarman.odyssey.core.SseEventMapper;
+import org.jwcarman.odyssey.core.StreamSubscriberBuilder;
 import org.jwcarman.substrate.core.Journal;
 import org.jwcarman.substrate.core.JournalCursor;
 import org.slf4j.Logger;
@@ -80,39 +82,38 @@ class DefaultOdysseyStream implements OdysseyStream {
   }
 
   @Override
+  public StreamSubscriberBuilder subscriber() {
+    return new DefaultStreamSubscriberBuilder();
+  }
+
+  @Override
   public SseEmitter subscribe() {
-    return subscribe(Duration.ofMillis(config.defaultSseTimeout()));
+    return subscriber().subscribe();
   }
 
   @Override
   public SseEmitter subscribe(Duration timeout) {
-    log.debug("[{}] New subscriber (live)", key);
-    JournalCursor<OdysseyEvent> cursor = journal.read();
-    return createSubscription(cursor, timeout);
+    return subscriber().timeout(timeout).subscribe();
   }
 
   @Override
   public SseEmitter resumeAfter(String lastEventId) {
-    return resumeAfter(lastEventId, Duration.ofMillis(config.defaultSseTimeout()));
+    return subscriber().resumeAfter(lastEventId);
   }
 
   @Override
   public SseEmitter resumeAfter(String lastEventId, Duration timeout) {
-    log.debug("[{}] New subscriber (resumeAfter {})", key, lastEventId);
-    JournalCursor<OdysseyEvent> cursor = journal.readAfter(lastEventId);
-    return createSubscription(cursor, timeout);
+    return subscriber().timeout(timeout).resumeAfter(lastEventId);
   }
 
   @Override
   public SseEmitter replayLast(int count) {
-    return replayLast(count, Duration.ofMillis(config.defaultSseTimeout()));
+    return subscriber().replayLast(count);
   }
 
   @Override
   public SseEmitter replayLast(int count, Duration timeout) {
-    log.debug("[{}] New subscriber (replayLast {})", key, count);
-    JournalCursor<OdysseyEvent> cursor = journal.readLast(count);
-    return createSubscription(cursor, timeout);
+    return subscriber().timeout(timeout).replayLast(count);
   }
 
   @Override
@@ -135,13 +136,58 @@ class DefaultOdysseyStream implements OdysseyStream {
     return key;
   }
 
-  private SseEmitter createSubscription(JournalCursor<OdysseyEvent> cursor, Duration timeout) {
+  private SseEmitter createSubscription(
+      JournalCursor<OdysseyEvent> cursor, Duration timeout, SseEventMapper mapper) {
     SseEmitter emitter = new SseEmitter(timeout.toMillis());
     StreamSubscription subscription =
         new StreamSubscription(
-            cursor, emitter, journal.key(), config.keepAliveInterval(), activeSubscriptions);
+            cursor,
+            emitter,
+            journal.key(),
+            config.keepAliveInterval(),
+            activeSubscriptions,
+            mapper);
     activeSubscriptions.add(subscription);
     subscription.start();
     return emitter;
+  }
+
+  private class DefaultStreamSubscriberBuilder implements StreamSubscriberBuilder {
+
+    private Duration timeout = Duration.ofMillis(config.defaultSseTimeout());
+    private SseEventMapper mapper = SseEventMapper.DEFAULT;
+
+    @Override
+    public StreamSubscriberBuilder timeout(Duration timeout) {
+      this.timeout = timeout;
+      return this;
+    }
+
+    @Override
+    public StreamSubscriberBuilder mapper(SseEventMapper mapper) {
+      this.mapper = mapper;
+      return this;
+    }
+
+    @Override
+    public SseEmitter subscribe() {
+      log.debug("[{}] New subscriber (live)", key);
+      JournalCursor<OdysseyEvent> cursor = journal.read();
+      return createSubscription(cursor, timeout, mapper);
+    }
+
+    @Override
+    public SseEmitter resumeAfter(String lastEventId) {
+      log.debug("[{}] New subscriber (resumeAfter {})", key, lastEventId);
+      JournalCursor<OdysseyEvent> cursor = journal.readAfter(lastEventId);
+      return createSubscription(cursor, timeout, mapper);
+    }
+
+    @Override
+    public SseEmitter replayLast(int count) {
+      log.debug("[{}] New subscriber (replayLast {})", key, count);
+      JournalCursor<OdysseyEvent> cursor = journal.readLast(count);
+      return createSubscription(cursor, timeout, mapper);
+    }
   }
 }

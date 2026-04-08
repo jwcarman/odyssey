@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.jwcarman.odyssey.core.OdysseyEvent;
+import org.jwcarman.odyssey.core.SseEventMapper;
 import org.jwcarman.substrate.core.JournalCursor;
 import org.jwcarman.substrate.core.JournalEntry;
 import org.slf4j.Logger;
@@ -37,18 +38,21 @@ class StreamSubscription {
   private final long keepAliveInterval;
   private final AtomicBoolean closed = new AtomicBoolean(false);
   private final List<StreamSubscription> subscriptionList;
+  private final SseEventMapper mapper;
 
   StreamSubscription(
       JournalCursor<OdysseyEvent> cursor,
       SseEmitter emitter,
       String streamKey,
       long keepAliveInterval,
-      List<StreamSubscription> subscriptionList) {
+      List<StreamSubscription> subscriptionList,
+      SseEventMapper mapper) {
     this.cursor = cursor;
     this.emitter = emitter;
     this.streamKey = streamKey;
     this.keepAliveInterval = keepAliveInterval;
     this.subscriptionList = subscriptionList;
+    this.mapper = mapper;
   }
 
   void start() {
@@ -104,11 +108,7 @@ class StreamSubscription {
   }
 
   private void sendEvent(OdysseyEvent event) {
-    SseEmitter.SseEventBuilder builder = SseEmitter.event().id(event.id()).data(event.payload());
-    if (event.eventType() != null) {
-      builder.name(event.eventType());
-    }
-    send(builder);
+    send(mapper.map(event));
   }
 
   private void sendComment(String comment) {

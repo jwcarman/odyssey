@@ -37,6 +37,26 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public interface OdysseyStream {
 
   /**
+   * Returns a fluent builder for configuring and creating a subscription to this stream. The
+   * builder allows setting timeout, event mapper, and other options before choosing a terminal
+   * operation ({@link StreamSubscriberBuilder#subscribe()}, {@link
+   * StreamSubscriberBuilder#resumeAfter(String)}, or {@link
+   * StreamSubscriberBuilder#replayLast(int)}).
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * SseEmitter emitter = stream.subscriber()
+   *     .timeout(Duration.ofMinutes(5))
+   *     .mapper(myMapper)
+   *     .subscribe();
+   * }</pre>
+   *
+   * @return a new {@link StreamSubscriberBuilder}
+   */
+  StreamSubscriberBuilder subscriber();
+
+  /**
    * Subscribes to live events from this stream using the registry's default SSE timeout. No
    * historical events are delivered; only events published after this call will be received.
    *
