@@ -31,6 +31,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/task")
 public class TaskController {
 
+  private static final String PROGRESS_EVENT = "progress";
+
   record TaskProgress(int percent, String status) {}
 
   private final Odyssey odyssey;
@@ -48,11 +50,11 @@ public class TaskController {
         .start(
             () -> {
               try (pub) {
-                pub.publish("progress", new TaskProgress(0, "Starting..."));
+                pub.publish(PROGRESS_EVENT, new TaskProgress(0, "Starting..."));
                 Thread.sleep(1500);
-                pub.publish("progress", new TaskProgress(33, "Processing..."));
+                pub.publish(PROGRESS_EVENT, new TaskProgress(33, "Processing..."));
                 Thread.sleep(1500);
-                pub.publish("progress", new TaskProgress(66, "Almost done..."));
+                pub.publish(PROGRESS_EVENT, new TaskProgress(66, "Almost done..."));
                 Thread.sleep(1500);
                 pub.publish("complete", new TaskProgress(100, "Done!"));
               } catch (InterruptedException _) {

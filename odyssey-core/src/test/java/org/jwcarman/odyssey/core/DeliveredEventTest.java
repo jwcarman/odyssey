@@ -49,8 +49,9 @@ class DeliveredEventTest {
   void metadataIsUnmodifiable() {
     DeliveredEvent<String> event =
         new DeliveredEvent<>("id", "key", Instant.now(), "type", "data", Map.of("k", "v"));
+    Map<String, String> metadata = event.metadata();
 
-    assertThatThrownBy(() -> event.metadata().put("k2", "v2"))
+    assertThatThrownBy(() -> metadata.put("k2", "v2"))
         .isInstanceOf(UnsupportedOperationException.class);
   }
 

@@ -65,7 +65,7 @@ public class DefaultOdyssey implements Odyssey {
   @Override
   public <T> OdysseyPublisher<T> publisher(
       String key, Class<T> type, Consumer<PublisherConfig> customizer) {
-    return createPublisher(key, type, cfg -> {}, customizer);
+    return createPublisher(key, cfg -> {}, customizer);
   }
 
   @Override
@@ -77,7 +77,7 @@ public class DefaultOdyssey implements Odyssey {
   public <T> OdysseyPublisher<T> ephemeral(Class<T> type, Consumer<PublisherConfig> customizer) {
     String key = "ephemeral:" + UUID.randomUUID();
     Duration ttl = properties.ephemeralTtl();
-    return createPublisher(key, type, categoryTtl(ttl), customizer);
+    return createPublisher(key, categoryTtl(ttl), customizer);
   }
 
   @Override
@@ -90,7 +90,7 @@ public class DefaultOdyssey implements Odyssey {
       String name, Class<T> type, Consumer<PublisherConfig> customizer) {
     String key = "channel:" + name;
     Duration ttl = properties.channelTtl();
-    return createPublisher(key, type, categoryTtl(ttl), customizer);
+    return createPublisher(key, categoryTtl(ttl), customizer);
   }
 
   @Override
@@ -103,7 +103,7 @@ public class DefaultOdyssey implements Odyssey {
       String name, Class<T> type, Consumer<PublisherConfig> customizer) {
     String key = "broadcast:" + name;
     Duration ttl = properties.broadcastTtl();
-    return createPublisher(key, type, categoryTtl(ttl), customizer);
+    return createPublisher(key, categoryTtl(ttl), customizer);
   }
 
   @Override
@@ -147,7 +147,6 @@ public class DefaultOdyssey implements Odyssey {
 
   private <T> OdysseyPublisher<T> createPublisher(
       String key,
-      Class<T> type,
       Consumer<PublisherConfig> categoryCustomizer,
       Consumer<PublisherConfig> callCustomizer) {
     DefaultPublisherConfig config = new DefaultPublisherConfig();
@@ -163,7 +162,7 @@ public class DefaultOdyssey implements Odyssey {
   private Journal<StoredEvent> createOrConnect(String key, Duration inactivityTtl) {
     try {
       return journalFactory.create(key, StoredEvent.class, inactivityTtl);
-    } catch (JournalAlreadyExistsException e) {
+    } catch (JournalAlreadyExistsException _) {
       return journalFactory.connect(key, StoredEvent.class);
     }
   }
@@ -185,9 +184,7 @@ public class DefaultOdyssey implements Odyssey {
       DefaultSubscriberConfig<T> config,
       Supplier<BlockingSubscription<JournalEntry<StoredEvent>>> sourceSupplier) {
     SseEmitter emitter = new SseEmitter(config.timeout().toMillis());
-    SseJournalAdapter<T> adapter =
-        new SseJournalAdapter<>(sourceSupplier, emitter, key, config, objectMapper, type);
-    adapter.start();
+    SseJournalAdapter.launch(sourceSupplier, emitter, key, config, objectMapper, type);
     return emitter;
   }
 

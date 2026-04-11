@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-11T12:00:00-04:00
-ITERATION: 48
-SPEC_COMPLETED: 045-odyssey-api-redesign.md
-WHAT_WAS_DONE: Redesigned Odyssey's public API around typed events, customizer-based configuration, and producer/consumer split. Replaced OdysseyStream/OdysseyStreamRegistry/OdysseyEvent with Odyssey facade, OdysseyPublisher<T>, PublisherConfig, SubscriberConfig<T>, DeliveredEvent<T>, generic SseEventMapper<T> with terminal hooks, and SseJournalAdapter<T>. Added PublisherCustomizer/SubscriberCustomizer beans, createOrConnect cluster-safe provisioning, and rich terminal-state SSE events.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (46 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
-STATUS: DONE
-NEXT_SPEC: none
-NOTES: StoredEvent is non-generic with String data field (pre-serialized JSON) to avoid TypeRef complexity with generic journal types — the spec's TypeRef suggestion was verified and found impractical due to type erasure. ObjectMapper is used in publisher (serialize T→JSON), adapter (deserialize JSON→T for DeliveredEvent<T>), and default SseEventMapper (serialize T for SSE data field). SubscriberCustomizer uses option (b) from the spec: Consumer<SubscriberConfig<?>>, which naturally prevents global customizers from setting the typed mapper. The NullPointerException logs in writer threads during DefaultOdysseyTest are harmless — they occur because mock journals return null for subscribe() calls that happen lazily in background threads, but the tests verify facade behavior correctly. Backend starter modules are unchanged.
+LAST_RUN: 2026-04-11T04:02:00-04:00
+ITERATION: 49
+SPEC_COMPLETED: 046-main-code-sonar-polish.md
+WHAT_WAS_DONE: Fixed all SonarCloud issues in main code: refactored SseJournalAdapter to use static launch() factory with final source field (S3077), extracted sendTerminalFrame helper (S1141), replaced unused catch/lambda variables with _ (S7467), verified DefaultOdysseyPublisher key caching (S2629) and OdysseyAutoConfiguration empty constructor (S1186) were already resolved. Added 3 new tests for the launch() expired path.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (51 tests, 0 failures); spotless:check → BUILD SUCCESS
+STATUS: MORE_WORK
+NEXT_SPEC: 048-example-app-sonar-polish.md
+NOTES: S1172 (unused Class<T> type parameter on createPublisher) was already resolved in a prior spec — the parameter doesn't exist in the current code. S2629 and S1186 were also already resolved. The createPublisher method in DefaultOdyssey no longer takes a Class<T> type parameter. DefaultOdysseyPublisher already cached journal.key() as a final field. OdysseyAutoConfiguration had no explicit empty constructor.

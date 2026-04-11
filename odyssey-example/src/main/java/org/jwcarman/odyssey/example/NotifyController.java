@@ -42,7 +42,6 @@ public class NotifyController {
   @PostMapping("/{userId}")
   public Map<String, String> publish(
       @PathVariable String userId, @RequestBody Map<String, String> body) {
-    String key = "channel:user:" + userId;
     try (var pub = odyssey.channel("user:" + userId, Notification.class)) {
       String id = pub.publish("notification", new Notification(body.get("message")));
       return Map.of("id", id);

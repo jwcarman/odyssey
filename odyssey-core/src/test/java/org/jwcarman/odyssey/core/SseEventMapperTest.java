@@ -85,11 +85,11 @@ class SseEventMapperTest {
           @Override
           public Optional<SseEmitter.SseEventBuilder> terminal(TerminalState state) {
             return switch (state) {
-              case TerminalState.Completed c -> Optional.of(SseEmitter.event().name("done"));
-              case TerminalState.Expired e -> Optional.of(SseEmitter.event().name("expired"));
-              case TerminalState.Deleted d -> Optional.of(SseEmitter.event().name("deleted"));
-              case TerminalState.Errored err ->
-                  Optional.of(SseEmitter.event().name("errored").data(err.cause().getMessage()));
+              case TerminalState.Completed() -> Optional.of(SseEmitter.event().name("done"));
+              case TerminalState.Expired() -> Optional.of(SseEmitter.event().name("expired"));
+              case TerminalState.Deleted() -> Optional.of(SseEmitter.event().name("deleted"));
+              case TerminalState.Errored(Throwable cause) ->
+                  Optional.of(SseEmitter.event().name("errored").data(cause.getMessage()));
             };
           }
         };

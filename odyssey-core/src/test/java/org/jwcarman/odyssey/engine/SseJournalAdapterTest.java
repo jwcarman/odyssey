@@ -18,26 +18,29 @@ package org.jwcarman.odyssey.engine;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.jwcarman.odyssey.core.DeliveredEvent;
 import org.jwcarman.odyssey.core.SseEventMapper;
 import org.jwcarman.odyssey.core.SseEventMapper.TerminalState;
 import org.jwcarman.substrate.BlockingSubscription;
 import org.jwcarman.substrate.NextResult;
 import org.jwcarman.substrate.journal.JournalEntry;
+import org.jwcarman.substrate.journal.JournalExpiredException;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -53,12 +56,9 @@ class SseJournalAdapterTest {
 
   record TestData(String msg) {}
 
-  @BeforeEach
-  void setUp() throws Exception {}
-
-  private SseJournalAdapter<TestData> createAdapter(DefaultSubscriberConfig<TestData> config) {
+  private SseJournalAdapter<TestData> newAdapter(DefaultSubscriberConfig<TestData> config) {
     return new SseJournalAdapter<>(
-        () -> source, emitter, "test-key", config, objectMapper, TestData.class);
+        source, emitter, "test-key", config, objectMapper, TestData.class);
   }
 
   private DefaultSubscriberConfig<TestData> defaultConfig() {
@@ -76,8 +76,7 @@ class SseJournalAdapterTest {
     when(source.isActive()).thenReturn(true, false);
     when(source.next(any(Duration.class))).thenReturn(new NextResult.Value<>(entry));
 
-    SseJournalAdapter<TestData> adapter = createAdapter(defaultConfig());
-    adapter.start();
+    newAdapter(defaultConfig()).begin();
 
     verify(emitter, timeout(2000).atLeast(2)).send(any(SseEmitter.SseEventBuilder.class));
   }
@@ -87,8 +86,7 @@ class SseJournalAdapterTest {
     when(source.isActive()).thenReturn(true, false);
     when(source.next(any(Duration.class))).thenReturn(new NextResult.Timeout<>());
 
-    SseJournalAdapter<TestData> adapter = createAdapter(defaultConfig());
-    adapter.start();
+    newAdapter(defaultConfig()).begin();
 
     verify(emitter, timeout(2000).atLeast(2)).send(any(SseEmitter.SseEventBuilder.class));
   }
@@ -102,8 +100,7 @@ class SseJournalAdapterTest {
     when(source.isActive()).thenReturn(true);
     when(source.next(any(Duration.class))).thenReturn(new NextResult.Completed<>());
 
-    SseJournalAdapter<TestData> adapter = createAdapter(config);
-    adapter.start();
+    newAdapter(config).begin();
 
     assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
     verify(emitter, timeout(2000)).complete();
@@ -118,8 +115,7 @@ class SseJournalAdapterTest {
     when(source.isActive()).thenReturn(true);
     when(source.next(any(Duration.class))).thenReturn(new NextResult.Expired<>());
 
-    SseJournalAdapter<TestData> adapter = createAdapter(config);
-    adapter.start();
+    newAdapter(config).begin();
 
     assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
     verify(emitter, timeout(2000)).complete();
@@ -134,8 +130,7 @@ class SseJournalAdapterTest {
     when(source.isActive()).thenReturn(true);
     when(source.next(any(Duration.class))).thenReturn(new NextResult.Deleted<>());
 
-    SseJournalAdapter<TestData> adapter = createAdapter(config);
-    adapter.start();
+    newAdapter(config).begin();
 
     assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
     verify(emitter, timeout(2000)).complete();
@@ -156,8 +151,7 @@ class SseJournalAdapterTest {
     when(source.isActive()).thenReturn(true);
     when(source.next(any(Duration.class))).thenReturn(new NextResult.Errored<>(cause));
 
-    SseJournalAdapter<TestData> adapter = createAdapter(config);
-    adapter.start();
+    newAdapter(config).begin();
 
     assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
     assertThat(captured.get()).isEqualTo(cause);
@@ -171,14 +165,13 @@ class SseJournalAdapterTest {
     SseEventMapper<TestData> inBandErrorMapper =
         new SseEventMapper<>() {
           @Override
-          public SseEmitter.SseEventBuilder map(
-              org.jwcarman.odyssey.core.DeliveredEvent<TestData> event) {
+          public SseEmitter.SseEventBuilder map(DeliveredEvent<TestData> event) {
             return SseEmitter.event().data("");
           }
 
           @Override
-          public java.util.Optional<SseEmitter.SseEventBuilder> terminal(TerminalState state) {
-            return java.util.Optional.of(SseEmitter.event().name("errored").data("in-band"));
+          public Optional<SseEmitter.SseEventBuilder> terminal(TerminalState state) {
+            return Optional.of(SseEmitter.event().name("errored").data("in-band"));
           }
         };
     DefaultSubscriberConfig<TestData> config = new DefaultSubscriberConfig<>(inBandErrorMapper);
@@ -189,8 +182,7 @@ class SseJournalAdapterTest {
     when(source.isActive()).thenReturn(true);
     when(source.next(any(Duration.class))).thenReturn(new NextResult.Errored<>(cause));
 
-    SseJournalAdapter<TestData> adapter = createAdapter(config);
-    adapter.start();
+    newAdapter(config).begin();
 
     assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
     verify(emitter, timeout(2000)).complete();
@@ -203,8 +195,7 @@ class SseJournalAdapterTest {
         .when(emitter)
         .send(any(SseEmitter.SseEventBuilder.class));
 
-    SseJournalAdapter<TestData> adapter = createAdapter(defaultConfig());
-    adapter.start();
+    newAdapter(defaultConfig()).begin();
 
     verify(source, timeout(2000)).cancel();
     verify(emitter, timeout(2000)).complete();
@@ -212,13 +203,70 @@ class SseJournalAdapterTest {
 
   @Test
   void closeIsIdempotent() {
-    AtomicBoolean cancelled = new AtomicBoolean(false);
+    SseJournalAdapter<TestData> adapter = newAdapter(defaultConfig());
 
-    SseJournalAdapter<TestData> adapter = createAdapter(defaultConfig());
-    // Set source field via reflection-free approach: just call close without start
-    // The source is null, so close should not throw
     adapter.close();
     adapter.close();
-    // No exception = idempotent
+    adapter.close();
+
+    verify(source, times(1)).cancel();
+  }
+
+  @Test
+  void launchFiresTerminalExpiredWhenSupplierThrows() throws Exception {
+    SseEventMapper<TestData> mapper = mock();
+    when(mapper.terminal(any(TerminalState.Expired.class))).thenReturn(Optional.empty());
+
+    CountDownLatch onExpiredLatch = new CountDownLatch(1);
+    DefaultSubscriberConfig<TestData> config = new DefaultSubscriberConfig<>(mapper);
+    config.onExpired(onExpiredLatch::countDown);
+
+    SseJournalAdapter.launch(
+        () -> {
+          throw new JournalExpiredException("gone");
+        },
+        emitter,
+        "test-key",
+        config,
+        objectMapper,
+        TestData.class);
+
+    verify(mapper).terminal(any(TerminalState.Expired.class));
+    verify(emitter).complete();
+    verify(emitter, never()).send(any(SseEmitter.SseEventBuilder.class));
+    assertThat(onExpiredLatch.getCount()).isZero();
+  }
+
+  @Test
+  void launchSendsTerminalExpiredFrameWhenMapperProvidesOne() throws Exception {
+    SseEventMapper<TestData> mapper = mock();
+    SseEmitter.SseEventBuilder frame = SseEmitter.event().name("expired");
+    when(mapper.terminal(any(TerminalState.Expired.class))).thenReturn(Optional.of(frame));
+
+    DefaultSubscriberConfig<TestData> config = new DefaultSubscriberConfig<>(mapper);
+
+    SseJournalAdapter.launch(
+        () -> {
+          throw new JournalExpiredException("gone");
+        },
+        emitter,
+        "test-key",
+        config,
+        objectMapper,
+        TestData.class);
+
+    verify(emitter).send(frame);
+    verify(emitter).complete();
+  }
+
+  @Test
+  void launchSuccessPathDelegatesToAdapter() throws Exception {
+    BlockingSubscription<JournalEntry<StoredEvent>> liveSource = mock();
+    when(liveSource.isActive()).thenReturn(false);
+
+    SseJournalAdapter.launch(
+        () -> liveSource, emitter, "test-key", defaultConfig(), objectMapper, TestData.class);
+
+    verify(emitter, timeout(2000)).complete();
   }
 }

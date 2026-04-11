@@ -28,6 +28,7 @@ class DefaultOdysseyPublisher<T> implements OdysseyPublisher<T> {
   private static final Logger log = LoggerFactory.getLogger(DefaultOdysseyPublisher.class);
 
   private final Journal<StoredEvent> journal;
+  private final String key;
   private final ObjectMapper objectMapper;
   private final Duration entryTtl;
   private final Duration retentionTtl;
@@ -38,6 +39,7 @@ class DefaultOdysseyPublisher<T> implements OdysseyPublisher<T> {
       Duration entryTtl,
       Duration retentionTtl) {
     this.journal = journal;
+    this.key = journal.key();
     this.objectMapper = objectMapper;
     this.entryTtl = entryTtl;
     this.retentionTtl = retentionTtl;
@@ -53,30 +55,30 @@ class DefaultOdysseyPublisher<T> implements OdysseyPublisher<T> {
     String json = objectMapper.writeValueAsString(data);
     StoredEvent event = new StoredEvent(eventType, json, Map.of());
     String id = journal.append(event, entryTtl);
-    log.debug("[{}] Published event id={} type={}", journal.key(), id, eventType);
+    log.debug("[{}] Published event id={} type={}", key, id, eventType);
     return id;
   }
 
   @Override
   public void close() {
-    log.debug("[{}] Completing journal with retention={}", journal.key(), retentionTtl);
+    log.debug("[{}] Completing journal with retention={}", key, retentionTtl);
     journal.complete(retentionTtl);
   }
 
   @Override
   public void close(Duration retentionTtl) {
-    log.debug("[{}] Completing journal with retention={}", journal.key(), retentionTtl);
+    log.debug("[{}] Completing journal with retention={}", key, retentionTtl);
     journal.complete(retentionTtl);
   }
 
   @Override
   public void delete() {
-    log.debug("[{}] Deleting journal", journal.key());
+    log.debug("[{}] Deleting journal", key);
     journal.delete();
   }
 
   @Override
   public String key() {
-    return journal.key();
+    return key;
   }
 }

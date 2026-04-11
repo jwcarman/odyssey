@@ -40,7 +40,6 @@ public class BroadcastController {
 
   @PostMapping
   public Map<String, String> publish(@RequestBody Map<String, String> body) {
-    String key = "broadcast:announcements";
     try (var pub = odyssey.broadcast("announcements", Announcement.class)) {
       String id = pub.publish("message", new Announcement(body.get("message")));
       return Map.of("id", id);

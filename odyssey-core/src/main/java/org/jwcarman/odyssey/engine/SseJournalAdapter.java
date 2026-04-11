@@ -34,23 +34,22 @@ class SseJournalAdapter<T> {
 
   private static final Logger log = LoggerFactory.getLogger(SseJournalAdapter.class);
 
-  private final Supplier<BlockingSubscription<JournalEntry<StoredEvent>>> sourceSupplier;
+  private final BlockingSubscription<JournalEntry<StoredEvent>> source;
   private final SseEmitter emitter;
   private final String streamKey;
   private final DefaultSubscriberConfig<T> config;
   private final ObjectMapper objectMapper;
   private final Class<T> type;
   private final AtomicBoolean closed = new AtomicBoolean(false);
-  private volatile BlockingSubscription<JournalEntry<StoredEvent>> source;
 
   SseJournalAdapter(
-      Supplier<BlockingSubscription<JournalEntry<StoredEvent>>> sourceSupplier,
+      BlockingSubscription<JournalEntry<StoredEvent>> source,
       SseEmitter emitter,
       String streamKey,
       DefaultSubscriberConfig<T> config,
       ObjectMapper objectMapper,
       Class<T> type) {
-    this.sourceSupplier = sourceSupplier;
+    this.source = source;
     this.emitter = emitter;
     this.streamKey = streamKey;
     this.config = config;
@@ -58,27 +57,39 @@ class SseJournalAdapter<T> {
     this.type = type;
   }
 
-  void start() {
-    BlockingSubscription<JournalEntry<StoredEvent>> sub;
+  /**
+   * Establish the subscription on the caller's thread and start an adapter that drives the emitter
+   * on a virtual writer thread. If the subscription throws {@link JournalExpiredException} during
+   * creation, fire the terminal-expired path inline and complete the emitter without spawning a
+   * writer thread. This keeps {@link #source} final and non-null for every adapter instance.
+   */
+  static <T> void launch(
+      Supplier<BlockingSubscription<JournalEntry<StoredEvent>>> sourceSupplier,
+      SseEmitter emitter,
+      String streamKey,
+      DefaultSubscriberConfig<T> config,
+      ObjectMapper objectMapper,
+      Class<T> type) {
+    BlockingSubscription<JournalEntry<StoredEvent>> source;
     try {
-      sub = sourceSupplier.get();
-    } catch (JournalExpiredException e) {
+      source = sourceSupplier.get();
+    } catch (JournalExpiredException _) {
       log.debug("[{}] Journal expired on subscribe", streamKey);
-      trySendTerminal(new TerminalState.Expired());
-      config.onExpired().run();
-      emitter.complete();
+      fireTerminalExpired(emitter, config, streamKey);
       return;
     }
-    this.source = sub;
+    new SseJournalAdapter<>(source, emitter, streamKey, config, objectMapper, type).begin();
+  }
 
+  void begin() {
     emitter.onCompletion(
         () -> {
           log.debug("[{}] SseEmitter completed", streamKey);
           close();
         });
     emitter.onError(
-        e -> {
-          log.debug("[{}] SseEmitter error: {}", streamKey, e.getMessage());
+        _ -> {
+          log.debug("[{}] SseEmitter error", streamKey);
           close();
         });
     emitter.onTimeout(
@@ -86,30 +97,25 @@ class SseJournalAdapter<T> {
           log.debug("[{}] SseEmitter timed out", streamKey);
           close();
         });
-
     Thread.ofVirtual().name("odyssey-writer-" + streamKey).start(this::writerLoop);
   }
 
   void close() {
     if (closed.compareAndSet(false, true)) {
       log.debug("[{}] Closing adapter", streamKey);
-      BlockingSubscription<JournalEntry<StoredEvent>> s = this.source;
-      if (s != null) {
-        s.cancel();
-      }
+      source.cancel();
     }
   }
 
   private void writerLoop() {
     log.debug("[{}] Writer thread started", streamKey);
-    BlockingSubscription<JournalEntry<StoredEvent>> sub = this.source;
     Throwable erroredCause = null;
     try {
       sendComment("connected");
 
       boolean running = true;
-      while (running && sub.isActive()) {
-        NextResult<JournalEntry<StoredEvent>> result = sub.next(config.keepAliveInterval());
+      while (running && source.isActive()) {
+        NextResult<JournalEntry<StoredEvent>> result = source.next(config.keepAliveInterval());
         switch (result) {
           case NextResult.Value<JournalEntry<StoredEvent>>(JournalEntry<StoredEvent> entry) -> {
             log.debug("[{}] Sending event id={}", streamKey, entry.id());
@@ -148,12 +154,12 @@ class SseJournalAdapter<T> {
           }
         }
       }
-    } catch (JournalExpiredException e) {
+    } catch (JournalExpiredException _) {
       log.debug("[{}] Journal expired mid-stream", streamKey);
       trySendTerminal(new TerminalState.Expired());
       config.onExpired().run();
-    } catch (IOException clientGone) {
-      log.debug("[{}] Client disconnected: {}", streamKey, clientGone.getMessage());
+    } catch (IOException _) {
+      log.debug("[{}] Client disconnected", streamKey);
       close();
     } catch (Exception unexpected) {
       log.debug("[{}] Unexpected error in writer loop", streamKey, unexpected);
@@ -190,21 +196,51 @@ class SseJournalAdapter<T> {
    * it. Returns {@code true} if a frame was successfully written to the emitter.
    */
   private boolean trySendTerminal(TerminalState state) {
+    Optional<SseEmitter.SseEventBuilder> frame;
     try {
-      Optional<SseEmitter.SseEventBuilder> event = config.mapper().terminal(state);
-      if (event.isEmpty()) {
-        return false;
-      }
-      try {
-        emitter.send(event.get());
-        return true;
-      } catch (IOException e) {
-        log.debug("[{}] Failed to send terminal event: {}", streamKey, e.getMessage());
-        return false;
-      }
-    } catch (Exception e) {
-      log.debug("[{}] Error building terminal event: {}", streamKey, e.getMessage());
+      frame = config.mapper().terminal(state);
+    } catch (Exception _) {
+      log.debug("[{}] Error building terminal event", streamKey);
       return false;
     }
+    return frame.map(this::sendTerminalFrame).orElse(false);
+  }
+
+  private boolean sendTerminalFrame(SseEmitter.SseEventBuilder frame) {
+    try {
+      emitter.send(frame);
+      return true;
+    } catch (IOException _) {
+      log.debug("[{}] Failed to send terminal event", streamKey);
+      return false;
+    }
+  }
+
+  /**
+   * Static path for the "journal expired at subscribe time" case where no adapter instance exists.
+   * Fires the terminal hook, runs the onExpired callback, and completes the emitter. Kept small and
+   * local so the instance path stays simple.
+   */
+  private static <T> void fireTerminalExpired(
+      SseEmitter emitter, DefaultSubscriberConfig<T> config, String streamKey) {
+    try {
+      Optional<SseEmitter.SseEventBuilder> frame =
+          config.mapper().terminal(new TerminalState.Expired());
+      if (frame.isPresent()) {
+        try {
+          emitter.send(frame.get());
+        } catch (IOException _) {
+          log.debug("[{}] Failed to send terminal-expired event", streamKey);
+        }
+      }
+    } catch (Exception _) {
+      log.debug("[{}] Error building terminal-expired event", streamKey);
+    }
+    try {
+      config.onExpired().run();
+    } catch (Exception _) {
+      log.debug("[{}] onExpired callback threw", streamKey);
+    }
+    emitter.complete();
   }
 }

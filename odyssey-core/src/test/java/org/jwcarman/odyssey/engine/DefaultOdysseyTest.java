@@ -100,8 +100,7 @@ class DefaultOdysseyTest {
 
   @Test
   void channelUsesChannelTtl() {
-    when(journalFactory.create(
-            eq("channel:orders"), eq(StoredEvent.class), eq(Duration.ofHours(1))))
+    when(journalFactory.create("channel:orders", StoredEvent.class, Duration.ofHours(1)))
         .thenReturn(journal);
     DefaultOdyssey odyssey =
         new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
@@ -114,8 +113,7 @@ class DefaultOdysseyTest {
 
   @Test
   void broadcastUsesBroadcastTtl() {
-    when(journalFactory.create(
-            eq("broadcast:news"), eq(StoredEvent.class), eq(Duration.ofHours(24))))
+    when(journalFactory.create("broadcast:news", StoredEvent.class, Duration.ofHours(24)))
         .thenReturn(journal);
     DefaultOdyssey odyssey =
         new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());

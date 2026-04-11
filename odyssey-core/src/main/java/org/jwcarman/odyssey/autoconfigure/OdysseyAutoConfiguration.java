@@ -33,8 +33,6 @@ import tools.jackson.databind.ObjectMapper;
 @PropertySource("classpath:odyssey-defaults.properties")
 public class OdysseyAutoConfiguration {
 
-  public OdysseyAutoConfiguration() {}
-
   @Bean
   @ConditionalOnMissingBean
   public Odyssey odyssey(
