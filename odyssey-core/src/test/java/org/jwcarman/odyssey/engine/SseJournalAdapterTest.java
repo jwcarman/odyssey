@@ -403,7 +403,7 @@ class SseJournalAdapterTest {
   }
 
   @Test
-  void launchHandlesIOExceptionWhenSendingExpiredFrame() throws Exception {
+  void launchHandlesIOExceptionWhenSendingExpiredFrame() throws IOException {
     SseEventMapper<TestData> mapperWithFrame =
         new SseEventMapper<>() {
           @Override
@@ -470,11 +470,8 @@ class SseJournalAdapterTest {
   }
 
   @Test
-  void writerLoopCompletesWithErrorOnUnexpectedException() throws Exception {
-    CountDownLatch latch = new CountDownLatch(1);
+  void writerLoopCompletesWithErrorOnUnexpectedException() {
     DefaultSubscriberConfig<TestData> config = defaultConfig();
-    config.onErrored(t -> latch.countDown());
-
     RuntimeException unexpected = new RuntimeException("subscription exploded");
     when(source.isActive()).thenReturn(true);
     when(source.next(any(Duration.class))).thenThrow(unexpected);
