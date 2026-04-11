@@ -178,20 +178,49 @@ odyssey.subscribe(key, OrderEvent.class, cfg -> {
 });
 ```
 
-## Terminal State Events
+## Terminal State Handling
 
-Subscribers receive distinct SSE events when a stream terminates:
+Substrate's `NextResult` distinguishes four ways a subscription can terminate: `Completed`,
+`Expired`, `Deleted`, and `Errored(Throwable)`. Odyssey surfaces each to user code via
+`SseEventMapper.terminal(TerminalState)`, which defaults to emitting **no** terminal frame
+so vanilla SSE clients see a clean stream followed by a connection close.
 
-- `odyssey-completed` -- publisher called `close()`
-- `odyssey-expired` -- journal reached its TTL
-- `odyssey-deleted` -- publisher called `delete()`
-- `odyssey-errored` -- backend error
+For `Errored`, if the mapper emits no in-band frame, Odyssey closes the emitter via
+`SseEmitter.completeWithError(cause)` so Spring MVC's error-handling pipeline fires. For
+the other terminal variants (or when the mapper does emit a frame), the emitter is closed
+normally via `complete()`.
 
-Clients can listen for these with `addEventListener`:
+Users who want explicit terminal signaling override `terminal()` and return whatever frame
+they want -- there is no Odyssey-branded naming convention imposed on the wire:
 
-```javascript
-eventSource.addEventListener('odyssey-completed', () => {
-    console.log('Stream finished');
+```java
+SseEventMapper<OrderEvent> mapper = new SseEventMapper<>() {
+    @Override
+    public SseEmitter.SseEventBuilder map(DeliveredEvent<OrderEvent> event) {
+        return SseEmitter.event().id(event.id()).name(event.eventType()).data(event.data());
+    }
+
+    @Override
+    public Optional<SseEmitter.SseEventBuilder> terminal(TerminalState state) {
+        return switch (state) {
+            case TerminalState.Completed() -> Optional.of(SseEmitter.event().name("done"));
+            case TerminalState.Expired() -> Optional.of(SseEmitter.event().name("expired"));
+            case TerminalState.Deleted() -> Optional.of(SseEmitter.event().name("deleted"));
+            case TerminalState.Errored(Throwable cause) ->
+                Optional.of(SseEmitter.event().name("failed").data(cause.getMessage()));
+        };
+    }
+};
+```
+
+Callers can also attach side-effect-only terminal callbacks via the subscriber config:
+
+```java
+odyssey.subscribe(key, OrderEvent.class, cfg -> {
+    cfg.onCompleted(() -> metrics.count("stream.completed"));
+    cfg.onExpired(() -> metrics.count("stream.expired"));
+    cfg.onDeleted(() -> metrics.count("stream.deleted"));
+    cfg.onErrored(cause -> log.error("stream errored", cause));
 });
 ```
 
