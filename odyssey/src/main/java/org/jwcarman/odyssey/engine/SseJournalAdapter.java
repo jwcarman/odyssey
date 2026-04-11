@@ -152,6 +152,12 @@ class SseJournalAdapter<T> {
             }
             running = false;
           }
+          case NextResult.Cancelled<JournalEntry<StoredEvent>>() -> {
+            log.debug("[{}] Source cancelled", streamName);
+            trySendTerminal(new TerminalState.Cancelled());
+            config.onCancelled().run();
+            running = false;
+          }
         }
       }
     } catch (JournalExpiredException _) {

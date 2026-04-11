@@ -138,6 +138,21 @@ class SseJournalAdapterTest {
   }
 
   @Test
+  void emitsTerminalOnCancelled() throws Exception {
+    CountDownLatch latch = new CountDownLatch(1);
+    DefaultSubscriberConfig<TestData> config = defaultConfig();
+    config.onCancelled(latch::countDown);
+
+    when(source.isActive()).thenReturn(true);
+    when(source.next(any(Duration.class))).thenReturn(new NextResult.Cancelled<>());
+
+    newAdapter(config).begin();
+
+    assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
+    verify(emitter, timeout(2000)).complete();
+  }
+
+  @Test
   void completesWithErrorOnErroredWhenMapperDoesNotEmitFrame() throws Exception {
     CountDownLatch latch = new CountDownLatch(1);
     AtomicReference<Throwable> captured = new AtomicReference<>();

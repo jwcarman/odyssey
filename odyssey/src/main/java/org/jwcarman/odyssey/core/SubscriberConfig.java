@@ -113,4 +113,15 @@ public interface SubscriberConfig<T> {
    * @return this config, for chaining
    */
   SubscriberConfig<T> onErrored(Consumer<Throwable> action);
+
+  /**
+   * Register a side-effect callback for the {@link SseEventMapper.TerminalState.Cancelled} state.
+   * Fires when the subscription is torn down locally (Spring context shutdown, Substrate shutdown
+   * coordinator, or an explicit source cancel) rather than because the journal itself reached a
+   * terminal state.
+   *
+   * @param action the callback to invoke; exceptions are logged and swallowed
+   * @return this config, for chaining
+   */
+  SubscriberConfig<T> onCancelled(Runnable action);
 }

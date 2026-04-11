@@ -30,6 +30,7 @@ import org.jwcarman.odyssey.core.TtlPolicy;
 import org.jwcarman.substrate.BlockingSubscription;
 import org.jwcarman.substrate.NextResult;
 import org.jwcarman.substrate.core.journal.DefaultJournalFactory;
+import org.jwcarman.substrate.core.lifecycle.ShutdownCoordinator;
 import org.jwcarman.substrate.core.memory.journal.InMemoryJournalSpi;
 import org.jwcarman.substrate.core.memory.notifier.InMemoryNotifier;
 import org.jwcarman.substrate.journal.Journal;
@@ -62,7 +63,8 @@ class InMemoryEndToEndTest {
             1024,
             Duration.ofDays(30),
             Duration.ofDays(30),
-            Duration.ofDays(30));
+            Duration.ofDays(30),
+            new ShutdownCoordinator());
     odyssey = new DefaultOdyssey(journalFactory, objectMapper, PROPS);
   }
 

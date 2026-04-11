@@ -90,6 +90,7 @@ class SseEventMapperTest {
               case TerminalState.Deleted() -> Optional.of(SseEmitter.event().name("deleted"));
               case TerminalState.Errored(Throwable cause) ->
                   Optional.of(SseEmitter.event().name("errored").data(cause.getMessage()));
+              case TerminalState.Cancelled() -> Optional.of(SseEmitter.event().name("cancelled"));
             };
           }
         };
@@ -97,5 +98,6 @@ class SseEventMapperTest {
     assertThat(mapper.terminal(new SseEventMapper.TerminalState.Completed())).isPresent();
     assertThat(mapper.terminal(new SseEventMapper.TerminalState.Errored(new RuntimeException("x"))))
         .isPresent();
+    assertThat(mapper.terminal(new SseEventMapper.TerminalState.Cancelled())).isPresent();
   }
 }

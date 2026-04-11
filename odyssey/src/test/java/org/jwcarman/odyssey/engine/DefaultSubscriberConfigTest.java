@@ -42,6 +42,7 @@ class DefaultSubscriberConfigTest {
     config.onExpired().run();
     config.onDeleted().run();
     config.onErrored().accept(new RuntimeException("should be swallowed by default noop"));
+    config.onCancelled().run();
   }
 
   @Test
@@ -105,5 +106,14 @@ class DefaultSubscriberConfigTest {
 
     assertThat(config.onErrored(action)).isSameAs(config);
     assertThat(config.onErrored()).isSameAs(action);
+  }
+
+  @Test
+  void onCancelledSetterReturnsThisAndPersists() {
+    DefaultSubscriberConfig<String> config = new DefaultSubscriberConfig<>(newMapper());
+    Runnable action = () -> {};
+
+    assertThat(config.onCancelled(action)).isSameAs(config);
+    assertThat(config.onCancelled()).isSameAs(action);
   }
 }

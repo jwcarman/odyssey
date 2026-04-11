@@ -58,7 +58,7 @@ public interface SseEventMapper<T> {
   }
 
   /**
-   * Sealed view of the four terminal conditions a subscription can reach. Mirrors Substrate's
+   * Sealed view of the five terminal conditions a subscription can reach. Mirrors Substrate's
    * terminal {@code NextResult} variants but stays inside the Odyssey type system so consumers
    * don't import Substrate directly.
    */
@@ -79,6 +79,15 @@ public interface SseEventMapper<T> {
      * @param cause the underlying throwable reported by the Substrate subscription
      */
     record Errored(Throwable cause) implements TerminalState {}
+
+    /**
+     * This subscription was torn down locally -- e.g. by Spring context shutdown, Substrate's
+     * shutdown coordinator, or an explicit {@code cancel()} on the source subscription. The
+     * underlying journal is not affected and other subscribers continue uninterrupted; clients that
+     * see this state should typically reconnect and resume via {@code Last-Event-ID} rather than
+     * treating the stream as finished.
+     */
+    record Cancelled() implements TerminalState {}
   }
 
   /**
