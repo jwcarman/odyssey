@@ -13,5 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** Odyssey core API and domain model. */
+/**
+ * Odyssey public API. Everything in this package is intended for use by application code and
+ * framework authors building on top of Odyssey.
+ *
+ * <p>Entry point is {@link org.jwcarman.odyssey.core.Odyssey}, the Spring-managed facade that hands
+ * out {@link org.jwcarman.odyssey.core.OdysseyPublisher} instances on the producer side and {@code
+ * SseEmitter} instances on the consumer side. Configuration is customizer-driven: pass a {@code
+ * Consumer<PublisherConfig>} or {@code Consumer<SubscriberConfig<T>>} to any {@code Odyssey} method
+ * and the library owns the lifecycle. Application-wide defaults live in {@link
+ * org.jwcarman.odyssey.core.PublisherCustomizer} and {@link
+ * org.jwcarman.odyssey.core.SubscriberCustomizer} Spring beans.
+ *
+ * <p>Mappers receive a {@link org.jwcarman.odyssey.core.DeliveredEvent} per value and may
+ * optionally emit terminal SSE frames via {@link
+ * org.jwcarman.odyssey.core.SseEventMapper#terminal(org.jwcarman.odyssey.core.SseEventMapper.TerminalState)}.
+ *
+ * <p>Odyssey's internals (publisher/subscriber implementations, writer-loop adapter, package-
+ * private event wrappers) live in {@code org.jwcarman.odyssey.engine} and are not part of the
+ * public API.
+ */
 package org.jwcarman.odyssey.core;
