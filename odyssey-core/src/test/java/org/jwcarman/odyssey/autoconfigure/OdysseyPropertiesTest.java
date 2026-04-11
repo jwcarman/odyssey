@@ -39,20 +39,32 @@ class OdysseyPropertiesTest {
     contextRunner.run(
         context -> {
           OdysseyProperties properties = context.getBean(OdysseyProperties.class);
-          assertEquals(Duration.ofSeconds(30), properties.keepAliveInterval());
-          assertEquals(Duration.ZERO, properties.sseTimeout());
+          assertEquals(Duration.ofSeconds(30), properties.sse().keepAlive());
+          assertEquals(Duration.ZERO, properties.sse().timeout());
+
+          assertEquals(Duration.ofHours(1), properties.defaultTtl().inactivityTtl());
+          assertEquals(Duration.ofHours(1), properties.defaultTtl().entryTtl());
+          assertEquals(Duration.ofMinutes(5), properties.defaultTtl().retentionTtl());
         });
   }
 
   @Test
   void customValues() {
     contextRunner
-        .withPropertyValues("odyssey.keep-alive-interval=10s", "odyssey.sse-timeout=5s")
+        .withPropertyValues(
+            "odyssey.sse.keep-alive=10s",
+            "odyssey.sse.timeout=5s",
+            "odyssey.default-ttl.inactivity-ttl=2h",
+            "odyssey.default-ttl.entry-ttl=30m",
+            "odyssey.default-ttl.retention-ttl=15m")
         .run(
             context -> {
               OdysseyProperties properties = context.getBean(OdysseyProperties.class);
-              assertEquals(Duration.ofSeconds(10), properties.keepAliveInterval());
-              assertEquals(Duration.ofSeconds(5), properties.sseTimeout());
+              assertEquals(Duration.ofSeconds(10), properties.sse().keepAlive());
+              assertEquals(Duration.ofSeconds(5), properties.sse().timeout());
+              assertEquals(Duration.ofHours(2), properties.defaultTtl().inactivityTtl());
+              assertEquals(Duration.ofMinutes(30), properties.defaultTtl().entryTtl());
+              assertEquals(Duration.ofMinutes(15), properties.defaultTtl().retentionTtl());
             });
   }
 }

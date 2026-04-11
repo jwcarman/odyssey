@@ -17,44 +17,38 @@ package org.jwcarman.odyssey.engine;
 
 import java.time.Duration;
 import org.jwcarman.odyssey.core.PublisherConfig;
+import org.jwcarman.odyssey.core.TtlPolicy;
 
 class DefaultPublisherConfig implements PublisherConfig {
 
-  private static final Duration DEFAULT_INACTIVITY_TTL = Duration.ofHours(1);
-  private static final Duration DEFAULT_ENTRY_TTL = Duration.ofHours(1);
-  private static final Duration DEFAULT_RETENTION_TTL = Duration.ofMinutes(5);
+  private static final TtlPolicy DEFAULT_TTL =
+      new TtlPolicy(Duration.ofHours(1), Duration.ofHours(1), Duration.ofMinutes(5));
 
-  private Duration inactivityTtl = DEFAULT_INACTIVITY_TTL;
-  private Duration entryTtl = DEFAULT_ENTRY_TTL;
-  private Duration retentionTtl = DEFAULT_RETENTION_TTL;
+  private TtlPolicy ttl = DEFAULT_TTL;
+
+  // Intentionally no override of ttl(TtlPolicy) — the PublisherConfig default method
+  // routes through the three individual setters, which is fine for our single-field
+  // representation and keeps coverage on the interface default.
 
   @Override
   public PublisherConfig inactivityTtl(Duration ttl) {
-    this.inactivityTtl = ttl;
+    this.ttl = this.ttl.withInactivityTtl(ttl);
     return this;
   }
 
   @Override
   public PublisherConfig entryTtl(Duration ttl) {
-    this.entryTtl = ttl;
+    this.ttl = this.ttl.withEntryTtl(ttl);
     return this;
   }
 
   @Override
   public PublisherConfig retentionTtl(Duration ttl) {
-    this.retentionTtl = ttl;
+    this.ttl = this.ttl.withRetentionTtl(ttl);
     return this;
   }
 
-  Duration inactivityTtl() {
-    return inactivityTtl;
-  }
-
-  Duration entryTtl() {
-    return entryTtl;
-  }
-
-  Duration retentionTtl() {
-    return retentionTtl;
+  TtlPolicy ttl() {
+    return ttl;
   }
 }

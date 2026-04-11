@@ -15,9 +15,9 @@
  */
 package org.jwcarman.odyssey.engine;
 
-import java.time.Duration;
 import java.util.Map;
 import org.jwcarman.odyssey.core.OdysseyPublisher;
+import org.jwcarman.odyssey.core.TtlPolicy;
 import org.jwcarman.substrate.journal.Journal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,21 +28,16 @@ class DefaultOdysseyPublisher<T> implements OdysseyPublisher<T> {
   private static final Logger log = LoggerFactory.getLogger(DefaultOdysseyPublisher.class);
 
   private final Journal<StoredEvent> journal;
-  private final String key;
+  private final String name;
   private final ObjectMapper objectMapper;
-  private final Duration entryTtl;
-  private final Duration retentionTtl;
+  private final TtlPolicy ttl;
 
   DefaultOdysseyPublisher(
-      Journal<StoredEvent> journal,
-      ObjectMapper objectMapper,
-      Duration entryTtl,
-      Duration retentionTtl) {
+      Journal<StoredEvent> journal, String name, ObjectMapper objectMapper, TtlPolicy ttl) {
     this.journal = journal;
-    this.key = journal.key();
+    this.name = name;
     this.objectMapper = objectMapper;
-    this.entryTtl = entryTtl;
-    this.retentionTtl = retentionTtl;
+    this.ttl = ttl;
   }
 
   @Override
@@ -54,31 +49,25 @@ class DefaultOdysseyPublisher<T> implements OdysseyPublisher<T> {
   public String publish(String eventType, T data) {
     String json = objectMapper.writeValueAsString(data);
     StoredEvent event = new StoredEvent(eventType, json, Map.of());
-    String id = journal.append(event, entryTtl);
-    log.debug("[{}] Published event id={} type={}", key, id, eventType);
+    String id = journal.append(event, ttl.entryTtl());
+    log.debug("[{}] Published event id={} type={}", name, id, eventType);
     return id;
   }
 
   @Override
-  public void close() {
-    log.debug("[{}] Completing journal with retention={}", key, retentionTtl);
-    journal.complete(retentionTtl);
-  }
-
-  @Override
-  public void close(Duration retentionTtl) {
-    log.debug("[{}] Completing journal with retention={}", key, retentionTtl);
-    journal.complete(retentionTtl);
+  public void complete() {
+    log.debug("[{}] Completing journal with retention={}", name, ttl.retentionTtl());
+    journal.complete(ttl.retentionTtl());
   }
 
   @Override
   public void delete() {
-    log.debug("[{}] Deleting journal", key);
+    log.debug("[{}] Deleting journal", name);
     journal.delete();
   }
 
   @Override
-  public String key() {
-    return key;
+  public String name() {
+    return name;
   }
 }

@@ -42,20 +42,27 @@ public class NotifyController {
   @PostMapping("/{userId}")
   public Map<String, String> publish(
       @PathVariable String userId, @RequestBody Map<String, String> body) {
-    try (var pub = odyssey.channel("user:" + userId, Notification.class)) {
-      String id = pub.publish("notification", new Notification(body.get("message")));
-      return Map.of("id", id);
-    }
+    // Long-lived per-user channel stream. No try-with-resources -- closing would
+    // terminate the stream for every subscriber. We apply our "CHANNEL" TTL policy.
+    var pub =
+        odyssey.publisher(
+            streamName(userId), Notification.class, cfg -> cfg.ttl(TtlPolicies.CHANNEL));
+    String id = pub.publish("notification", new Notification(body.get("message")));
+    return Map.of("id", id);
   }
 
   @GetMapping(value = "/{userId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   public SseEmitter subscribe(
       @PathVariable String userId,
       @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
-    String key = "channel:user:" + userId;
+    String name = streamName(userId);
     if (lastEventId != null) {
-      return odyssey.resume(key, Notification.class, lastEventId);
+      return odyssey.resume(name, Notification.class, lastEventId);
     }
-    return odyssey.subscribe(key, Notification.class);
+    return odyssey.subscribe(name, Notification.class);
+  }
+
+  private static String streamName(String userId) {
+    return "user:" + userId;
   }
 }

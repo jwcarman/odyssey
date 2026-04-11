@@ -48,7 +48,7 @@ Pick a starter for your infrastructure:
 <dependency>
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-redis-spring-boot-starter</artifactId>
-    <version>0.4.0</version>
+    <version>0.5.0</version>
 </dependency>
 ```
 
@@ -57,7 +57,7 @@ Pick a starter for your infrastructure:
 <dependency>
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-inmemory-spring-boot-starter</artifactId>
-    <version>0.4.0</version>
+    <version>0.5.0</version>
 </dependency>
 ```
 
@@ -73,29 +73,28 @@ Each starter includes everything you need -- one dependency.
 public class OrderStreamController {
 
     private final Odyssey odyssey;
+    private final OdysseyPublisher<OrderEvent> orderStream;
 
     public OrderStreamController(Odyssey odyssey) {
         this.odyssey = odyssey;
+        // Long-lived publisher: one per app lifetime, not one per request.
+        this.orderStream = odyssey.publisher("orders", OrderEvent.class);
     }
 
     @PostMapping("/orders")
     public OrderResponse createOrder(@RequestBody CreateOrder cmd) {
         Order order = orderService.create(cmd);
-        try (var pub = odyssey.channel("orders:" + order.id(), OrderEvent.class)) {
-            pub.publish("order.created", OrderEvent.created(order));
-        }
+        orderStream.publish("order.created", OrderEvent.created(order));
         return OrderResponse.from(order);
     }
 
-    @GetMapping("/streams/orders/{id}")
-    public SseEmitter streamOrder(
-            @PathVariable String id,
+    @GetMapping("/streams/orders")
+    public SseEmitter streamOrders(
             @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
-        String key = "orders:" + id;
         return lastEventId != null
-            ? odyssey.resume(key, OrderEvent.class, lastEventId,
+            ? odyssey.resume("orders", OrderEvent.class, lastEventId,
                 cfg -> cfg.timeout(Duration.ofMinutes(30)))
-            : odyssey.subscribe(key, OrderEvent.class,
+            : odyssey.subscribe("orders", OrderEvent.class,
                 cfg -> cfg.timeout(Duration.ofMinutes(30)));
     }
 }
@@ -106,18 +105,36 @@ subscriber coordination, keep-alive heartbeats, reconnect replay, and cleanup.
 
 ## Publishing
 
-Publishers are typed and support try-with-resources:
+Publishers are typed. Odyssey handles JSON serialization via its own `ObjectMapper`, so the
+backend journal only ever sees an already-serialized byte payload.
 
 ```java
-// Typed publisher -- Odyssey handles JSON serialization via its own ObjectMapper,
-// so the backend journal only ever sees an already-serialized byte payload.
-try (var pub = odyssey.channel("user:" + userId, OrderEvent.class)) {
-    pub.publish("order.shipped", new OrderEvent(orderId, "shipped"));
-}
+// Long-lived publisher -- hold it for the lifetime of the app. Do NOT close it after a
+// single publish; doing so terminates the stream for every subscriber.
+var pub = odyssey.publisher("user:" + userId, OrderEvent.class);
+pub.publish("order.shipped", new OrderEvent(orderId, "shipped"));
 
 // Without an event type (SSE event: field omitted -- useful for MCP)
 pub.publish(new OrderEvent(orderId, "shipped"));
+
+// Short-lived publisher -- create per request, finalize with complete() when done so
+// late-joining subscribers see a terminal Completed state rather than an idle stream.
+String streamName = UUID.randomUUID().toString();
+var pub = odyssey.publisher(streamName, TaskProgress.class,
+    cfg -> cfg.ttl(TtlPolicies.EPHEMERAL));
+try {
+    pub.publish("progress", new TaskProgress(25));
+    pub.publish("progress", new TaskProgress(50));
+    pub.publish("done",     new TaskProgress(100));
+} finally {
+    pub.complete();
+}
 ```
+
+`OdysseyPublisher` is intentionally **not** `AutoCloseable` -- there are no local resources
+to release on GC, and making it `AutoCloseable` would encourage try-with-resources which
+terminates the underlying stream as a side effect. Explicit `complete()` is the only way
+to finalize a stream.
 
 ## Subscribing
 
@@ -134,24 +151,44 @@ SseEmitter emitter = odyssey.resume(key, OrderEvent.class, lastEventId);
 SseEmitter emitter = odyssey.replay(key, OrderEvent.class, 10);
 ```
 
-## Stream Types
+## TTL Policies
 
-All three stream types use the same API. The difference is naming convention and
-default TTLs.
+Odyssey is deliberately unopinionated about stream lifetimes. There is one
+`Odyssey.publisher(name, type)` method plus a customizer overload, and exactly one
+default `TtlPolicy` configured via `odyssey.default-ttl.*`. If you want
+"ephemeral / channel / broadcast" tiering, define your own `TtlPolicy` constants in your
+app and pass them via the per-call customizer:
 
-| Type | Factory Method | Use Case |
-|------|---------------|----------|
-| Ephemeral | `odyssey.ephemeral(type)` | Short-lived request/response (MCP tool calls) |
-| Channel | `odyssey.channel(name, type)` | Per-user or per-entity notifications |
-| Broadcast | `odyssey.broadcast(name, type)` | System-wide announcements |
+```java
+public final class TtlPolicies {
+    public static final TtlPolicy EPHEMERAL =
+        new TtlPolicy(Duration.ofMinutes(5), Duration.ofMinutes(5), Duration.ofMinutes(5));
+    public static final TtlPolicy CHANNEL =
+        new TtlPolicy(Duration.ofHours(1), Duration.ofHours(1), Duration.ofHours(1));
+    public static final TtlPolicy BROADCAST =
+        new TtlPolicy(Duration.ofHours(24), Duration.ofHours(24), Duration.ofHours(24));
+}
 
-Each stream type has a configurable TTL that controls how long events are retained:
+// Long-lived broadcast
+var pub = odyssey.publisher("announcements", Announcement.class,
+    cfg -> cfg.ttl(TtlPolicies.BROADCAST));
 
-```yaml
-odyssey:
-  ephemeral-ttl: 5m    # short-lived request/response
-  channel-ttl: 1h      # per-user notifications
-  broadcast-ttl: 24h   # system-wide announcements
+// Per-request ephemeral
+var pub = odyssey.publisher(UUID.randomUUID().toString(), TaskProgress.class,
+    cfg -> cfg.ttl(TtlPolicies.EPHEMERAL));
+```
+
+Each `TtlPolicy` has three fields: `inactivityTtl` (journal auto-expires if no appends for
+this long), `entryTtl` (per-entry TTL applied on every `publish`), and `retentionTtl`
+(how long the journal stays readable after `complete()` is called). They don't have to
+match -- a broadcast stream might want short `entryTtl` but long `retentionTtl` so
+late-joining subscribers can still see recent history after `complete()`.
+
+The three setters on `PublisherConfig` can also be called individually for partial
+overrides:
+
+```java
+odyssey.publisher("orders", OrderEvent.class, cfg -> cfg.retentionTtl(Duration.ofHours(24)));
 ```
 
 ## Customizers
@@ -159,8 +196,8 @@ odyssey:
 Configuration uses the Spring Boot customizer pattern:
 
 ```java
-// Per-call customizer
-odyssey.channel("orders", OrderEvent.class, cfg -> {
+// Per-call publisher customizer
+odyssey.publisher("orders", OrderEvent.class, cfg -> {
     cfg.inactivityTtl(Duration.ofHours(2));
     cfg.entryTtl(Duration.ofHours(2));
 });
@@ -172,7 +209,7 @@ PublisherCustomizer longRetention() {
 }
 
 // Subscriber customizer
-odyssey.subscribe(key, OrderEvent.class, cfg -> {
+odyssey.subscribe("orders", OrderEvent.class, cfg -> {
     cfg.timeout(Duration.ofMinutes(30));
     cfg.keepAliveInterval(Duration.ofSeconds(15));
     cfg.onCompleted(() -> log.info("Stream completed"));
@@ -262,12 +299,18 @@ and more).
 
 ```yaml
 odyssey:
-  keep-alive-interval: 30s   # heartbeat / disconnect detection interval
-  sse-timeout: 0              # SseEmitter timeout (0 = no timeout)
-  ephemeral-ttl: 5m           # TTL for ephemeral stream events
-  channel-ttl: 1h             # TTL for channel stream events
-  broadcast-ttl: 24h          # TTL for broadcast stream events
+  default-ttl:
+    inactivity-ttl: 1h   # journal auto-expires if no appends for this long
+    entry-ttl: 1h        # per-entry TTL applied on every publish
+    retention-ttl: 5m    # how long the journal stays readable after complete()
+
+  sse:
+    keep-alive: 30s      # heartbeat / disconnect detection interval
+    timeout: 0           # SseEmitter timeout (0 = no timeout)
 ```
+
+These are just the defaults -- per-stream TTL tiering is the caller's job (see
+[TTL Policies](#ttl-policies) above).
 
 Backend-specific properties (storage, connection, etc.) are configured via
 [Substrate](https://github.com/jwcarman/substrate). See your backend's documentation.
@@ -275,7 +318,9 @@ Backend-specific properties (storage, connection, etc.) are configured via
 ## Example Application
 
 The [`odyssey-example`](odyssey-example) module is a complete Spring Boot application
-with a static HTML page demonstrating all three stream types. To run it:
+with a static HTML page demonstrating three common TTL tiers (ephemeral tasks, per-user
+notifications, and broadcast announcements) all built on the single
+`odyssey.publisher(name, type, customizer)` entry point. To run it:
 
 ```bash
 # Start Redis (required for the example)

@@ -178,9 +178,9 @@
             fetch('/api/task', { method: 'POST' })
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
-                    const streamKey = data.streamKey;
-                    appendInfo('task-log', '--- stream: ' + streamKey + ' ---');
-                    const source = new EventSource('/api/task/' + encodeURIComponent(streamKey) + '/stream');
+                    const streamName = data.streamName;
+                    appendInfo('task-log', '--- stream: ' + streamName + ' ---');
+                    const source = new EventSource('/api/task/' + encodeURIComponent(streamName) + '/stream');
 
                     source.onopen = function() {
                         setStatus('task-status', 'Running...', true);

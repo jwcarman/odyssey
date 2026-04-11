@@ -26,6 +26,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.odyssey.core.OdysseyPublisher;
+import org.jwcarman.odyssey.core.TtlPolicy;
 import org.jwcarman.substrate.journal.Journal;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -35,8 +36,10 @@ import tools.jackson.databind.ObjectMapper;
 @ExtendWith(MockitoExtension.class)
 class DefaultOdysseyPublisherTest {
 
+  private static final String NAME = "test-123";
   private static final Duration ENTRY_TTL = Duration.ofHours(1);
   private static final Duration RETENTION_TTL = Duration.ofMinutes(5);
+  private static final TtlPolicy TTL = new TtlPolicy(Duration.ofHours(1), ENTRY_TTL, RETENTION_TTL);
 
   @Mock private Journal<StoredEvent> journal;
 
@@ -47,8 +50,7 @@ class DefaultOdysseyPublisherTest {
 
   @BeforeEach
   void setUp() {
-    when(journal.key()).thenReturn("test-key");
-    publisher = new DefaultOdysseyPublisher<>(journal, objectMapper, ENTRY_TTL, RETENTION_TTL);
+    publisher = new DefaultOdysseyPublisher<>(journal, NAME, objectMapper, TTL);
   }
 
   @Test
@@ -79,19 +81,10 @@ class DefaultOdysseyPublisherTest {
   }
 
   @Test
-  void closeCompletesJournalWithDefaultRetention() {
-    publisher.close();
+  void completeFinalizesJournalWithConfiguredRetention() {
+    publisher.complete();
 
     verify(journal).complete(RETENTION_TTL);
-  }
-
-  @Test
-  void closeWithOverrideRetention() {
-    Duration override = Duration.ofHours(2);
-
-    publisher.close(override);
-
-    verify(journal).complete(override);
   }
 
   @Test
@@ -102,19 +95,12 @@ class DefaultOdysseyPublisherTest {
   }
 
   @Test
-  void keyReturnsJournalKey() {
-    assertThat(publisher.key()).isEqualTo("test-key");
-  }
-
-  @Test
-  void tryWithResourcesCallsClose() {
-    OdysseyPublisher<TestPayload> pub =
-        new DefaultOdysseyPublisher<>(journal, objectMapper, ENTRY_TTL, RETENTION_TTL);
-    try (pub) {
-      when(journal.append(any(), eq(ENTRY_TTL))).thenReturn("id-3");
-      pub.publish("test", new TestPayload("auto", 1));
-    }
-
-    verify(journal).complete(RETENTION_TTL);
+  void nameReturnsTheNamePassedToConstructor() {
+    // Regression: previously the publisher returned journal.key() which was the
+    // Substrate-prefixed backend key. Passing that back into odyssey.subscribe()
+    // caused double-prefixing. The publisher must surface the user-visible name
+    // so round-tripping through pub.name() -> odyssey.subscribe(name) resolves
+    // to the same journal.
+    assertThat(publisher.name()).isEqualTo(NAME);
   }
 }

@@ -16,6 +16,7 @@
 package org.jwcarman.odyssey.example;
 
 import java.util.Map;
+import java.util.UUID;
 import org.jwcarman.odyssey.core.Odyssey;
 import org.jwcarman.odyssey.core.OdysseyPublisher;
 import org.springframework.http.MediaType;
@@ -43,13 +44,20 @@ public class TaskController {
 
   @PostMapping
   public Map<String, String> startTask() {
-    OdysseyPublisher<TaskProgress> pub = odyssey.ephemeral(TaskProgress.class);
-    String key = pub.key();
+    // Ephemeral tasks get an app-generated UUID as their stream name. Odyssey doesn't
+    // generate this for us -- it's our name to pick. We apply our own "EPHEMERAL" TTL
+    // policy via the customizer.
+    OdysseyPublisher<TaskProgress> pub =
+        odyssey.publisher(
+            UUID.randomUUID().toString(),
+            TaskProgress.class,
+            cfg -> cfg.ttl(TtlPolicies.EPHEMERAL));
+    String name = pub.name();
 
     Thread.ofVirtual()
         .start(
             () -> {
-              try (pub) {
+              try {
                 pub.publish(PROGRESS_EVENT, new TaskProgress(0, "Starting..."));
                 Thread.sleep(1500);
                 pub.publish(PROGRESS_EVENT, new TaskProgress(33, "Processing..."));
@@ -59,19 +67,21 @@ public class TaskController {
                 pub.publish("complete", new TaskProgress(100, "Done!"));
               } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
+              } finally {
+                pub.complete();
               }
             });
 
-    return Map.of("streamKey", key);
+    return Map.of("streamName", name);
   }
 
-  @GetMapping(value = "/{streamKey}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @GetMapping(value = "/{streamName}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   public SseEmitter subscribe(
-      @PathVariable String streamKey,
+      @PathVariable String streamName,
       @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
     if (lastEventId != null) {
-      return odyssey.resume(streamKey, TaskProgress.class, lastEventId);
+      return odyssey.resume(streamName, TaskProgress.class, lastEventId);
     }
-    return odyssey.subscribe(streamKey, TaskProgress.class);
+    return odyssey.subscribe(streamName, TaskProgress.class);
   }
 }

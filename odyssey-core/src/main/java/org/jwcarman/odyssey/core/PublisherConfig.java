@@ -23,6 +23,13 @@ import java.time.Duration;
  * outside the customizer -- the library freezes the config into a publisher as soon as the
  * customizer returns.
  *
+ * <p>A fresh config is created per publisher construction. For the sugared methods ({@link
+ * Odyssey#channel}, {@link Odyssey#broadcast}, {@link Odyssey#ephemeral}), the config is pre-seeded
+ * from the matching category's {@link TtlPolicy} on {@link
+ * org.jwcarman.odyssey.autoconfigure.OdysseyProperties}. For the raw {@link Odyssey#publisher}
+ * method, the config starts at the hardcoded library defaults. In either case, the user's
+ * customizer runs last and can override any field.
+ *
  * <p>Three TTL knobs correspond to three distinct Substrate lifecycle events:
  *
  * <ul>
@@ -33,13 +40,21 @@ import java.time.Duration;
  *   <li>{@link #entryTtl(Duration)} -- the default per-entry TTL applied on every {@code
  *       publish(...)}. Client-side; different publishers against the same journal can use different
  *       entry TTLs.
- *   <li>{@link #retentionTtl(Duration)} -- the default retention passed to {@code
- *       journal.complete(...)} when {@link OdysseyPublisher#close()} is called without an explicit
- *       value. Client-side; can be overridden per-call via {@link
- *       OdysseyPublisher#close(Duration)}.
+ *   <li>{@link #retentionTtl(Duration)} -- the retention passed to {@code journal.complete(...)}
+ *       when {@link OdysseyPublisher#complete()} is called.
  * </ul>
+ *
+ * <p>The {@link #ttl(TtlPolicy)} default method is a convenience for replacing all three fields
+ * from a record in one call.
  */
 public interface PublisherConfig {
+
+  /** Replace all three TTL fields from a {@link TtlPolicy} record. */
+  default PublisherConfig ttl(TtlPolicy ttl) {
+    return inactivityTtl(ttl.inactivityTtl())
+        .entryTtl(ttl.entryTtl())
+        .retentionTtl(ttl.retentionTtl());
+  }
 
   /** Set the journal's inactivity TTL. See class-level docs for the creation-time caveat. */
   PublisherConfig inactivityTtl(Duration ttl);
@@ -47,6 +62,6 @@ public interface PublisherConfig {
   /** Set the default per-entry TTL applied on every {@code publish(...)}. */
   PublisherConfig entryTtl(Duration ttl);
 
-  /** Set the default retention TTL used by {@link OdysseyPublisher#close()}. */
+  /** Set the retention TTL used by {@link OdysseyPublisher#complete()}. */
   PublisherConfig retentionTtl(Duration ttl);
 }

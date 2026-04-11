@@ -15,22 +15,24 @@
  */
 package org.jwcarman.odyssey.autoconfigure;
 
-import java.time.Duration;
+import org.jwcarman.odyssey.core.TtlPolicy;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * Configuration properties for Odyssey, bound under the {@code odyssey} prefix.
  *
- * @param keepAliveInterval the interval between keep-alive comments sent to SSE subscribers
- * @param sseTimeout the SseEmitter timeout; zero means no timeout
- * @param ephemeralTtl default TTL for ephemeral stream events
- * @param channelTtl default TTL for channel stream events
- * @param broadcastTtl default TTL for broadcast stream events
+ * <p>Two nested groups:
+ *
+ * <ul>
+ *   <li>{@code odyssey.default-ttl.*} -- the default {@link TtlPolicy} applied to every publisher.
+ *       Applications that want different TTL policies per stream should define {@link TtlPolicy}
+ *       constants in their own code and pass them via the per-call customizer on {@link
+ *       org.jwcarman.odyssey.core.Odyssey#publisher(String, Class, java.util.function.Consumer)}.
+ *   <li>{@code odyssey.sse.*} -- SSE-specific settings ({@code timeout}, {@code keep-alive}).
+ * </ul>
+ *
+ * @param defaultTtl the default TTL policy applied to every publisher
+ * @param sse SSE-specific settings (emitter timeout and keep-alive interval)
  */
 @ConfigurationProperties(prefix = "odyssey")
-public record OdysseyProperties(
-    Duration keepAliveInterval,
-    Duration sseTimeout,
-    Duration ephemeralTtl,
-    Duration channelTtl,
-    Duration broadcastTtl) {}
+public record OdysseyProperties(TtlPolicy defaultTtl, SseProperties sse) {}

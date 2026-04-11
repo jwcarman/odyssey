@@ -30,6 +30,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/broadcast")
 public class BroadcastController {
 
+  private static final String STREAM_NAME = "announcements";
+
   record Announcement(String message) {}
 
   private final Odyssey odyssey;
@@ -40,19 +42,22 @@ public class BroadcastController {
 
   @PostMapping
   public Map<String, String> publish(@RequestBody Map<String, String> body) {
-    try (var pub = odyssey.broadcast("announcements", Announcement.class)) {
-      String id = pub.publish("message", new Announcement(body.get("message")));
-      return Map.of("id", id);
-    }
+    // Long-lived broadcast stream. No try-with-resources: closing a long-lived stream
+    // would terminate it for every subscriber. We apply our "BROADCAST" TTL policy via
+    // the per-call customizer; Odyssey doesn't have opinions about what broadcast means.
+    var pub =
+        odyssey.publisher(
+            STREAM_NAME, Announcement.class, cfg -> cfg.ttl(TtlPolicies.BROADCAST));
+    String id = pub.publish("message", new Announcement(body.get("message")));
+    return Map.of("id", id);
   }
 
   @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   public SseEmitter subscribe(
       @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
-    String key = "broadcast:announcements";
     if (lastEventId != null) {
-      return odyssey.resume(key, Announcement.class, lastEventId);
+      return odyssey.resume(STREAM_NAME, Announcement.class, lastEventId);
     }
-    return odyssey.subscribe(key, Announcement.class);
+    return odyssey.subscribe(STREAM_NAME, Announcement.class);
   }
 }

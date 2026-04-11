@@ -17,7 +17,6 @@ package org.jwcarman.odyssey.engine;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.jwcarman.odyssey.autoconfigure.OdysseyProperties;
@@ -28,6 +27,7 @@ import org.jwcarman.odyssey.core.PublisherCustomizer;
 import org.jwcarman.odyssey.core.SseEventMapper;
 import org.jwcarman.odyssey.core.SubscriberConfig;
 import org.jwcarman.odyssey.core.SubscriberCustomizer;
+import org.jwcarman.odyssey.core.TtlPolicy;
 import org.jwcarman.substrate.BlockingSubscription;
 import org.jwcarman.substrate.journal.Journal;
 import org.jwcarman.substrate.journal.JournalAlreadyExistsException;
@@ -58,112 +58,67 @@ public class DefaultOdyssey implements Odyssey {
   }
 
   @Override
-  public <T> OdysseyPublisher<T> publisher(String key, Class<T> type) {
-    return publisher(key, type, cfg -> {});
+  public <T> OdysseyPublisher<T> publisher(String name, Class<T> type) {
+    return publisher(name, type, cfg -> {});
   }
 
   @Override
   public <T> OdysseyPublisher<T> publisher(
-      String key, Class<T> type, Consumer<PublisherConfig> customizer) {
-    return createPublisher(key, cfg -> {}, customizer);
-  }
-
-  @Override
-  public <T> OdysseyPublisher<T> ephemeral(Class<T> type) {
-    return ephemeral(type, cfg -> {});
-  }
-
-  @Override
-  public <T> OdysseyPublisher<T> ephemeral(Class<T> type, Consumer<PublisherConfig> customizer) {
-    String key = "ephemeral:" + UUID.randomUUID();
-    Duration ttl = properties.ephemeralTtl();
-    return createPublisher(key, categoryTtl(ttl), customizer);
-  }
-
-  @Override
-  public <T> OdysseyPublisher<T> channel(String name, Class<T> type) {
-    return channel(name, type, cfg -> {});
-  }
-
-  @Override
-  public <T> OdysseyPublisher<T> channel(
       String name, Class<T> type, Consumer<PublisherConfig> customizer) {
-    String key = "channel:" + name;
-    Duration ttl = properties.channelTtl();
-    return createPublisher(key, categoryTtl(ttl), customizer);
+    DefaultPublisherConfig config = new DefaultPublisherConfig();
+    config.ttl(properties.defaultTtl());
+    publisherCustomizers.forEach(c -> c.accept(config));
+    customizer.accept(config);
+
+    TtlPolicy ttl = config.ttl();
+    Journal<StoredEvent> journal = createOrConnect(name, ttl.inactivityTtl());
+    return new DefaultOdysseyPublisher<>(journal, name, objectMapper, ttl);
   }
 
   @Override
-  public <T> OdysseyPublisher<T> broadcast(String name, Class<T> type) {
-    return broadcast(name, type, cfg -> {});
-  }
-
-  @Override
-  public <T> OdysseyPublisher<T> broadcast(
-      String name, Class<T> type, Consumer<PublisherConfig> customizer) {
-    String key = "broadcast:" + name;
-    Duration ttl = properties.broadcastTtl();
-    return createPublisher(key, categoryTtl(ttl), customizer);
-  }
-
-  @Override
-  public <T> SseEmitter subscribe(String key, Class<T> type) {
-    return subscribe(key, type, cfg -> {});
+  public <T> SseEmitter subscribe(String name, Class<T> type) {
+    return subscribe(name, type, cfg -> {});
   }
 
   @Override
   public <T> SseEmitter subscribe(
-      String key, Class<T> type, Consumer<SubscriberConfig<T>> customizer) {
+      String name, Class<T> type, Consumer<SubscriberConfig<T>> customizer) {
     DefaultSubscriberConfig<T> config = createSubscriberConfig(customizer);
-    Journal<StoredEvent> journal = journalFactory.connect(key, StoredEvent.class);
-    return startAdapter(key, type, config, journal::subscribe);
+    Journal<StoredEvent> journal = journalFactory.connect(name, StoredEvent.class);
+    return startAdapter(name, type, config, journal::subscribe);
   }
 
   @Override
-  public <T> SseEmitter resume(String key, Class<T> type, String lastEventId) {
-    return resume(key, type, lastEventId, cfg -> {});
+  public <T> SseEmitter resume(String name, Class<T> type, String lastEventId) {
+    return resume(name, type, lastEventId, cfg -> {});
   }
 
   @Override
   public <T> SseEmitter resume(
-      String key, Class<T> type, String lastEventId, Consumer<SubscriberConfig<T>> customizer) {
+      String name, Class<T> type, String lastEventId, Consumer<SubscriberConfig<T>> customizer) {
     DefaultSubscriberConfig<T> config = createSubscriberConfig(customizer);
-    Journal<StoredEvent> journal = journalFactory.connect(key, StoredEvent.class);
-    return startAdapter(key, type, config, () -> journal.subscribeAfter(lastEventId));
+    Journal<StoredEvent> journal = journalFactory.connect(name, StoredEvent.class);
+    return startAdapter(name, type, config, () -> journal.subscribeAfter(lastEventId));
   }
 
   @Override
-  public <T> SseEmitter replay(String key, Class<T> type, int count) {
-    return replay(key, type, count, cfg -> {});
+  public <T> SseEmitter replay(String name, Class<T> type, int count) {
+    return replay(name, type, count, cfg -> {});
   }
 
   @Override
   public <T> SseEmitter replay(
-      String key, Class<T> type, int count, Consumer<SubscriberConfig<T>> customizer) {
+      String name, Class<T> type, int count, Consumer<SubscriberConfig<T>> customizer) {
     DefaultSubscriberConfig<T> config = createSubscriberConfig(customizer);
-    Journal<StoredEvent> journal = journalFactory.connect(key, StoredEvent.class);
-    return startAdapter(key, type, config, () -> journal.subscribeLast(count));
+    Journal<StoredEvent> journal = journalFactory.connect(name, StoredEvent.class);
+    return startAdapter(name, type, config, () -> journal.subscribeLast(count));
   }
 
-  private <T> OdysseyPublisher<T> createPublisher(
-      String key,
-      Consumer<PublisherConfig> categoryCustomizer,
-      Consumer<PublisherConfig> callCustomizer) {
-    DefaultPublisherConfig config = new DefaultPublisherConfig();
-    categoryCustomizer.accept(config);
-    publisherCustomizers.forEach(c -> c.accept(config));
-    callCustomizer.accept(config);
-
-    Journal<StoredEvent> journal = createOrConnect(key, config.inactivityTtl());
-    return new DefaultOdysseyPublisher<>(
-        journal, objectMapper, config.entryTtl(), config.retentionTtl());
-  }
-
-  private Journal<StoredEvent> createOrConnect(String key, Duration inactivityTtl) {
+  private Journal<StoredEvent> createOrConnect(String name, Duration inactivityTtl) {
     try {
-      return journalFactory.create(key, StoredEvent.class, inactivityTtl);
+      return journalFactory.create(name, StoredEvent.class, inactivityTtl);
     } catch (JournalAlreadyExistsException _) {
-      return journalFactory.connect(key, StoredEvent.class);
+      return journalFactory.connect(name, StoredEvent.class);
     }
   }
 
@@ -171,24 +126,20 @@ public class DefaultOdyssey implements Odyssey {
       Consumer<SubscriberConfig<T>> customizer) {
     SseEventMapper<T> defaultMapper = SseEventMapper.defaultMapper(objectMapper);
     DefaultSubscriberConfig<T> config = new DefaultSubscriberConfig<>(defaultMapper);
-    config.timeout(properties.sseTimeout());
-    config.keepAliveInterval(properties.keepAliveInterval());
+    config.timeout(properties.sse().timeout());
+    config.keepAliveInterval(properties.sse().keepAlive());
     subscriberCustomizers.forEach(c -> c.accept(config));
     customizer.accept(config);
     return config;
   }
 
   private <T> SseEmitter startAdapter(
-      String key,
+      String name,
       Class<T> type,
       DefaultSubscriberConfig<T> config,
       Supplier<BlockingSubscription<JournalEntry<StoredEvent>>> sourceSupplier) {
     SseEmitter emitter = new SseEmitter(config.timeout().toMillis());
-    SseJournalAdapter.launch(sourceSupplier, emitter, key, config, objectMapper, type);
+    SseJournalAdapter.launch(sourceSupplier, emitter, name, config, objectMapper, type);
     return emitter;
-  }
-
-  private static Consumer<PublisherConfig> categoryTtl(Duration ttl) {
-    return cfg -> cfg.inactivityTtl(ttl).entryTtl(ttl);
   }
 }

@@ -36,7 +36,7 @@ class SseJournalAdapter<T> {
 
   private final BlockingSubscription<JournalEntry<StoredEvent>> source;
   private final SseEmitter emitter;
-  private final String streamKey;
+  private final String streamName;
   private final DefaultSubscriberConfig<T> config;
   private final ObjectMapper objectMapper;
   private final Class<T> type;
@@ -45,13 +45,13 @@ class SseJournalAdapter<T> {
   SseJournalAdapter(
       BlockingSubscription<JournalEntry<StoredEvent>> source,
       SseEmitter emitter,
-      String streamKey,
+      String streamName,
       DefaultSubscriberConfig<T> config,
       ObjectMapper objectMapper,
       Class<T> type) {
     this.source = source;
     this.emitter = emitter;
-    this.streamKey = streamKey;
+    this.streamName = streamName;
     this.config = config;
     this.objectMapper = objectMapper;
     this.type = type;
@@ -66,7 +66,7 @@ class SseJournalAdapter<T> {
   static <T> void launch(
       Supplier<BlockingSubscription<JournalEntry<StoredEvent>>> sourceSupplier,
       SseEmitter emitter,
-      String streamKey,
+      String streamName,
       DefaultSubscriberConfig<T> config,
       ObjectMapper objectMapper,
       Class<T> type) {
@@ -74,41 +74,41 @@ class SseJournalAdapter<T> {
     try {
       source = sourceSupplier.get();
     } catch (JournalExpiredException _) {
-      log.debug("[{}] Journal expired on subscribe", streamKey);
-      fireTerminalExpired(emitter, config, streamKey);
+      log.debug("[{}] Journal expired on subscribe", streamName);
+      fireTerminalExpired(emitter, config, streamName);
       return;
     }
-    new SseJournalAdapter<>(source, emitter, streamKey, config, objectMapper, type).begin();
+    new SseJournalAdapter<>(source, emitter, streamName, config, objectMapper, type).begin();
   }
 
   void begin() {
     emitter.onCompletion(
         () -> {
-          log.debug("[{}] SseEmitter completed", streamKey);
+          log.debug("[{}] SseEmitter completed", streamName);
           close();
         });
     emitter.onError(
         _ -> {
-          log.debug("[{}] SseEmitter error", streamKey);
+          log.debug("[{}] SseEmitter error", streamName);
           close();
         });
     emitter.onTimeout(
         () -> {
-          log.debug("[{}] SseEmitter timed out", streamKey);
+          log.debug("[{}] SseEmitter timed out", streamName);
           close();
         });
-    Thread.ofVirtual().name("odyssey-writer-" + streamKey).start(this::writerLoop);
+    Thread.ofVirtual().name("odyssey-writer-" + streamName).start(this::writerLoop);
   }
 
   void close() {
     if (closed.compareAndSet(false, true)) {
-      log.debug("[{}] Closing adapter", streamKey);
+      log.debug("[{}] Closing adapter", streamName);
       source.cancel();
     }
   }
 
   private void writerLoop() {
-    log.debug("[{}] Writer thread started", streamKey);
+    log.debug("[{}] Writer thread started", streamName);
     Throwable erroredCause = null;
     try {
       sendComment("connected");
@@ -118,33 +118,33 @@ class SseJournalAdapter<T> {
         NextResult<JournalEntry<StoredEvent>> result = source.next(config.keepAliveInterval());
         switch (result) {
           case NextResult.Value<JournalEntry<StoredEvent>>(JournalEntry<StoredEvent> entry) -> {
-            log.debug("[{}] Sending event id={}", streamKey, entry.id());
+            log.debug("[{}] Sending event id={}", streamName, entry.id());
             sendEvent(entry);
           }
           case NextResult.Timeout<JournalEntry<StoredEvent>>() -> {
-            log.trace("[{}] Sending keep-alive", streamKey);
+            log.trace("[{}] Sending keep-alive", streamName);
             sendComment("keep-alive");
           }
           case NextResult.Completed<JournalEntry<StoredEvent>>() -> {
-            log.debug("[{}] Source completed", streamKey);
+            log.debug("[{}] Source completed", streamName);
             trySendTerminal(new TerminalState.Completed());
             config.onCompleted().run();
             running = false;
           }
           case NextResult.Expired<JournalEntry<StoredEvent>>() -> {
-            log.debug("[{}] Source expired", streamKey);
+            log.debug("[{}] Source expired", streamName);
             trySendTerminal(new TerminalState.Expired());
             config.onExpired().run();
             running = false;
           }
           case NextResult.Deleted<JournalEntry<StoredEvent>>() -> {
-            log.debug("[{}] Source deleted", streamKey);
+            log.debug("[{}] Source deleted", streamName);
             trySendTerminal(new TerminalState.Deleted());
             config.onDeleted().run();
             running = false;
           }
           case NextResult.Errored<JournalEntry<StoredEvent>>(Throwable cause) -> {
-            log.debug("[{}] Source errored", streamKey, cause);
+            log.debug("[{}] Source errored", streamName, cause);
             boolean emitted = trySendTerminal(new TerminalState.Errored(cause));
             config.onErrored().accept(cause);
             if (!emitted) {
@@ -155,14 +155,14 @@ class SseJournalAdapter<T> {
         }
       }
     } catch (JournalExpiredException _) {
-      log.debug("[{}] Journal expired mid-stream", streamKey);
+      log.debug("[{}] Journal expired mid-stream", streamName);
       trySendTerminal(new TerminalState.Expired());
       config.onExpired().run();
     } catch (IOException _) {
-      log.debug("[{}] Client disconnected", streamKey);
+      log.debug("[{}] Client disconnected", streamName);
       close();
     } catch (Exception unexpected) {
-      log.debug("[{}] Unexpected error in writer loop", streamKey, unexpected);
+      log.debug("[{}] Unexpected error in writer loop", streamName, unexpected);
       erroredCause = unexpected;
     }
 
@@ -176,14 +176,12 @@ class SseJournalAdapter<T> {
   private void sendEvent(JournalEntry<StoredEvent> entry) throws IOException {
     StoredEvent stored = entry.data();
     T data = objectMapper.readValue(stored.data(), type);
+    // streamName comes from the name the caller supplied to odyssey.subscribe(name, ...),
+    // NOT from JournalEntry.key() -- that field carries Substrate's internal prefixed
+    // form, which is not the identifier callers should see or round-trip through the API.
     DeliveredEvent<T> event =
         new DeliveredEvent<>(
-            entry.id(),
-            entry.key(),
-            entry.timestamp(),
-            stored.eventType(),
-            data,
-            stored.metadata());
+            entry.id(), streamName, entry.timestamp(), stored.eventType(), data, stored.metadata());
     emitter.send(config.mapper().map(event));
   }
 
@@ -200,7 +198,7 @@ class SseJournalAdapter<T> {
     try {
       frame = config.mapper().terminal(state);
     } catch (Exception _) {
-      log.debug("[{}] Error building terminal event", streamKey);
+      log.debug("[{}] Error building terminal event", streamName);
       return false;
     }
     return frame.map(this::sendTerminalFrame).orElse(false);
@@ -211,7 +209,7 @@ class SseJournalAdapter<T> {
       emitter.send(frame);
       return true;
     } catch (IOException _) {
-      log.debug("[{}] Failed to send terminal event", streamKey);
+      log.debug("[{}] Failed to send terminal event", streamName);
       return false;
     }
   }
@@ -222,19 +220,19 @@ class SseJournalAdapter<T> {
    * local so the instance path stays simple.
    */
   private static <T> void fireTerminalExpired(
-      SseEmitter emitter, DefaultSubscriberConfig<T> config, String streamKey) {
-    sendExpiredFrame(emitter, config, streamKey);
-    runOnExpiredQuietly(config, streamKey);
+      SseEmitter emitter, DefaultSubscriberConfig<T> config, String streamName) {
+    sendExpiredFrame(emitter, config, streamName);
+    runOnExpiredQuietly(config, streamName);
     emitter.complete();
   }
 
   private static <T> void sendExpiredFrame(
-      SseEmitter emitter, DefaultSubscriberConfig<T> config, String streamKey) {
+      SseEmitter emitter, DefaultSubscriberConfig<T> config, String streamName) {
     Optional<SseEmitter.SseEventBuilder> frame;
     try {
       frame = config.mapper().terminal(new TerminalState.Expired());
     } catch (Exception _) {
-      log.debug("[{}] Error building terminal-expired event", streamKey);
+      log.debug("[{}] Error building terminal-expired event", streamName);
       return;
     }
     if (frame.isEmpty()) {
@@ -243,15 +241,16 @@ class SseJournalAdapter<T> {
     try {
       emitter.send(frame.get());
     } catch (IOException _) {
-      log.debug("[{}] Failed to send terminal-expired event", streamKey);
+      log.debug("[{}] Failed to send terminal-expired event", streamName);
     }
   }
 
-  private static <T> void runOnExpiredQuietly(DefaultSubscriberConfig<T> config, String streamKey) {
+  private static <T> void runOnExpiredQuietly(
+      DefaultSubscriberConfig<T> config, String streamName) {
     try {
       config.onExpired().run();
     } catch (Exception _) {
-      log.debug("[{}] onExpired callback threw", streamKey);
+      log.debug("[{}] onExpired callback threw", streamName);
     }
   }
 }

@@ -22,18 +22,20 @@ import java.util.Map;
 
 /**
  * A typed event as it arrives at an {@link SseEventMapper}. Produced by Odyssey's writer loop from
- * the underlying Substrate {@code JournalEntry} plus the application-level wrapping that Odyssey
- * layers on top.
+ * the underlying Substrate journal entry plus the application-level wrapping that Odyssey layers on
+ * top.
  *
  * <p>Users interact with {@code DeliveredEvent} only through an {@link SseEventMapper}
- * implementation. Mapper code reads {@link #id()}, {@link #streamKey()}, {@link #eventType()}, and
+ * implementation. Mapper code reads {@link #id()}, {@link #streamName()}, {@link #eventType()}, and
  * {@link #data()} to build an {@code SseEventBuilder}.
  *
  * <p>The {@link #metadata()} map is defensively copied and unmodifiable. A {@code null} argument on
  * construction is normalized to an empty map.
  *
  * @param id the monotonic entry id assigned by Substrate (usable as an SSE {@code Last-Event-ID})
- * @param streamKey the fully-qualified stream key this event belongs to
+ * @param streamName the stream name this event belongs to -- identical to the name the subscriber
+ *     used when calling {@link Odyssey#subscribe(String, Class)}, so mappers can round-trip it into
+ *     reconnect tokens, log messages, etc.
  * @param timestamp the instant the entry was appended
  * @param eventType the user-supplied event type (becomes the SSE {@code event:} name), or {@code
  *     null} if not set at publish time
@@ -43,7 +45,7 @@ import java.util.Map;
  */
 public record DeliveredEvent<T>(
     String id,
-    String streamKey,
+    String streamName,
     Instant timestamp,
     String eventType,
     T data,

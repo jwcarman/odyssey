@@ -19,42 +19,76 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
+import org.jwcarman.odyssey.core.TtlPolicy;
 
 class DefaultPublisherConfigTest {
 
   @Test
   void hardcodedDefaultsArePresent() {
     DefaultPublisherConfig config = new DefaultPublisherConfig();
+    TtlPolicy ttl = config.ttl();
 
-    assertThat(config.inactivityTtl()).isEqualTo(Duration.ofHours(1));
-    assertThat(config.entryTtl()).isEqualTo(Duration.ofHours(1));
-    assertThat(config.retentionTtl()).isEqualTo(Duration.ofMinutes(5));
+    assertThat(ttl.inactivityTtl()).isEqualTo(Duration.ofHours(1));
+    assertThat(ttl.entryTtl()).isEqualTo(Duration.ofHours(1));
+    assertThat(ttl.retentionTtl()).isEqualTo(Duration.ofMinutes(5));
   }
 
   @Test
-  void inactivityTtlSetterReturnsThisAndPersists() {
+  void ttlSetterReplacesAllThreeFields() {
+    DefaultPublisherConfig config = new DefaultPublisherConfig();
+    TtlPolicy newTtl =
+        new TtlPolicy(Duration.ofDays(1), Duration.ofHours(12), Duration.ofMinutes(30));
+
+    assertThat(config.ttl(newTtl)).isSameAs(config);
+    // The interface default method routes through the three individual setters, which
+    // rebuild the TtlPolicy via withX methods -- so the result is equal but not the
+    // same instance.
+    assertThat(config.ttl()).isEqualTo(newTtl);
+  }
+
+  @Test
+  void inactivityTtlSetterReturnsThisAndUpdatesOnlyThatField() {
     DefaultPublisherConfig config = new DefaultPublisherConfig();
     Duration value = Duration.ofDays(1);
 
     assertThat(config.inactivityTtl(value)).isSameAs(config);
-    assertThat(config.inactivityTtl()).isEqualTo(value);
+    assertThat(config.ttl().inactivityTtl()).isEqualTo(value);
+    assertThat(config.ttl().entryTtl()).isEqualTo(Duration.ofHours(1));
+    assertThat(config.ttl().retentionTtl()).isEqualTo(Duration.ofMinutes(5));
   }
 
   @Test
-  void entryTtlSetterReturnsThisAndPersists() {
+  void entryTtlSetterReturnsThisAndUpdatesOnlyThatField() {
     DefaultPublisherConfig config = new DefaultPublisherConfig();
     Duration value = Duration.ofHours(12);
 
     assertThat(config.entryTtl(value)).isSameAs(config);
-    assertThat(config.entryTtl()).isEqualTo(value);
+    assertThat(config.ttl().entryTtl()).isEqualTo(value);
+    assertThat(config.ttl().inactivityTtl()).isEqualTo(Duration.ofHours(1));
+    assertThat(config.ttl().retentionTtl()).isEqualTo(Duration.ofMinutes(5));
   }
 
   @Test
-  void retentionTtlSetterReturnsThisAndPersists() {
+  void retentionTtlSetterReturnsThisAndUpdatesOnlyThatField() {
     DefaultPublisherConfig config = new DefaultPublisherConfig();
     Duration value = Duration.ofMinutes(42);
 
     assertThat(config.retentionTtl(value)).isSameAs(config);
-    assertThat(config.retentionTtl()).isEqualTo(value);
+    assertThat(config.ttl().retentionTtl()).isEqualTo(value);
+    assertThat(config.ttl().inactivityTtl()).isEqualTo(Duration.ofHours(1));
+    assertThat(config.ttl().entryTtl()).isEqualTo(Duration.ofHours(1));
+  }
+
+  @Test
+  void settersChainCorrectly() {
+    DefaultPublisherConfig config = new DefaultPublisherConfig();
+    TtlPolicy preset =
+        new TtlPolicy(Duration.ofHours(2), Duration.ofHours(2), Duration.ofMinutes(10));
+
+    config.ttl(preset).inactivityTtl(Duration.ofDays(7));
+
+    assertThat(config.ttl().inactivityTtl()).isEqualTo(Duration.ofDays(7));
+    assertThat(config.ttl().entryTtl()).isEqualTo(Duration.ofHours(2));
+    assertThat(config.ttl().retentionTtl()).isEqualTo(Duration.ofMinutes(10));
   }
 }
