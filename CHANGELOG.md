@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-11
+
 ### Breaking changes
 
 **Complete API redesign around typed events, customizers, and producer/consumer split.**
@@ -73,14 +75,30 @@ cannot be read by the new API.
 
 ### Quality
 
-- **100% test coverage** across `odyssey-core` (1475 NCLOC, all instructions / branches /
-  lines / methods / classes fully covered by 80 unit tests)
+- **100% test coverage** across `odyssey-core` (1475 NCLOC, 80 unit tests; all
+  instructions, branches, lines, methods, and classes fully covered per JaCoCo)
 - Zero open SonarCloud issues (0 bugs, 0 vulnerabilities, 0 code smells)
-- Reliability, security, and maintainability ratings all A (1.0)
+- Reliability, security, and maintainability ratings all **A** (1.0)
 - Duplication 0%
 - Zero `@SuppressWarnings` annotations in `odyssey-core`
-- SonarCloud quality gate green: reliability / security / maintainability ratings all A,
-  duplications 0%
+- Quality gate green on SonarCloud
+
+## [0.3.0] - 2026-04-07
+
+### Added
+
+- **`SseEventMapper`** -- interface for custom `OdysseyEvent` → SSE mapping. Lets
+  callers override how events are rendered on the wire.
+- **`StreamSubscriberBuilder`** -- fluent API for configuring SSE subscriptions.
+  Terminal methods: `subscribe()`, `resumeAfter(String)`, `replayLast(int)`. Accessed
+  via `OdysseyStream.subscriber()`. Existing convenience methods on `OdysseyStream`
+  delegate to the builder with defaults.
+- `StreamSubscription` now uses `SseEventMapper` instead of hardcoded SSE building,
+  so custom mappers are applied consistently across all subscription paths.
+
+### Fixed
+
+- README architecture diagram updated to reflect the Substrate-based design.
 
 ## [0.2.0] - 2026-04-07
 
