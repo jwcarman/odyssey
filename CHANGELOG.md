@@ -63,11 +63,22 @@ cannot be read by the new API.
   The refactor above makes it a `final` field with no volatile and no null check in
   `close()`.
 
+### Documentation
+
+- Every public API type now has class-level javadoc. Package-level overview in
+  `package-info.java` explains the producer/consumer split and customizer-based
+  configuration model.
+- `README.md` Terminal State Handling section rewritten to describe the current
+  empty-by-default behavior and the `TerminalState` sealed type.
+
 ### Quality
 
-- **100% test coverage** across `odyssey-core` (1124 instructions, 24 branches, 281 lines,
-  96 methods, 14 classes -- all fully covered)
+- **100% test coverage** across `odyssey-core` (1475 NCLOC, all instructions / branches /
+  lines / methods / classes fully covered by 80 unit tests)
 - Zero open SonarCloud issues (0 bugs, 0 vulnerabilities, 0 code smells)
+- Reliability, security, and maintainability ratings all A (1.0)
+- Duplication 0%
+- Zero `@SuppressWarnings` annotations in `odyssey-core`
 - SonarCloud quality gate green: reliability / security / maintainability ratings all A,
   duplications 0%
 
