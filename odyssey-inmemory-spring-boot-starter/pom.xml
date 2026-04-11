@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.jwcarman.odyssey</groupId>
         <artifactId>odyssey-parent</artifactId>
-        <version>0.5.0-SNAPSHOT</version>
+        <version>0.6.0-SNAPSHOT</version>
     </parent>
     <artifactId>odyssey-inmemory-spring-boot-starter</artifactId>
     <name>Odyssey In-Memory Spring Boot Starter</name>
