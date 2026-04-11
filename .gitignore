@@ -1,5 +1,6 @@
 logs/
 target/
+.claude/
 *.class
 *.jar
 *.war
