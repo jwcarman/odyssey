@@ -18,6 +18,30 @@ package org.jwcarman.odyssey.core;
 import java.util.function.Consumer;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+/**
+ * Top-level facade for publishing events to and subscribing to Odyssey streams. Typical usage is to
+ * inject {@code Odyssey} into a Spring {@code @RestController} and call it from request handlers.
+ *
+ * <p>Odyssey splits stream access into two independent sides:
+ *
+ * <ul>
+ *   <li>Producers call {@link #publisher(String, Class)} (or one of the sugared {@link
+ *       #ephemeral(Class)}, {@link #channel(String, Class)}, {@link #broadcast(String, Class)}
+ *       variants) to get an {@link OdysseyPublisher}. Publishers own the journal lifecycle -- they
+ *       create (or adopt) the journal eagerly at the call site and support try-with-resources for
+ *       normal completion.
+ *   <li>Consumers call {@link #subscribe(String, Class)}, {@link #resume(String, Class, String)},
+ *       or {@link #replay(String, Class, int)} to get an {@link SseEmitter} that is already driving
+ *       a virtual-thread writer loop. The starting position is part of the method name -- the
+ *       returned emitter is opaque from then on.
+ * </ul>
+ *
+ * <p>Every publisher and subscriber method has a second overload that accepts a {@link Consumer}
+ * customizer. The customizer mutates a {@link PublisherConfig} or {@link SubscriberConfig}
+ * directly; the library owns the builder lifecycle. Application-wide defaults live in {@link
+ * PublisherCustomizer} and {@link SubscriberCustomizer} Spring beans, which run before the per-call
+ * customizer so callers can still override what they care about.
+ */
 public interface Odyssey {
 
   <T> OdysseyPublisher<T> publisher(String key, Class<T> type);

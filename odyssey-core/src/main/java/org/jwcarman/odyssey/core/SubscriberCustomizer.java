@@ -17,5 +17,17 @@ package org.jwcarman.odyssey.core;
 
 import java.util.function.Consumer;
 
+/**
+ * Marker interface for application-wide subscriber defaults. Register a {@code
+ * SubscriberCustomizer} as a Spring bean and Odyssey will apply it to every {@code
+ * subscribe}/{@code resume}/{@code replay} call before the caller's per-call customizer runs.
+ *
+ * <p>The wildcard-typed {@code Consumer<SubscriberConfig<?>>} is deliberate: a globally-applied
+ * customizer cannot know the specific event type {@code T} for every subscription it will be
+ * applied to, so it can only set type-agnostic knobs like {@code timeout}, {@code
+ * keepAliveInterval}, and the four terminal-state callbacks. Do not attempt to call {@code
+ * mapper(...)} on a {@code SubscriberConfig<?>}; the mapper is a per-call concern and should be set
+ * via the per-call customizer overload on {@link Odyssey}.
+ */
 @FunctionalInterface
 public interface SubscriberCustomizer extends Consumer<SubscriberConfig<?>> {}

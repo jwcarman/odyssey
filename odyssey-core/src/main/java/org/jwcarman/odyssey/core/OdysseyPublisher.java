@@ -17,6 +17,25 @@ package org.jwcarman.odyssey.core;
 
 import java.time.Duration;
 
+/**
+ * Typed producer for events of type {@code T}. A publisher owns the lifecycle of one Odyssey stream
+ * -- it creates the underlying journal (or adopts an existing one) when the {@link Odyssey} facade
+ * hands it back, and releases it via {@link #close()} or {@link #delete()}.
+ *
+ * <p>Publishers are immutable after construction: the TTLs configured via {@link PublisherConfig}
+ * are frozen at the call site. To change TTLs, construct a new publisher.
+ *
+ * <p>Implements {@link AutoCloseable} so try-with-resources can mark a stream as completed cleanly:
+ *
+ * <pre>{@code
+ * try (var pub = odyssey.channel("orders:42", OrderEvent.class)) {
+ *   pub.publish("created", OrderEvent.created(order));
+ *   pub.publish("paid", OrderEvent.paid(order));
+ * } // -> journal.complete(retentionTtl)
+ * }</pre>
+ *
+ * @param <T> the typed payload the publisher accepts on {@link #publish(Object)}
+ */
 public interface OdysseyPublisher<T> extends AutoCloseable {
 
   String publish(T data);

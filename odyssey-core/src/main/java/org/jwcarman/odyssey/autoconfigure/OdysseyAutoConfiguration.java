@@ -28,6 +28,19 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.PropertySource;
 import tools.jackson.databind.ObjectMapper;
 
+/**
+ * Spring Boot auto-configuration for Odyssey. Triggered by the presence of {@code odyssey-core} on
+ * the classpath plus a {@link JournalFactory} bean (usually contributed by one of the backend
+ * starter modules or Substrate's own auto-configuration).
+ *
+ * <p>Creates a single {@link Odyssey} bean wired with the configured {@link JournalFactory},
+ * Jackson's {@code ObjectMapper}, {@link OdysseyProperties}, and any {@link PublisherCustomizer} /
+ * {@link SubscriberCustomizer} beans found in the application context.
+ *
+ * <p>The {@link #odyssey(JournalFactory, ObjectMapper, OdysseyProperties, ObjectProvider,
+ * ObjectProvider)} factory method is annotated with {@code @ConditionalOnMissingBean}, so
+ * applications that declare their own {@code Odyssey} bean take precedence.
+ */
 @AutoConfiguration
 @EnableConfigurationProperties(OdysseyProperties.class)
 @PropertySource("classpath:odyssey-defaults.properties")

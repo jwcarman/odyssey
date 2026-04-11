@@ -18,6 +18,36 @@ package org.jwcarman.odyssey.core;
 import java.time.Duration;
 import java.util.function.Consumer;
 
+/**
+ * Mutable configuration handed to a subscriber customizer lambda. Setters return {@code this} for
+ * chaining inside the lambda.
+ *
+ * <p>The subscription's <strong>starting position</strong> is deliberately not on this interface --
+ * it is encoded in which {@code Odyssey} method the caller chose:
+ *
+ * <ul>
+ *   <li>{@code odyssey.subscribe(...)} -- live tail from the current head
+ *   <li>{@code odyssey.resume(..., lastEventId)} -- resume after a known entry id
+ *   <li>{@code odyssey.replay(..., count)} -- replay the last {@code count} entries first
+ * </ul>
+ *
+ * <p>What this config controls:
+ *
+ * <ul>
+ *   <li>{@link #timeout(Duration)} -- SSE emitter timeout. Zero means no timeout.
+ *   <li>{@link #keepAliveInterval(Duration)} -- how often to emit an SSE keep-alive comment when no
+ *       new entries are available.
+ *   <li>{@link #mapper(SseEventMapper)} -- converter from {@link DeliveredEvent} to an SSE frame.
+ *       Defaults to {@link SseEventMapper#defaultMapper} (typed JSON via Jackson).
+ *   <li>{@link #onCompleted(Runnable)} / {@link #onExpired(Runnable)} / {@link
+ *       #onDeleted(Runnable)} / {@link #onErrored(Consumer)} -- side-effect callbacks that fire
+ *       when the subscription reaches a terminal state. Unrelated to the mapper's {@code
+ *       terminal()} hook, which emits SSE frames; these are plain callbacks for metrics and
+ *       logging.
+ * </ul>
+ *
+ * @param <T> the typed payload delivered by the subscription
+ */
 public interface SubscriberConfig<T> {
 
   SubscriberConfig<T> timeout(Duration timeout);

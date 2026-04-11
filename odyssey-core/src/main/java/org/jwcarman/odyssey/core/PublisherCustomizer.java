@@ -17,5 +17,23 @@ package org.jwcarman.odyssey.core;
 
 import java.util.function.Consumer;
 
+/**
+ * Marker interface for application-wide publisher defaults. Register a {@code PublisherCustomizer}
+ * as a Spring bean and Odyssey will apply it to every publisher construction before the caller's
+ * per-call customizer runs -- so callers can still override anything the global customizer set.
+ *
+ * <p>Resolution order for publisher config:
+ *
+ * <ol>
+ *   <li>Hardcoded defaults (1h inactivity, 1h entry, 5m retention)
+ *   <li>Sugared category TTLs (for {@code ephemeral}/{@code channel}/{@code broadcast}) drawn from
+ *       {@link org.jwcarman.odyssey.autoconfigure.OdysseyProperties}
+ *   <li>All {@code PublisherCustomizer} beans in Spring's order
+ *   <li>The caller's per-call {@code Consumer<PublisherConfig>}
+ * </ol>
+ *
+ * <p>Matches Spring Boot's {@code RestClientCustomizer} / {@code WebClientCustomizer} idiom so
+ * users who know Spring Boot already know the pattern.
+ */
 @FunctionalInterface
 public interface PublisherCustomizer extends Consumer<PublisherConfig> {}
