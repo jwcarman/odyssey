@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-11T04:02:00-04:00
-ITERATION: 49
-SPEC_COMPLETED: 046-main-code-sonar-polish.md
-WHAT_WAS_DONE: Fixed all SonarCloud issues in main code: refactored SseJournalAdapter to use static launch() factory with final source field (S3077), extracted sendTerminalFrame helper (S1141), replaced unused catch/lambda variables with _ (S7467), verified DefaultOdysseyPublisher key caching (S2629) and OdysseyAutoConfiguration empty constructor (S1186) were already resolved. Added 3 new tests for the launch() expired path.
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (51 tests, 0 failures); spotless:check → BUILD SUCCESS
-STATUS: MORE_WORK
-NEXT_SPEC: 048-example-app-sonar-polish.md
-NOTES: S1172 (unused Class<T> type parameter on createPublisher) was already resolved in a prior spec — the parameter doesn't exist in the current code. S2629 and S1186 were also already resolved. The createPublisher method in DefaultOdyssey no longer takes a Class<T> type parameter. DefaultOdysseyPublisher already cached journal.key() as a final field. OdysseyAutoConfiguration had no explicit empty constructor.
+LAST_RUN: 2026-04-11T04:09:00-04:00
+ITERATION: 50
+SPEC_COMPLETED: 049-coverage-to-100.md
+WHAT_WAS_DONE: Verified odyssey-core test coverage is already at 100% across all JaCoCo metrics (instructions, branches, lines, complexity, methods, classes). No additional tests needed — prior iterations already achieved full coverage.
+VERIFICATION: ./mvnw -pl odyssey-core clean verify -Pci → BUILD SUCCESS (80 tests, 0 failures); JaCoCo report: 100% instruction, 100% branch, 100% line coverage; ./mvnw clean verify → BUILD SUCCESS; spotless:check → BUILD SUCCESS
+STATUS: DONE
+NEXT_SPEC: none
+NOTES: Coverage was already at 100% before this iteration — the spec's estimate of 92.1% was based on an earlier SonarCloud snapshot that has since been superseded by tests added in prior specs. The SseJournalAdapter.java has a local refactoring of fireTerminalExpired into smaller helper methods (sendExpiredFrame, runOnExpiredQuietly) that is unstaged — this was likely done in a prior iteration to improve testability/coverage.

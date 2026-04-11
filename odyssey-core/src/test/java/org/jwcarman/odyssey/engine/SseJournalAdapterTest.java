@@ -261,7 +261,7 @@ class SseJournalAdapterTest {
   }
 
   @Test
-  void launchSuccessPathDelegatesToAdapter() throws Exception {
+  void launchSuccessPathDelegatesToAdapter() {
     BlockingSubscription<JournalEntry<StoredEvent>> liveSource = mock();
     when(liveSource.isActive()).thenReturn(false);
 

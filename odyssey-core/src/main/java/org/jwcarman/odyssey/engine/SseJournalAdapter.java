@@ -223,24 +223,35 @@ class SseJournalAdapter<T> {
    */
   private static <T> void fireTerminalExpired(
       SseEmitter emitter, DefaultSubscriberConfig<T> config, String streamKey) {
+    sendExpiredFrame(emitter, config, streamKey);
+    runOnExpiredQuietly(config, streamKey);
+    emitter.complete();
+  }
+
+  private static <T> void sendExpiredFrame(
+      SseEmitter emitter, DefaultSubscriberConfig<T> config, String streamKey) {
+    Optional<SseEmitter.SseEventBuilder> frame;
     try {
-      Optional<SseEmitter.SseEventBuilder> frame =
-          config.mapper().terminal(new TerminalState.Expired());
-      if (frame.isPresent()) {
-        try {
-          emitter.send(frame.get());
-        } catch (IOException _) {
-          log.debug("[{}] Failed to send terminal-expired event", streamKey);
-        }
-      }
+      frame = config.mapper().terminal(new TerminalState.Expired());
     } catch (Exception _) {
       log.debug("[{}] Error building terminal-expired event", streamKey);
+      return;
     }
+    if (frame.isEmpty()) {
+      return;
+    }
+    try {
+      emitter.send(frame.get());
+    } catch (IOException _) {
+      log.debug("[{}] Failed to send terminal-expired event", streamKey);
+    }
+  }
+
+  private static <T> void runOnExpiredQuietly(DefaultSubscriberConfig<T> config, String streamKey) {
     try {
       config.onExpired().run();
     } catch (Exception _) {
       log.debug("[{}] onExpired callback threw", streamKey);
     }
-    emitter.complete();
   }
 }
