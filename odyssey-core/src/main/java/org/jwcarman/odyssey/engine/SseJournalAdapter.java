@@ -16,10 +16,11 @@
 package org.jwcarman.odyssey.engine;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.jwcarman.odyssey.core.DeliveredEvent;
-import org.jwcarman.odyssey.core.SseEventMapper.TerminalReason;
+import org.jwcarman.odyssey.core.SseEventMapper.TerminalState;
 import org.jwcarman.substrate.BlockingSubscription;
 import org.jwcarman.substrate.NextResult;
 import org.jwcarman.substrate.journal.JournalEntry;
@@ -58,6 +59,18 @@ class SseJournalAdapter<T> {
   }
 
   void start() {
+    BlockingSubscription<JournalEntry<StoredEvent>> sub;
+    try {
+      sub = sourceSupplier.get();
+    } catch (JournalExpiredException e) {
+      log.debug("[{}] Journal expired on subscribe", streamKey);
+      trySendTerminal(new TerminalState.Expired());
+      config.onExpired().run();
+      emitter.complete();
+      return;
+    }
+    this.source = sub;
+
     emitter.onCompletion(
         () -> {
           log.debug("[{}] SseEmitter completed", streamKey);
@@ -73,6 +86,7 @@ class SseJournalAdapter<T> {
           log.debug("[{}] SseEmitter timed out", streamKey);
           close();
         });
+
     Thread.ofVirtual().name("odyssey-writer-" + streamKey).start(this::writerLoop);
   }
 
@@ -88,55 +102,67 @@ class SseJournalAdapter<T> {
 
   private void writerLoop() {
     log.debug("[{}] Writer thread started", streamKey);
+    BlockingSubscription<JournalEntry<StoredEvent>> sub = this.source;
+    Throwable erroredCause = null;
     try {
-      BlockingSubscription<JournalEntry<StoredEvent>> sub = sourceSupplier.get();
-      this.source = sub;
       sendComment("connected");
-      while (sub.isActive()) {
+
+      boolean running = true;
+      while (running && sub.isActive()) {
         NextResult<JournalEntry<StoredEvent>> result = sub.next(config.keepAliveInterval());
         switch (result) {
-          case NextResult.Value<JournalEntry<StoredEvent>> v -> {
-            log.debug("[{}] Sending event id={}", streamKey, v.value().id());
-            sendEvent(v.value());
+          case NextResult.Value<JournalEntry<StoredEvent>>(JournalEntry<StoredEvent> entry) -> {
+            log.debug("[{}] Sending event id={}", streamKey, entry.id());
+            sendEvent(entry);
           }
-          case NextResult.Timeout<JournalEntry<StoredEvent>> t -> {
+          case NextResult.Timeout<JournalEntry<StoredEvent>>() -> {
             log.trace("[{}] Sending keep-alive", streamKey);
             sendComment("keep-alive");
           }
-          case NextResult.Completed<JournalEntry<StoredEvent>> c -> {
+          case NextResult.Completed<JournalEntry<StoredEvent>>() -> {
             log.debug("[{}] Source completed", streamKey);
-            trySendTerminal(TerminalReason.COMPLETED);
+            trySendTerminal(new TerminalState.Completed());
             config.onCompleted().run();
-            return;
+            running = false;
           }
-          case NextResult.Expired<JournalEntry<StoredEvent>> e -> {
+          case NextResult.Expired<JournalEntry<StoredEvent>>() -> {
             log.debug("[{}] Source expired", streamKey);
-            trySendTerminal(TerminalReason.EXPIRED);
+            trySendTerminal(new TerminalState.Expired());
             config.onExpired().run();
-            return;
+            running = false;
           }
-          case NextResult.Deleted<JournalEntry<StoredEvent>> d -> {
+          case NextResult.Deleted<JournalEntry<StoredEvent>>() -> {
             log.debug("[{}] Source deleted", streamKey);
-            trySendTerminal(TerminalReason.DELETED);
+            trySendTerminal(new TerminalState.Deleted());
             config.onDeleted().run();
-            return;
+            running = false;
           }
-          case NextResult.Errored<JournalEntry<StoredEvent>> err -> {
-            log.debug("[{}] Source errored", streamKey, err.cause());
-            trySendTerminal(TerminalReason.ERRORED);
-            config.onErrored().accept(err.cause());
-            return;
+          case NextResult.Errored<JournalEntry<StoredEvent>>(Throwable cause) -> {
+            log.debug("[{}] Source errored", streamKey, cause);
+            boolean emitted = trySendTerminal(new TerminalState.Errored(cause));
+            config.onErrored().accept(cause);
+            if (!emitted) {
+              erroredCause = cause;
+            }
+            running = false;
           }
         }
       }
     } catch (JournalExpiredException e) {
-      log.debug("[{}] Journal expired on subscribe", streamKey);
-      trySendTerminal(TerminalReason.EXPIRED);
+      log.debug("[{}] Journal expired mid-stream", streamKey);
+      trySendTerminal(new TerminalState.Expired());
       config.onExpired().run();
     } catch (IOException clientGone) {
       log.debug("[{}] Client disconnected: {}", streamKey, clientGone.getMessage());
       close();
-    } finally {
+    } catch (Exception unexpected) {
+      log.debug("[{}] Unexpected error in writer loop", streamKey, unexpected);
+      erroredCause = unexpected;
+    }
+
+    if (erroredCause != null) {
+      emitter.completeWithError(erroredCause);
+    } else {
       emitter.complete();
     }
   }
@@ -159,21 +185,26 @@ class SseJournalAdapter<T> {
     emitter.send(SseEmitter.event().comment(comment));
   }
 
-  private void trySendTerminal(TerminalReason reason) {
+  /**
+   * Invoke the user's {@code terminal(TerminalState)} hook and, if it returns a frame, try to send
+   * it. Returns {@code true} if a frame was successfully written to the emitter.
+   */
+  private boolean trySendTerminal(TerminalState state) {
     try {
-      config
-          .mapper()
-          .terminal(reason)
-          .ifPresent(
-              event -> {
-                try {
-                  emitter.send(event);
-                } catch (IOException e) {
-                  log.debug("[{}] Failed to send terminal event: {}", streamKey, e.getMessage());
-                }
-              });
+      Optional<SseEmitter.SseEventBuilder> event = config.mapper().terminal(state);
+      if (event.isEmpty()) {
+        return false;
+      }
+      try {
+        emitter.send(event.get());
+        return true;
+      } catch (IOException e) {
+        log.debug("[{}] Failed to send terminal event: {}", streamKey, e.getMessage());
+        return false;
+      }
     } catch (Exception e) {
       log.debug("[{}] Error building terminal event: {}", streamKey, e.getMessage());
+      return false;
     }
   }
 }

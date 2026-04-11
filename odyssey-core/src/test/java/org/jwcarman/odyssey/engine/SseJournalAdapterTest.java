@@ -18,6 +18,7 @@ package org.jwcarman.odyssey.engine;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,6 +34,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.odyssey.core.SseEventMapper;
+import org.jwcarman.odyssey.core.SseEventMapper.TerminalState;
 import org.jwcarman.substrate.BlockingSubscription;
 import org.jwcarman.substrate.NextResult;
 import org.jwcarman.substrate.journal.JournalEntry;
@@ -140,7 +142,7 @@ class SseJournalAdapterTest {
   }
 
   @Test
-  void emitsTerminalOnErrored() throws Exception {
+  void completesWithErrorOnErroredWhenMapperDoesNotEmitFrame() throws Exception {
     CountDownLatch latch = new CountDownLatch(1);
     AtomicReference<Throwable> captured = new AtomicReference<>();
     DefaultSubscriberConfig<TestData> config = defaultConfig();
@@ -159,7 +161,40 @@ class SseJournalAdapterTest {
 
     assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
     assertThat(captured.get()).isEqualTo(cause);
+    verify(emitter, timeout(2000)).completeWithError(cause);
+    verify(emitter, never()).complete();
+  }
+
+  @Test
+  void completesNormallyOnErroredWhenMapperEmitsInBandFrame() throws Exception {
+    CountDownLatch latch = new CountDownLatch(1);
+    SseEventMapper<TestData> inBandErrorMapper =
+        new SseEventMapper<>() {
+          @Override
+          public SseEmitter.SseEventBuilder map(
+              org.jwcarman.odyssey.core.DeliveredEvent<TestData> event) {
+            return SseEmitter.event().data("");
+          }
+
+          @Override
+          public java.util.Optional<SseEmitter.SseEventBuilder> terminal(TerminalState state) {
+            return java.util.Optional.of(SseEmitter.event().name("errored").data("in-band"));
+          }
+        };
+    DefaultSubscriberConfig<TestData> config = new DefaultSubscriberConfig<>(inBandErrorMapper);
+    config.keepAliveInterval(Duration.ofMillis(100));
+    config.onErrored(t -> latch.countDown());
+
+    RuntimeException cause = new RuntimeException("backend failure");
+    when(source.isActive()).thenReturn(true);
+    when(source.next(any(Duration.class))).thenReturn(new NextResult.Errored<>(cause));
+
+    SseJournalAdapter<TestData> adapter = createAdapter(config);
+    adapter.start();
+
+    assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
     verify(emitter, timeout(2000)).complete();
+    verify(emitter, never()).completeWithError(any(Throwable.class));
   }
 
   @Test

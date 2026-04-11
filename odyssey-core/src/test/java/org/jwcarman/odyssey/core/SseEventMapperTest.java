@@ -55,17 +55,26 @@ class SseEventMapperTest {
   }
 
   @Test
-  void terminalDefaultReturnsEvent() {
+  void terminalDefaultReturnsEmptyForEveryState() {
     SseEventMapper<TestPayload> mapper = SseEventMapper.defaultMapper(objectMapper);
 
-    for (SseEventMapper.TerminalReason reason : SseEventMapper.TerminalReason.values()) {
-      Optional<SseEmitter.SseEventBuilder> terminal = mapper.terminal(reason);
-      assertThat(terminal).isPresent();
-    }
+    assertThat(mapper.terminal(new SseEventMapper.TerminalState.Completed())).isEmpty();
+    assertThat(mapper.terminal(new SseEventMapper.TerminalState.Expired())).isEmpty();
+    assertThat(mapper.terminal(new SseEventMapper.TerminalState.Deleted())).isEmpty();
+    assertThat(
+            mapper.terminal(new SseEventMapper.TerminalState.Errored(new RuntimeException("boom"))))
+        .isEmpty();
   }
 
   @Test
-  void terminalCanBeOverriddenToEmpty() {
+  void erroredTerminalStateCarriesCause() {
+    RuntimeException cause = new RuntimeException("backend exploded");
+    SseEventMapper.TerminalState.Errored errored = new SseEventMapper.TerminalState.Errored(cause);
+    assertThat(errored.cause()).isSameAs(cause);
+  }
+
+  @Test
+  void terminalCanBeOverriddenToEmitAFrame() {
     SseEventMapper<TestPayload> mapper =
         new SseEventMapper<>() {
           @Override
@@ -74,11 +83,19 @@ class SseEventMapperTest {
           }
 
           @Override
-          public Optional<SseEmitter.SseEventBuilder> terminal(TerminalReason reason) {
-            return Optional.empty();
+          public Optional<SseEmitter.SseEventBuilder> terminal(TerminalState state) {
+            return switch (state) {
+              case TerminalState.Completed c -> Optional.of(SseEmitter.event().name("done"));
+              case TerminalState.Expired e -> Optional.of(SseEmitter.event().name("expired"));
+              case TerminalState.Deleted d -> Optional.of(SseEmitter.event().name("deleted"));
+              case TerminalState.Errored err ->
+                  Optional.of(SseEmitter.event().name("errored").data(err.cause().getMessage()));
+            };
           }
         };
 
-    assertThat(mapper.terminal(SseEventMapper.TerminalReason.COMPLETED)).isEmpty();
+    assertThat(mapper.terminal(new SseEventMapper.TerminalState.Completed())).isPresent();
+    assertThat(mapper.terminal(new SseEventMapper.TerminalState.Errored(new RuntimeException("x"))))
+        .isPresent();
   }
 }

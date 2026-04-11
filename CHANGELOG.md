@@ -33,14 +33,31 @@ cannot be read by the new API.
 - **`PublisherConfig` / `SubscriberConfig<T>`** -- customizer-based configuration
   following Spring Boot's `RestClientCustomizer` pattern
 - **`DeliveredEvent<T>`** -- typed event record delivered to `SseEventMapper`
-- **`SseEventMapper<T>`** -- generic mapper with `terminal(TerminalReason)` hook for
-  rich terminal-state SSE events (`odyssey-completed`, `odyssey-expired`, `odyssey-deleted`,
-  `odyssey-errored`)
+- **`SseEventMapper<T>`** -- generic mapper with a `terminal(TerminalState)` hook.
+  `TerminalState` is a sealed type with `Completed` / `Expired` / `Deleted` / `Errored(Throwable)`
+  records. The default terminal implementation returns `Optional.empty()` -- no opinionated
+  SSE frames are injected on termination. When a stream terminates via `Errored` and the mapper
+  emits no in-band frame, the adapter closes the emitter via `completeWithError(cause)` so
+  Spring MVC's error handling fires; otherwise the emitter is closed via `complete()`.
 - **`PublisherCustomizer` / `SubscriberCustomizer`** -- global bean-based customizers
 - **`createOrConnect` pattern** -- cluster-safe journal provisioning that handles
   `JournalAlreadyExistsException` race conditions
 - **Terminal state callbacks** -- `onCompleted`, `onExpired`, `onDeleted`, `onErrored`
   on `SubscriberConfig`
+
+### Changed
+
+- **Substrate dependency bumped to 0.2.0** (released to Maven Central). Odyssey no longer
+  depends on any local SNAPSHOT build of Substrate.
+
+### Fixed
+
+- `SseJournalAdapter` close-before-subscribe race: the subscription is now established
+  synchronously in `start()` on the caller's thread, before any `SseEmitter` callback is
+  wired. Previously, if the client disconnected before the writer thread had assigned
+  `this.source`, `close()` would see a null source and silently skip cancellation, leaking
+  the subscription. `start()` now handles `JournalExpiredException` on initial subscribe
+  inline and routes it through the terminal-expired path without spawning a writer thread.
 
 ## [0.2.0] - 2026-04-07
 
