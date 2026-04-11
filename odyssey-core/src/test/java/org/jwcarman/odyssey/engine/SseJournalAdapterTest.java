@@ -41,6 +41,7 @@ import org.jwcarman.substrate.BlockingSubscription;
 import org.jwcarman.substrate.NextResult;
 import org.jwcarman.substrate.journal.JournalEntry;
 import org.jwcarman.substrate.journal.JournalExpiredException;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -267,6 +268,236 @@ class SseJournalAdapterTest {
     SseJournalAdapter.launch(
         () -> liveSource, emitter, "test-key", defaultConfig(), objectMapper, TestData.class);
 
+    verify(emitter, timeout(2000)).complete();
+  }
+
+  @Test
+  void beginWiresOnCompletionCallbackToClose() {
+    newAdapter(defaultConfig()).begin();
+
+    ArgumentCaptor<Runnable> onCompletion = ArgumentCaptor.forClass(Runnable.class);
+    verify(emitter, timeout(2000)).onCompletion(onCompletion.capture());
+
+    onCompletion.getValue().run();
+    verify(source).cancel();
+  }
+
+  @Test
+  void beginWiresOnErrorCallbackToClose() {
+    newAdapter(defaultConfig()).begin();
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<java.util.function.Consumer<Throwable>> onError =
+        ArgumentCaptor.forClass(java.util.function.Consumer.class);
+    verify(emitter, timeout(2000)).onError(onError.capture());
+
+    onError.getValue().accept(new RuntimeException("client exploded"));
+    verify(source).cancel();
+  }
+
+  @Test
+  void beginWiresOnTimeoutCallbackToClose() {
+    newAdapter(defaultConfig()).begin();
+
+    ArgumentCaptor<Runnable> onTimeout = ArgumentCaptor.forClass(Runnable.class);
+    verify(emitter, timeout(2000)).onTimeout(onTimeout.capture());
+
+    onTimeout.getValue().run();
+    verify(source).cancel();
+  }
+
+  @Test
+  void trySendTerminalHandlesMapperException() throws Exception {
+    CountDownLatch latch = new CountDownLatch(1);
+    SseEventMapper<TestData> brokenMapper =
+        new SseEventMapper<>() {
+          @Override
+          public SseEmitter.SseEventBuilder map(
+              org.jwcarman.odyssey.core.DeliveredEvent<TestData> event) {
+            return SseEmitter.event().data("");
+          }
+
+          @Override
+          public Optional<SseEmitter.SseEventBuilder> terminal(TerminalState state) {
+            throw new RuntimeException("mapper is broken");
+          }
+        };
+    DefaultSubscriberConfig<TestData> config = new DefaultSubscriberConfig<>(brokenMapper);
+    config.keepAliveInterval(Duration.ofMillis(100));
+    config.onCompleted(latch::countDown);
+
+    when(source.isActive()).thenReturn(true);
+    when(source.next(any(Duration.class))).thenReturn(new NextResult.Completed<>());
+
+    newAdapter(config).begin();
+
+    assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
+    verify(emitter, timeout(2000)).complete();
+  }
+
+  @Test
+  void trySendTerminalHandlesSendIOException() throws Exception {
+    CountDownLatch latch = new CountDownLatch(1);
+    SseEmitter.SseEventBuilder terminalFrame = SseEmitter.event().name("done");
+    SseEventMapper<TestData> mapperWithFrame =
+        new SseEventMapper<>() {
+          @Override
+          public SseEmitter.SseEventBuilder map(
+              org.jwcarman.odyssey.core.DeliveredEvent<TestData> event) {
+            return SseEmitter.event().data("");
+          }
+
+          @Override
+          public Optional<SseEmitter.SseEventBuilder> terminal(TerminalState state) {
+            return Optional.of(terminalFrame);
+          }
+        };
+    DefaultSubscriberConfig<TestData> config = new DefaultSubscriberConfig<>(mapperWithFrame);
+    config.keepAliveInterval(Duration.ofMillis(100));
+    config.onCompleted(latch::countDown);
+
+    when(source.isActive()).thenReturn(true);
+    when(source.next(any(Duration.class))).thenReturn(new NextResult.Completed<>());
+    // First send is the "connected" comment — let it succeed. Second send is the
+    // terminal frame — make it throw IOException to exercise sendTerminalFrame's
+    // catch block.
+    org.mockito.Mockito.doNothing()
+        .doThrow(new IOException("pipe broken"))
+        .when(emitter)
+        .send(any(SseEmitter.SseEventBuilder.class));
+
+    newAdapter(config).begin();
+
+    assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
+    verify(emitter, timeout(2000)).complete();
+  }
+
+  @Test
+  void launchHandlesMapperExceptionInFireTerminalExpired() {
+    SseEventMapper<TestData> brokenMapper =
+        new SseEventMapper<>() {
+          @Override
+          public SseEmitter.SseEventBuilder map(
+              org.jwcarman.odyssey.core.DeliveredEvent<TestData> event) {
+            return SseEmitter.event();
+          }
+
+          @Override
+          public Optional<SseEmitter.SseEventBuilder> terminal(TerminalState state) {
+            throw new RuntimeException("mapper is broken");
+          }
+        };
+    DefaultSubscriberConfig<TestData> config = new DefaultSubscriberConfig<>(brokenMapper);
+
+    SseJournalAdapter.launch(
+        () -> {
+          throw new JournalExpiredException("gone");
+        },
+        emitter,
+        "test-key",
+        config,
+        objectMapper,
+        TestData.class);
+
+    verify(emitter).complete();
+  }
+
+  @Test
+  void launchHandlesIOExceptionWhenSendingExpiredFrame() throws Exception {
+    SseEventMapper<TestData> mapperWithFrame =
+        new SseEventMapper<>() {
+          @Override
+          public SseEmitter.SseEventBuilder map(
+              org.jwcarman.odyssey.core.DeliveredEvent<TestData> event) {
+            return SseEmitter.event();
+          }
+
+          @Override
+          public Optional<SseEmitter.SseEventBuilder> terminal(TerminalState state) {
+            return Optional.of(SseEmitter.event().name("expired"));
+          }
+        };
+    DefaultSubscriberConfig<TestData> config = new DefaultSubscriberConfig<>(mapperWithFrame);
+    doThrow(new IOException("pipe broken"))
+        .when(emitter)
+        .send(any(SseEmitter.SseEventBuilder.class));
+
+    SseJournalAdapter.launch(
+        () -> {
+          throw new JournalExpiredException("gone");
+        },
+        emitter,
+        "test-key",
+        config,
+        objectMapper,
+        TestData.class);
+
+    verify(emitter).complete();
+  }
+
+  @Test
+  void launchHandlesOnExpiredCallbackException() {
+    SseEventMapper<TestData> mapper =
+        new SseEventMapper<>() {
+          @Override
+          public SseEmitter.SseEventBuilder map(
+              org.jwcarman.odyssey.core.DeliveredEvent<TestData> event) {
+            return SseEmitter.event();
+          }
+
+          @Override
+          public Optional<SseEmitter.SseEventBuilder> terminal(TerminalState state) {
+            return Optional.empty();
+          }
+        };
+    DefaultSubscriberConfig<TestData> config = new DefaultSubscriberConfig<>(mapper);
+    config.onExpired(
+        () -> {
+          throw new RuntimeException("callback explodes");
+        });
+
+    SseJournalAdapter.launch(
+        () -> {
+          throw new JournalExpiredException("gone");
+        },
+        emitter,
+        "test-key",
+        config,
+        objectMapper,
+        TestData.class);
+
+    verify(emitter).complete();
+  }
+
+  @Test
+  void writerLoopCompletesWithErrorOnUnexpectedException() throws Exception {
+    CountDownLatch latch = new CountDownLatch(1);
+    DefaultSubscriberConfig<TestData> config = defaultConfig();
+    config.onErrored(t -> latch.countDown());
+
+    RuntimeException unexpected = new RuntimeException("subscription exploded");
+    when(source.isActive()).thenReturn(true);
+    when(source.next(any(Duration.class))).thenThrow(unexpected);
+
+    newAdapter(config).begin();
+
+    verify(emitter, timeout(2000)).completeWithError(unexpected);
+    verify(emitter, never()).complete();
+  }
+
+  @Test
+  void writerLoopHandlesMidStreamJournalExpiredException() throws Exception {
+    CountDownLatch latch = new CountDownLatch(1);
+    DefaultSubscriberConfig<TestData> config = defaultConfig();
+    config.onExpired(latch::countDown);
+
+    when(source.isActive()).thenReturn(true);
+    when(source.next(any(Duration.class)))
+        .thenThrow(new JournalExpiredException("expired mid-stream"));
+
+    newAdapter(config).begin();
+
+    assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
     verify(emitter, timeout(2000)).complete();
   }
 }

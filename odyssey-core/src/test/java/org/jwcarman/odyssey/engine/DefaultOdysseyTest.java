@@ -23,11 +23,13 @@ import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.odyssey.autoconfigure.OdysseyProperties;
 import org.jwcarman.odyssey.core.OdysseyPublisher;
 import org.jwcarman.odyssey.core.PublisherCustomizer;
+import org.jwcarman.odyssey.core.SubscriberCustomizer;
 import org.jwcarman.substrate.journal.Journal;
 import org.jwcarman.substrate.journal.JournalAlreadyExistsException;
 import org.jwcarman.substrate.journal.JournalFactory;
@@ -184,5 +186,54 @@ class DefaultOdysseyTest {
     odyssey.channel("test", TestEvent.class, cfg -> cfg.inactivityTtl(Duration.ofMinutes(30)));
 
     verify(journalFactory).create(any(), eq(StoredEvent.class), eq(Duration.ofMinutes(30)));
+  }
+
+  @Test
+  void subscriberCustomizerBeansAreAppliedOnEverySubscribe() {
+    when(journalFactory.connect("my-key", StoredEvent.class)).thenReturn(journal);
+
+    AtomicInteger customizerCallCount = new AtomicInteger();
+    SubscriberCustomizer tracking =
+        config -> {
+          customizerCallCount.incrementAndGet();
+          config.keepAliveInterval(Duration.ofSeconds(5));
+        };
+
+    DefaultOdyssey odyssey =
+        new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of(tracking));
+
+    odyssey.subscribe("my-key", TestEvent.class);
+    odyssey.resume("my-key", TestEvent.class, "id-1");
+    odyssey.replay("my-key", TestEvent.class, 3);
+
+    assertThat(customizerCallCount).hasValue(3);
+  }
+
+  @Test
+  void ephemeralReturnsStreamWithUniqueKey() {
+    when(journalFactory.create(any(), eq(StoredEvent.class), any(Duration.class)))
+        .thenReturn(journal);
+    stubJournalKey();
+    DefaultOdyssey odyssey =
+        new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
+
+    OdysseyPublisher<TestEvent> pub =
+        odyssey.ephemeral(TestEvent.class, cfg -> cfg.entryTtl(Duration.ofSeconds(30)));
+
+    assertThat(pub).isNotNull();
+  }
+
+  @Test
+  void broadcastReturnsStreamWithExplicitCustomizer() {
+    when(journalFactory.create(any(), eq(StoredEvent.class), any(Duration.class)))
+        .thenReturn(journal);
+    stubJournalKey();
+    DefaultOdyssey odyssey =
+        new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
+
+    OdysseyPublisher<TestEvent> pub =
+        odyssey.broadcast("news", TestEvent.class, cfg -> cfg.retentionTtl(Duration.ofMinutes(10)));
+
+    assertThat(pub).isNotNull();
   }
 }
