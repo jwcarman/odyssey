@@ -48,7 +48,7 @@ Pick a starter for your infrastructure:
 <dependency>
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-redis-spring-boot-starter</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.4.0</version>
 </dependency>
 ```
 
@@ -57,7 +57,7 @@ Pick a starter for your infrastructure:
 <dependency>
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-inmemory-spring-boot-starter</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.4.0</version>
 </dependency>
 ```
 
@@ -109,7 +109,8 @@ subscriber coordination, keep-alive heartbeats, reconnect replay, and cleanup.
 Publishers are typed and support try-with-resources:
 
 ```java
-// Typed publisher -- serialization handled by Substrate's codec
+// Typed publisher -- Odyssey handles JSON serialization via its own ObjectMapper,
+// so the backend journal only ever sees an already-serialized byte payload.
 try (var pub = odyssey.channel("user:" + userId, OrderEvent.class)) {
     pub.publish("order.shipped", new OrderEvent(orderId, "shipped"));
 }
@@ -292,8 +293,8 @@ Open http://localhost:8080 to interact with broadcast, channel, and ephemeral st
 # Compile and run unit tests
 ./mvnw test
 
-# Full build including integration tests (requires Docker for Testcontainers)
-./mvnw verify
+# Full build with coverage report (JaCoCo)
+./mvnw -Pci verify
 
 # Apply code formatting
 ./mvnw spotless:apply
@@ -304,7 +305,7 @@ Open http://localhost:8080 to interact with broadcast, channel, and ephemeral st
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Ensure `./mvnw verify` passes (including integration tests)
+4. Ensure `./mvnw verify` passes
 5. Ensure `./mvnw spotless:check` passes
 6. Submit a pull request
 
@@ -317,9 +318,10 @@ IDE integration.
 
 ### Testing
 
-- Unit tests: `*Test.java` (run by Surefire)
-- Integration tests: `*IT.java` (run by Failsafe, requires Docker)
-- Testcontainers 2.x for all integration tests
+- Unit tests: `*Test.java` (run by Surefire). `odyssey-core` is at 100% line, branch,
+  method, and class coverage -- please keep it that way when adding new code.
+- Backend-specific behavior is exercised in-memory via `InMemoryEndToEndTest`, which
+  covers the cross-instance cluster case with a shared `InMemoryJournalSpi`.
 
 ## License
 
