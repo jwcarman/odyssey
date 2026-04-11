@@ -15,49 +15,39 @@
  */
 package org.jwcarman.odyssey.autoconfigure;
 
-import org.jwcarman.odyssey.engine.DefaultOdysseyStreamRegistry;
-import org.jwcarman.substrate.core.JournalFactory;
+import org.jwcarman.odyssey.core.Odyssey;
+import org.jwcarman.odyssey.core.PublisherCustomizer;
+import org.jwcarman.odyssey.core.SubscriberCustomizer;
+import org.jwcarman.odyssey.engine.DefaultOdyssey;
+import org.jwcarman.substrate.journal.JournalFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.PropertySource;
 import tools.jackson.databind.ObjectMapper;
 
-/**
- * Spring Boot auto-configuration for OdySSEy. Wires up the {@link DefaultOdysseyStreamRegistry}
- * with a {@link JournalFactory} provided by Substrate's auto-configuration.
- *
- * <p>Default property values are loaded from {@code odyssey-defaults.properties}.
- */
 @AutoConfiguration
 @EnableConfigurationProperties(OdysseyProperties.class)
 @PropertySource("classpath:odyssey-defaults.properties")
 public class OdysseyAutoConfiguration {
 
-  /** Creates a new auto-configuration instance. */
-  public OdysseyAutoConfiguration() {
-    // no-op
-  }
+  public OdysseyAutoConfiguration() {}
 
-  /**
-   * Creates the stream registry that wires together the journal factory, object mapper, and
-   * configuration properties.
-   *
-   * @param journalFactory the Substrate journal factory
-   * @param objectMapper the Jackson object mapper for JSON serialization
-   * @param properties the OdySSEy configuration properties
-   * @return the configured stream registry
-   */
   @Bean
-  public DefaultOdysseyStreamRegistry odysseyStreamRegistry(
-      JournalFactory journalFactory, ObjectMapper objectMapper, OdysseyProperties properties) {
-    return new DefaultOdysseyStreamRegistry(
+  @ConditionalOnMissingBean
+  public Odyssey odyssey(
+      JournalFactory journalFactory,
+      ObjectMapper objectMapper,
+      OdysseyProperties properties,
+      ObjectProvider<PublisherCustomizer> publisherCustomizers,
+      ObjectProvider<SubscriberCustomizer> subscriberCustomizers) {
+    return new DefaultOdyssey(
         journalFactory,
         objectMapper,
-        properties.keepAliveInterval().toMillis(),
-        properties.sseTimeout().toMillis(),
-        properties.ephemeralTtl(),
-        properties.channelTtl(),
-        properties.broadcastTtl());
+        properties,
+        publisherCustomizers.orderedStream().toList(),
+        subscriberCustomizers.orderedStream().toList());
   }
 }

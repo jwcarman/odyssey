@@ -15,160 +15,169 @@
  */
 package org.jwcarman.odyssey.engine;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jwcarman.codec.jackson.JacksonCodecFactory;
-import org.jwcarman.odyssey.core.OdysseyEvent;
-import org.jwcarman.odyssey.core.OdysseyStream;
-import org.jwcarman.substrate.core.Journal;
-import org.jwcarman.substrate.core.JournalEntry;
-import org.jwcarman.substrate.core.JournalFactory;
-import org.jwcarman.substrate.memory.InMemoryJournalSpi;
-import org.jwcarman.substrate.memory.InMemoryNotifier;
+import org.jwcarman.odyssey.autoconfigure.OdysseyProperties;
+import org.jwcarman.odyssey.core.Odyssey;
+import org.jwcarman.substrate.BlockingSubscription;
+import org.jwcarman.substrate.NextResult;
+import org.jwcarman.substrate.core.journal.DefaultJournalFactory;
+import org.jwcarman.substrate.core.memory.journal.InMemoryJournalSpi;
+import org.jwcarman.substrate.core.memory.notifier.InMemoryNotifier;
+import org.jwcarman.substrate.journal.Journal;
+import org.jwcarman.substrate.journal.JournalEntry;
+import org.jwcarman.substrate.journal.JournalFactory;
 import tools.jackson.databind.ObjectMapper;
 
 class InMemoryEndToEndTest {
 
-  private static final long KEEP_ALIVE_INTERVAL = 500;
-  private static final long SSE_TIMEOUT = 0;
+  private static final OdysseyProperties PROPS =
+      new OdysseyProperties(
+          Duration.ofMillis(500),
+          Duration.ZERO,
+          Duration.ofMinutes(5),
+          Duration.ofHours(1),
+          Duration.ofHours(24));
 
-  private InMemoryJournalSpi journalSpi;
-  private InMemoryNotifier notifier;
+  record OrderEvent(String orderId, String status) {}
+
   private JournalFactory journalFactory;
-  private DefaultOdysseyStreamRegistry registry;
+  private Odyssey odyssey;
 
   @BeforeEach
   void setUp() {
     ObjectMapper objectMapper = new ObjectMapper();
-    journalSpi = new InMemoryJournalSpi(100);
-    notifier = new InMemoryNotifier();
+    InMemoryJournalSpi journalSpi = new InMemoryJournalSpi(100);
+    InMemoryNotifier notifier = new InMemoryNotifier();
     journalFactory =
-        new JournalFactory(journalSpi, new JacksonCodecFactory(objectMapper), notifier);
-    registry =
-        new DefaultOdysseyStreamRegistry(
-            journalFactory,
-            objectMapper,
-            KEEP_ALIVE_INTERVAL,
-            SSE_TIMEOUT,
-            java.time.Duration.ofMinutes(5),
-            java.time.Duration.ofHours(1),
-            java.time.Duration.ofHours(24));
-  }
-
-  @AfterEach
-  void tearDown() {
-    registry.channel("test").close();
-  }
-
-  @Test
-  void publishStoresEventsInJournal() {
-    OdysseyStream stream = registry.channel("test");
-    String id1 = stream.publishRaw("greeting", "hello");
-    String id2 = stream.publishRaw("greeting", "world");
-
-    assertNotNull(id1);
-    assertNotNull(id2);
-    assertNotEquals(id1, id2);
-  }
-
-  @Test
-  void subscribeReturnsValidEmitter() {
-    OdysseyStream stream = registry.channel("test");
-
-    var emitter = stream.subscribe();
-
-    assertNotNull(emitter);
-  }
-
-  @Test
-  void ephemeralStreamHasUniqueKey() {
-    OdysseyStream s1 = registry.ephemeral();
-    OdysseyStream s2 = registry.ephemeral();
-
-    assertNotEquals(s1.getStreamKey(), s2.getStreamKey());
-    assertTrue(s1.getStreamKey().contains("ephemeral:"));
-    assertTrue(s2.getStreamKey().contains("ephemeral:"));
-
-    s1.close();
-    s2.close();
-  }
-
-  @Test
-  void channelStreamHasConsistentKey() {
-    OdysseyStream s1 = registry.channel("same");
-    OdysseyStream s2 = registry.channel("same");
-
-    assertEquals(s1.getStreamKey(), s2.getStreamKey());
-    assertTrue(s1.getStreamKey().contains("channel:same"));
-
-    s1.close();
-  }
-
-  @Test
-  void broadcastStreamHasConsistentKey() {
-    OdysseyStream s1 = registry.broadcast("news");
-    OdysseyStream s2 = registry.broadcast("news");
-
-    assertEquals(s1.getStreamKey(), s2.getStreamKey());
-    assertTrue(s1.getStreamKey().contains("broadcast:news"));
-
-    s1.close();
+        new DefaultJournalFactory(
+            journalSpi,
+            new JacksonCodecFactory(objectMapper),
+            notifier,
+            1024,
+            Duration.ofDays(30),
+            Duration.ofDays(30),
+            Duration.ofDays(30));
+    odyssey = new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
   }
 
   @Test
   void publishAndReadThroughJournal() {
-    OdysseyStream stream = registry.channel("test");
-    String id1 = stream.publishRaw("msg", "hello");
-    stream.publishRaw("msg", "world");
+    try (var pub = odyssey.channel("orders", OrderEvent.class)) {
+      pub.publish("order.created", new OrderEvent("o1", "created"));
+      String id = pub.publish("order.shipped", new OrderEvent("o1", "shipped"));
 
-    Journal<OdysseyEvent> journal = journalFactory.create("channel:test", OdysseyEvent.class);
-    var cursor = journal.readAfter(id1);
-    Optional<JournalEntry<OdysseyEvent>> entry = cursor.poll(Duration.ofSeconds(2));
-    assertTrue(entry.isPresent());
-    assertEquals("world", entry.get().data().payload());
-    cursor.close();
+      Journal<StoredEvent> journal = journalFactory.connect("channel:orders", StoredEvent.class);
+      BlockingSubscription<JournalEntry<StoredEvent>> sub = journal.subscribeAfter(id);
+      pub.publish("order.delivered", new OrderEvent("o1", "delivered"));
+
+      NextResult<JournalEntry<StoredEvent>> result = sub.next(Duration.ofSeconds(2));
+      assertThat(result).isInstanceOf(NextResult.Value.class);
+      StoredEvent stored = ((NextResult.Value<JournalEntry<StoredEvent>>) result).value().data();
+      assertThat(stored.eventType()).isEqualTo("order.delivered");
+      assertThat(stored.data()).contains("delivered");
+      sub.cancel();
+    }
   }
 
   @Test
-  void replayLastReadsThroughJournal() {
-    OdysseyStream stream = registry.channel("test");
-    stream.publishRaw("msg", "a");
-    stream.publishRaw("msg", "b");
-    stream.publishRaw("msg", "c");
-    stream.publishRaw("msg", "d");
-
-    Journal<OdysseyEvent> journal = journalFactory.create("channel:test", OdysseyEvent.class);
-    var cursor = journal.readLast(2);
-    List<String> payloads = new ArrayList<>();
-    for (int i = 0; i < 2; i++) {
-      Optional<JournalEntry<OdysseyEvent>> entry = cursor.poll(Duration.ofSeconds(2));
-      entry.ifPresent(e -> payloads.add(e.data().payload()));
+  void ephemeralStreamHasUniqueKey() {
+    try (var pub1 = odyssey.ephemeral(OrderEvent.class);
+        var pub2 = odyssey.ephemeral(OrderEvent.class)) {
+      assertThat(pub1.key()).isNotEqualTo(pub2.key());
+      assertThat(pub1.key()).contains("ephemeral:");
+      assertThat(pub2.key()).contains("ephemeral:");
     }
-    cursor.close();
+  }
 
-    assertEquals(2, payloads.size());
-    assertEquals("c", payloads.get(0));
-    assertEquals("d", payloads.get(1));
+  @Test
+  void channelStreamKeyIncludesName() {
+    try (var pub = odyssey.channel("user:123", OrderEvent.class)) {
+      assertThat(pub.key()).contains("channel:user:123");
+    }
+  }
+
+  @Test
+  void broadcastStreamKeyIncludesName() {
+    try (var pub = odyssey.broadcast("news", OrderEvent.class)) {
+      assertThat(pub.key()).contains("broadcast:news");
+    }
+  }
+
+  @Test
+  void subscribeReturnsValidEmitter() {
+    try (var pub = odyssey.channel("test", OrderEvent.class)) {
+      pub.publish("test", new OrderEvent("o1", "ok"));
+
+      var emitter = odyssey.subscribe(pub.key(), OrderEvent.class);
+      assertThat(emitter).isNotNull();
+    }
+  }
+
+  @Test
+  void twoOdysseyInstancesSeeEachOthersEvents() {
+    ObjectMapper objectMapper = new ObjectMapper();
+    Odyssey odyssey2 =
+        new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
+
+    var pub1 = odyssey.channel("shared", OrderEvent.class);
+    pub1.publish("from-1", new OrderEvent("o1", "instance1"));
+
+    var pub2 = odyssey2.channel("shared", OrderEvent.class);
+    pub2.publish("from-2", new OrderEvent("o2", "instance2"));
+
+    Journal<StoredEvent> journal = journalFactory.connect("channel:shared", StoredEvent.class);
+    BlockingSubscription<JournalEntry<StoredEvent>> sub = journal.subscribeLast(10);
+    List<String> eventTypes = new ArrayList<>();
+    for (int i = 0; i < 2; i++) {
+      NextResult<JournalEntry<StoredEvent>> result = sub.next(Duration.ofSeconds(2));
+      if (result instanceof NextResult.Value<JournalEntry<StoredEvent>> v) {
+        eventTypes.add(v.value().data().eventType());
+      }
+    }
+    sub.cancel();
+    pub1.close();
+    pub2.close();
+
+    assertThat(eventTypes).containsExactly("from-1", "from-2");
   }
 
   @Test
   void deleteRemovesJournal() {
-    OdysseyStream stream = registry.channel("test");
-    stream.publishRaw("msg", "hello");
+    var pub = odyssey.channel("delete-test", OrderEvent.class);
+    pub.publish("test", new OrderEvent("o1", "created"));
 
-    stream.delete();
+    Journal<StoredEvent> journal = journalFactory.connect("channel:delete-test", StoredEvent.class);
+    BlockingSubscription<JournalEntry<StoredEvent>> sub = journal.subscribeLast(10);
+    NextResult<JournalEntry<StoredEvent>> first = sub.next(Duration.ofSeconds(1));
+    assertThat(first).isInstanceOf(NextResult.Value.class);
 
-    Journal<OdysseyEvent> journal = journalFactory.create("channel:test", OdysseyEvent.class);
-    var cursor = journal.readLast(10);
-    Optional<JournalEntry<OdysseyEvent>> entry = cursor.poll(Duration.ofMillis(200));
-    assertFalse(entry.isPresent());
-    cursor.close();
+    pub.delete();
+
+    NextResult<JournalEntry<StoredEvent>> result = sub.next(Duration.ofSeconds(2));
+    assertThat(result).isInstanceOfAny(NextResult.Expired.class, NextResult.Deleted.class);
+    sub.cancel();
+  }
+
+  @Test
+  void publishWithoutEventType() {
+    try (var pub = odyssey.channel("no-type", OrderEvent.class)) {
+      String id = pub.publish(new OrderEvent("o1", "created"));
+      assertThat(id).isNotNull();
+
+      Journal<StoredEvent> journal = journalFactory.connect("channel:no-type", StoredEvent.class);
+      BlockingSubscription<JournalEntry<StoredEvent>> sub = journal.subscribeLast(1);
+      NextResult<JournalEntry<StoredEvent>> result = sub.next(Duration.ofSeconds(2));
+      assertThat(result).isInstanceOf(NextResult.Value.class);
+      StoredEvent stored = ((NextResult.Value<JournalEntry<StoredEvent>>) result).value().data();
+      assertThat(stored.eventType()).isNull();
+      sub.cancel();
+    }
   }
 }

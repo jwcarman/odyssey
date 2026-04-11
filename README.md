@@ -29,12 +29,12 @@ The name **Odyssey** is a nod to **SSE** (**S**erver-**S**ent **E**vents) hidden
 ## Features
 
 - Zero reactive types -- virtual threads throughout
-- Fixed, predictable connection count per node regardless of stream/subscriber count
-- Three stream types (ephemeral, channel, broadcast) behind a unified API
-- Self-healing via TTL with explicit close supported
-- Keep-alive heartbeat on every stream
-- Automatic reconnect with replay (`resumeAfter`, `replayLast`)
-- Pluggable storage and notification backends
+- Typed domain events -- work with your own `T`, not framework types
+- Customizer-based configuration following Spring Boot idioms
+- Producer/consumer split -- publishers and subscribers are independent
+- Rich terminal-state signaling (completed, expired, deleted, errored)
+- Automatic reconnect with replay (`resume`, `replay`)
+- Pluggable storage and notification backends via Substrate
 - In-memory fallback for testing and single-node deployments
 
 ## Quick Start
@@ -48,8 +48,7 @@ Pick a starter for your infrastructure:
 <dependency>
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-redis-spring-boot-starter</artifactId>
-    <version>0.2.0</version>
-
+    <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -58,41 +57,46 @@ Pick a starter for your infrastructure:
 <dependency>
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-inmemory-spring-boot-starter</artifactId>
-    <version>0.2.0</version>
-
+    <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
 Other starters: `odyssey-postgresql-spring-boot-starter`,
 `odyssey-hazelcast-spring-boot-starter`, `odyssey-nats-spring-boot-starter`.
 
-Each starter includes everything you need — one dependency.
+Each starter includes everything you need -- one dependency.
 
 ### 2. Use it
 
 ```java
 @RestController
-public class NotificationController {
+public class OrderStreamController {
 
-    private final OdysseyStreamRegistry registry;
+    private final Odyssey odyssey;
 
-    public NotificationController(OdysseyStreamRegistry registry) {
-        this.registry = registry;
+    public OrderStreamController(Odyssey odyssey) {
+        this.odyssey = odyssey;
     }
 
-    @GetMapping(value = "/events/{userId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribe(
-            @PathVariable String userId,
+    @PostMapping("/orders")
+    public OrderResponse createOrder(@RequestBody CreateOrder cmd) {
+        Order order = orderService.create(cmd);
+        try (var pub = odyssey.channel("orders:" + order.id(), OrderEvent.class)) {
+            pub.publish("order.created", OrderEvent.created(order));
+        }
+        return OrderResponse.from(order);
+    }
+
+    @GetMapping("/streams/orders/{id}")
+    public SseEmitter streamOrder(
+            @PathVariable String id,
             @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
-        OdysseyStream stream = registry.channel("user:" + userId);
+        String key = "orders:" + id;
         return lastEventId != null
-            ? stream.resumeAfter(lastEventId)
-            : stream.subscribe();
-    }
-
-    @PostMapping("/notify/{userId}")
-    public void notify(@PathVariable String userId, @RequestBody OrderEvent event) {
-        registry.channel("user:" + userId).publishJson("order.updated", event);
+            ? odyssey.resume(key, OrderEvent.class, lastEventId,
+                cfg -> cfg.timeout(Duration.ofMinutes(30)))
+            : odyssey.subscribe(key, OrderEvent.class,
+                cfg -> cfg.timeout(Duration.ofMinutes(30)));
     }
 }
 ```
@@ -100,35 +104,45 @@ public class NotificationController {
 That's it. No boilerplate, no thread management, no Redis commands. Odyssey handles
 subscriber coordination, keep-alive heartbeats, reconnect replay, and cleanup.
 
-### Publishing
+## Publishing
 
-Odyssey supports two publishing styles:
+Publishers are typed and support try-with-resources:
 
 ```java
-// Raw string payload
-stream.publishRaw("event-type", "{\"key\":\"value\"}");
+// Typed publisher -- serialization handled by Substrate's codec
+try (var pub = odyssey.channel("user:" + userId, OrderEvent.class)) {
+    pub.publish("order.shipped", new OrderEvent(orderId, "shipped"));
+}
 
-// Java object serialized to JSON automatically
-stream.publishJson("order.shipped", orderEvent);
-
-// Without an event type (SSE event: field omitted — useful for MCP)
-stream.publishRaw(jsonPayload);
-stream.publishJson(someObject);
+// Without an event type (SSE event: field omitted -- useful for MCP)
+pub.publish(new OrderEvent(orderId, "shipped"));
 ```
 
-`publishJson` uses Jackson to serialize the object. The SSE `data:` field contains
-the JSON string. Clients parse it with `JSON.parse(event.data)`.
+## Subscribing
+
+Subscribers get an `SseEmitter` directly -- there is no user-visible subscriber type:
+
+```java
+// Live tail from current head
+SseEmitter emitter = odyssey.subscribe(key, OrderEvent.class);
+
+// Resume after a known event ID
+SseEmitter emitter = odyssey.resume(key, OrderEvent.class, lastEventId);
+
+// Replay last N entries, then continue tailing
+SseEmitter emitter = odyssey.replay(key, OrderEvent.class, 10);
+```
 
 ## Stream Types
 
-All three stream types use the same API and architecture. The difference is naming
-convention and caching behavior.
+All three stream types use the same API. The difference is naming convention and
+default TTLs.
 
 | Type | Factory Method | Use Case |
 |------|---------------|----------|
-| Ephemeral | `registry.ephemeral()` | Short-lived request/response (MCP tool calls) |
-| Channel | `registry.channel(name)` | Per-user or per-entity notifications |
-| Broadcast | `registry.broadcast(name)` | System-wide announcements |
+| Ephemeral | `odyssey.ephemeral(type)` | Short-lived request/response (MCP tool calls) |
+| Channel | `odyssey.channel(name, type)` | Per-user or per-entity notifications |
+| Broadcast | `odyssey.broadcast(name, type)` | System-wide announcements |
 
 Each stream type has a configurable TTL that controls how long events are retained:
 
@@ -139,72 +153,60 @@ odyssey:
   broadcast-ttl: 24h   # system-wide announcements
 ```
 
-### Ephemeral Streams
+## Customizers
 
-Auto-generated unique key. Ideal for request-scoped exchanges:
+Configuration uses the Spring Boot customizer pattern:
 
 ```java
-OdysseyStream stream = registry.ephemeral();
-// stream.getStreamKey() returns the auto-generated key
-
-executorService.submit(() -> {
-    stream.publishRaw("progress", "{\"status\":\"running\"}");
-    String result = doWork();
-    stream.publishRaw("result", result);
-    stream.close();
+// Per-call customizer
+odyssey.channel("orders", OrderEvent.class, cfg -> {
+    cfg.inactivityTtl(Duration.ofHours(2));
+    cfg.entryTtl(Duration.ofHours(2));
 });
 
-return stream.subscribe();
+// Global customizer bean (applies to all publishers)
+@Bean
+PublisherCustomizer longRetention() {
+    return cfg -> cfg.retentionTtl(Duration.ofHours(1));
+}
+
+// Subscriber customizer
+odyssey.subscribe(key, OrderEvent.class, cfg -> {
+    cfg.timeout(Duration.ofMinutes(30));
+    cfg.keepAliveInterval(Duration.ofSeconds(15));
+    cfg.onCompleted(() -> log.info("Stream completed"));
+});
 ```
 
-### Channel Streams
+## Terminal State Events
 
-Named, cached per key. Multiple subscribers on the same name share a stream:
+Subscribers receive distinct SSE events when a stream terminates:
 
-```java
-OdysseyStream stream = registry.channel("user:" + userId);
-stream.publishRaw("notification.changed", payload);
-```
+- `odyssey-completed` -- publisher called `close()`
+- `odyssey-expired` -- journal reached its TTL
+- `odyssey-deleted` -- publisher called `delete()`
+- `odyssey-errored` -- backend error
 
-### Broadcast Streams
+Clients can listen for these with `addEventListener`:
 
-Same as channel, but semantically for many subscribers on few keys:
-
-```java
-OdysseyStream stream = registry.broadcast("announcements");
-stream.publishRaw("maintenance", payload);
-```
-
-### Reconnecting
-
-Clients reconnect with `Last-Event-ID` to resume where they left off:
-
-```java
-stream.resumeAfter(lastEventId);  // replay missed events, then go live
-stream.replayLast(10);            // replay last 10 events, then go live
-```
-
-### Looking Up Streams by Key
-
-For reconnect scenarios where you need to find an existing stream:
-
-```java
-OdysseyStream stream = registry.stream(streamKey);
-return stream.resumeAfter(lastEventId);
+```javascript
+eventSource.addEventListener('odyssey-completed', () => {
+    console.log('Stream finished');
+});
 ```
 
 ## Architecture
 
 Each subscriber gets one virtual writer thread that polls a
-[Substrate](https://github.com/jwcarman/substrate) `JournalCursor`:
+[Substrate](https://github.com/jwcarman/substrate) `BlockingSubscription`:
 
 ```
-[Substrate: Notifier → Semaphore → Reader Thread → Queue] → JournalCursor.poll() → [Odyssey Writer Thread] → SseEmitter
+[Substrate: Notifier -> Semaphore -> Reader Thread -> Queue] -> BlockingSubscription.next() -> [Odyssey Writer Thread] -> SseEmitter
 ```
 
 - **Substrate** handles storage reads, notification listening, and cursor management
-  internally — Odyssey doesn't manage reader threads, semaphores, or queues
-- **Writer thread** (Odyssey): polls `cursor.poll(keepAliveInterval)`, sends events
+  internally -- Odyssey doesn't manage reader threads, semaphores, or queues
+- **Writer thread** (Odyssey): polls `subscription.next(keepAliveInterval)`, sends events
   to the `SseEmitter`, sends keep-alive comments on timeout, handles cleanup on
   disconnect
 
@@ -266,9 +268,6 @@ Open http://localhost:8080 to interact with broadcast, channel, and ephemeral st
 
 # Apply code formatting
 ./mvnw spotless:apply
-
-# Apply license headers
-./mvnw -Plicense license:format
 ```
 
 ## Contributing
@@ -278,8 +277,7 @@ Open http://localhost:8080 to interact with broadcast, channel, and ephemeral st
 3. Make your changes
 4. Ensure `./mvnw verify` passes (including integration tests)
 5. Ensure `./mvnw spotless:check` passes
-6. Ensure `./mvnw -Plicense license:check` passes
-7. Submit a pull request
+6. Submit a pull request
 
 ### Code Style
 

@@ -15,34 +15,33 @@
  */
 package org.jwcarman.odyssey.core;
 
+import java.util.Optional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import tools.jackson.databind.ObjectMapper;
 
-/**
- * Maps an {@link OdysseyEvent} to an SSE event for delivery to the client. Implementations control
- * how event IDs, data, and event types are written to the SSE output.
- *
- * <p>The default mapper sets the {@code id:} field from the event ID, the {@code data:} field from
- * the payload, and the {@code event:} field from the event type (if non-null).
- */
-@FunctionalInterface
-public interface SseEventMapper {
+public interface SseEventMapper<T> {
 
-  /**
-   * Maps an Odyssey event to an SSE event builder.
-   *
-   * @param event the Odyssey event to map
-   * @return a configured SSE event builder ready to be sent
-   */
-  SseEmitter.SseEventBuilder map(OdysseyEvent event);
+  SseEmitter.SseEventBuilder map(DeliveredEvent<T> event);
 
-  /** Default mapper that sets id, data, and optional event type. */
-  SseEventMapper DEFAULT =
-      event -> {
-        SseEmitter.SseEventBuilder builder =
-            SseEmitter.event().id(event.id()).data(event.payload());
-        if (event.eventType() != null) {
-          builder.name(event.eventType());
-        }
-        return builder;
-      };
+  default Optional<SseEmitter.SseEventBuilder> terminal(TerminalReason reason) {
+    return Optional.of(SseEmitter.event().name("odyssey-" + reason.name().toLowerCase()).data(""));
+  }
+
+  enum TerminalReason {
+    COMPLETED,
+    EXPIRED,
+    DELETED,
+    ERRORED
+  }
+
+  static <T> SseEventMapper<T> defaultMapper(ObjectMapper objectMapper) {
+    return event -> {
+      SseEmitter.SseEventBuilder builder =
+          SseEmitter.event().id(event.id()).data(objectMapper.writeValueAsString(event.data()));
+      if (event.eventType() != null) {
+        builder.name(event.eventType());
+      }
+      return builder;
+    };
+  }
 }

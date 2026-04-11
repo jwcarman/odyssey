@@ -16,8 +16,7 @@
 package org.jwcarman.odyssey.example;
 
 import java.util.Map;
-import org.jwcarman.odyssey.core.OdysseyStream;
-import org.jwcarman.odyssey.core.OdysseyStreamRegistry;
+import org.jwcarman.odyssey.core.Odyssey;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,28 +31,32 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/notify")
 public class NotifyController {
 
-  private final OdysseyStreamRegistry registry;
+  record Notification(String message) {}
 
-  public NotifyController(OdysseyStreamRegistry registry) {
-    this.registry = registry;
+  private final Odyssey odyssey;
+
+  public NotifyController(Odyssey odyssey) {
+    this.odyssey = odyssey;
   }
 
   @PostMapping("/{userId}")
   public Map<String, String> publish(
       @PathVariable String userId, @RequestBody Map<String, String> body) {
-    OdysseyStream stream = registry.channel("user:" + userId);
-    String id = stream.publishRaw("notification", body.get("message"));
-    return Map.of("id", id);
+    String key = "channel:user:" + userId;
+    try (var pub = odyssey.channel("user:" + userId, Notification.class)) {
+      String id = pub.publish("notification", new Notification(body.get("message")));
+      return Map.of("id", id);
+    }
   }
 
   @GetMapping(value = "/{userId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   public SseEmitter subscribe(
       @PathVariable String userId,
       @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
-    OdysseyStream stream = registry.channel("user:" + userId);
+    String key = "channel:user:" + userId;
     if (lastEventId != null) {
-      return stream.resumeAfter(lastEventId);
+      return odyssey.resume(key, Notification.class, lastEventId);
     }
-    return stream.subscribe();
+    return odyssey.subscribe(key, Notification.class);
   }
 }

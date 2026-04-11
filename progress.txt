@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-07T12:39:00-04:00
-ITERATION: 47
-SPEC_COMPLETED: 044-migrate-to-substrate.md
-WHAT_WAS_DONE: Migrated Odyssey to use Substrate Journal + Notifier, replacing all Odyssey SPI interfaces, backend modules, and in-memory implementations. Odyssey is now a thin SSE layer on top of Substrate with only two modules (odyssey-core + odyssey-example).
-VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (54 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-11T12:00:00-04:00
+ITERATION: 48
+SPEC_COMPLETED: 045-odyssey-api-redesign.md
+WHAT_WAS_DONE: Redesigned Odyssey's public API around typed events, customizer-based configuration, and producer/consumer split. Replaced OdysseyStream/OdysseyStreamRegistry/OdysseyEvent with Odyssey facade, OdysseyPublisher<T>, PublisherConfig, SubscriberConfig<T>, DeliveredEvent<T>, generic SseEventMapper<T> with terminal hooks, and SseJournalAdapter<T>. Added PublisherCustomizer/SubscriberCustomizer beans, createOrConnect cluster-safe provisioning, and rich terminal-state SSE events.
+VERIFICATION: ./mvnw clean verify → BUILD SUCCESS (46 tests, 0 failures); ./mvnw spotless:check → BUILD SUCCESS
 STATUS: DONE
 NEXT_SPEC: none
-NOTES: Deleted 15 backend modules (odyssey-eventlog-*, odyssey-notifier-*), odyssey-bom, all SPI/memory packages. Rewrote DefaultOdysseyStream to use Journal<OdysseyEvent>, DefaultOdysseyStreamRegistry to use JournalFactory, and replaced StreamReader/StreamSubscriber/StreamSubscriberGroup/StreamWriter with a single StreamSubscription class. OdysseyProperties.maxLastN removed (now a Substrate concern). Auto-configuration simplified to just create a registry from JournalFactory. Example app updated to use substrate-journal-redis + substrate-notifier-redis. The org/ directory at project root still contains org/springframework/web/servlet/mvc/method/annotation/SseEmitter.java — not touched by this spec. codec-jackson 1.0.0-SNAPSHOT and substrate-core 1.0.0-SNAPSHOT must be installed locally for builds.
+NOTES: StoredEvent is non-generic with String data field (pre-serialized JSON) to avoid TypeRef complexity with generic journal types — the spec's TypeRef suggestion was verified and found impractical due to type erasure. ObjectMapper is used in publisher (serialize T→JSON), adapter (deserialize JSON→T for DeliveredEvent<T>), and default SseEventMapper (serialize T for SSE data field). SubscriberCustomizer uses option (b) from the spec: Consumer<SubscriberConfig<?>>, which naturally prevents global customizers from setting the typed mapper. The NullPointerException logs in writer threads during DefaultOdysseyTest are harmless — they occur because mock journals return null for subscribe() calls that happen lazily in background threads, but the tests verify facade behavior correctly. Backend starter modules are unchanged.

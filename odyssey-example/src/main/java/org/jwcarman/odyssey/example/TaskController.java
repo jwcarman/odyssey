@@ -16,9 +16,8 @@
 package org.jwcarman.odyssey.example;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import org.jwcarman.odyssey.core.OdysseyStream;
-import org.jwcarman.odyssey.core.OdysseyStreamRegistry;
+import org.jwcarman.odyssey.core.Odyssey;
+import org.jwcarman.odyssey.core.OdysseyPublisher;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,54 +31,45 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/task")
 public class TaskController {
 
-  private static final String EVENT_PROGRESS = "progress";
+  record TaskProgress(int percent, String status) {}
 
-  private final OdysseyStreamRegistry registry;
-  private final ConcurrentHashMap<String, OdysseyStream> activeStreams = new ConcurrentHashMap<>();
+  private final Odyssey odyssey;
 
-  public TaskController(OdysseyStreamRegistry registry) {
-    this.registry = registry;
+  public TaskController(Odyssey odyssey) {
+    this.odyssey = odyssey;
   }
 
   @PostMapping
   public Map<String, String> startTask() {
-    OdysseyStream stream = registry.ephemeral();
-    String streamKey = stream.getStreamKey();
-    activeStreams.put(streamKey, stream);
+    OdysseyPublisher<TaskProgress> pub = odyssey.ephemeral(TaskProgress.class);
+    String key = pub.key();
 
     Thread.ofVirtual()
         .start(
             () -> {
-              try {
-                stream.publishRaw(EVENT_PROGRESS, "{\"percent\":0,\"status\":\"Starting...\"}");
+              try (pub) {
+                pub.publish("progress", new TaskProgress(0, "Starting..."));
                 Thread.sleep(1500);
-                stream.publishRaw(EVENT_PROGRESS, "{\"percent\":33,\"status\":\"Processing...\"}");
+                pub.publish("progress", new TaskProgress(33, "Processing..."));
                 Thread.sleep(1500);
-                stream.publishRaw(EVENT_PROGRESS, "{\"percent\":66,\"status\":\"Almost done...\"}");
+                pub.publish("progress", new TaskProgress(66, "Almost done..."));
                 Thread.sleep(1500);
-                stream.publishRaw("complete", "{\"percent\":100,\"status\":\"Done!\"}");
+                pub.publish("complete", new TaskProgress(100, "Done!"));
               } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
-              } finally {
-                stream.close();
-                activeStreams.remove(streamKey);
               }
             });
 
-    return Map.of("streamKey", streamKey);
+    return Map.of("streamKey", key);
   }
 
   @GetMapping(value = "/{streamKey}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   public SseEmitter subscribe(
       @PathVariable String streamKey,
       @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
-    OdysseyStream stream = activeStreams.get(streamKey);
-    if (stream == null) {
-      throw new IllegalArgumentException("Unknown or expired task stream: " + streamKey);
-    }
     if (lastEventId != null) {
-      return stream.resumeAfter(lastEventId);
+      return odyssey.resume(streamKey, TaskProgress.class, lastEventId);
     }
-    return stream.subscribe();
+    return odyssey.subscribe(streamKey, TaskProgress.class);
   }
 }

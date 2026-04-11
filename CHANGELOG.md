@@ -2,13 +2,53 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Breaking changes
+
+**Complete API redesign around typed events, customizers, and producer/consumer split.**
+This is a breaking change with no migration path -- journals written by the old API
+cannot be read by the new API.
+
+#### Removed types
+
+- `OdysseyStream` -- replaced by `Odyssey` facade + `OdysseyPublisher<T>`
+- `OdysseyStreamRegistry` -- replaced by `Odyssey` facade
+- `OdysseyEvent` -- replaced by typed domain events (`T`)
+- `StreamSubscriberBuilder` -- replaced by `Consumer<SubscriberConfig<T>>` customizers
+- `SseEventMapper` (old non-generic) -- replaced by generic `SseEventMapper<T>` with terminal hooks
+- `DefaultOdysseyStream` -- replaced by `DefaultOdyssey` + `DefaultOdysseyPublisher<T>`
+- `DefaultOdysseyStreamRegistry` -- replaced by `DefaultOdyssey`
+- `StreamSubscription` -- replaced by `SseJournalAdapter<T>`
+
+#### Removed methods
+
+- `publishRaw(String)`, `publishRaw(String, String)` -- use `publisher.publish(T)` or `publisher.publish(String, T)` with `String.class`
+- `publishJson(Object)`, `publishJson(String, Object)` -- use typed publishers directly
+
+### Added
+
+- **`Odyssey` facade** -- single top-level interface with publisher and subscriber methods
+- **`OdysseyPublisher<T>`** -- typed publisher with `AutoCloseable` support
+- **`PublisherConfig` / `SubscriberConfig<T>`** -- customizer-based configuration
+  following Spring Boot's `RestClientCustomizer` pattern
+- **`DeliveredEvent<T>`** -- typed event record delivered to `SseEventMapper`
+- **`SseEventMapper<T>`** -- generic mapper with `terminal(TerminalReason)` hook for
+  rich terminal-state SSE events (`odyssey-completed`, `odyssey-expired`, `odyssey-deleted`,
+  `odyssey-errored`)
+- **`PublisherCustomizer` / `SubscriberCustomizer`** -- global bean-based customizers
+- **`createOrConnect` pattern** -- cluster-safe journal provisioning that handles
+  `JournalAlreadyExistsException` race conditions
+- **Terminal state callbacks** -- `onCompleted`, `onExpired`, `onDeleted`, `onErrored`
+  on `SubscriberConfig`
+
 ## [0.2.0] - 2026-04-07
 
 ### Added
 
 - **Per-type TTL configuration**: `odyssey.ephemeral-ttl`, `odyssey.channel-ttl`,
   `odyssey.broadcast-ttl` control event retention per stream type (defaults: 5m, 1h, 24h)
-- **Starters as jars**: convenience starters are now proper jar artifacts — no
+- **Starters as jars**: convenience starters are now proper jar artifacts -- no
   `<type>pom</type>` needed in dependency declarations
 - Comprehensive debug logging across all lifecycle events
 - `comment("connected")` sent immediately on subscribe for fast client detection
@@ -18,12 +58,12 @@ All notable changes to this project will be documented in this file.
 
 - Subscription race condition: cleanup is wired before writer thread starts
 - Exception handling in writer loop simplified (no more `instanceof` check)
-- Removed false TTL claims from README — TTLs are now actually enforced
+- Removed false TTL claims from README -- TTLs are now actually enforced
 
 ### Changed
 
 - `SseStreamEventHandler` and `StreamEventHandler` merged into `StreamSubscription`
-  for simplicity — one class handles cursor polling, SSE writing, and cleanup
+  for simplicity -- one class handles cursor polling, SSE writing, and cleanup
 
 ## [0.1.1] - 2026-04-07
 
@@ -40,13 +80,13 @@ built on [Substrate](https://github.com/jwcarman/substrate) for pluggable infras
 
 #### Features
 
-- **Three stream types**: `ephemeral()`, `channel(name)`, `broadcast(name)` — all
+- **Three stream types**: `ephemeral()`, `channel(name)`, `broadcast(name)` -- all
   behind a unified `OdysseyStream` API
 - **Automatic reconnection**: `resumeAfter(lastEventId)` and `replayLast(count)`
   for seamless client reconnect via SSE `Last-Event-ID`
 - **Two publishing styles**: `publishRaw()` for string payloads, `publishJson()` for
   automatic Jackson serialization
-- **Nullable event type**: SSE `event:` field is optional — supports MCP Streamable
+- **Nullable event type**: SSE `event:` field is optional -- supports MCP Streamable
   HTTP and other protocols that omit it
 - **Keep-alive heartbeats**: automatic SSE comments sent on configurable intervals
   to detect disconnects and keep connections alive through proxies
@@ -59,17 +99,17 @@ built on [Substrate](https://github.com/jwcarman/substrate) for pluggable infras
 
 One dependency for each infrastructure stack:
 
-- `odyssey-redis-spring-boot-starter` — Redis (Streams + Pub/Sub)
-- `odyssey-postgresql-spring-boot-starter` — PostgreSQL (table + LISTEN/NOTIFY)
-- `odyssey-hazelcast-spring-boot-starter` — Hazelcast (Ringbuffer + ITopic)
-- `odyssey-nats-spring-boot-starter` — NATS (JetStream + Core)
-- `odyssey-inmemory-spring-boot-starter` — In-memory (no infrastructure)
+- `odyssey-redis-spring-boot-starter` -- Redis (Streams + Pub/Sub)
+- `odyssey-postgresql-spring-boot-starter` -- PostgreSQL (table + LISTEN/NOTIFY)
+- `odyssey-hazelcast-spring-boot-starter` -- Hazelcast (Ringbuffer + ITopic)
+- `odyssey-nats-spring-boot-starter` -- NATS (JetStream + Core)
+- `odyssey-inmemory-spring-boot-starter` -- In-memory (no infrastructure)
 
 #### Architecture
 
 - Built on [Substrate](https://github.com/jwcarman/substrate) `Journal` and `Notifier` SPIs
-- One writer virtual thread per subscriber — polls `JournalCursor`, sends to `SseEmitter`
-- No reader thread in Odyssey — Substrate's cursor handles storage reads internally
+- One writer virtual thread per subscriber -- polls `JournalCursor`, sends to `SseEmitter`
+- No reader thread in Odyssey -- Substrate's cursor handles storage reads internally
 - Clean shutdown: `AtomicBoolean` guards ensure idempotent cleanup on disconnect,
   timeout, or error
 

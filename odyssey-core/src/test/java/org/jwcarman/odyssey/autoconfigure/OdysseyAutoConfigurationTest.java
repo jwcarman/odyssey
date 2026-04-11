@@ -18,9 +18,9 @@ package org.jwcarman.odyssey.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
-import org.jwcarman.codec.jackson.JacksonCodecAutoConfiguration;
-import org.jwcarman.odyssey.engine.DefaultOdysseyStreamRegistry;
-import org.jwcarman.substrate.autoconfigure.SubstrateAutoConfiguration;
+import org.jwcarman.odyssey.core.Odyssey;
+import org.jwcarman.substrate.journal.JournalFactory;
+import org.mockito.Mockito;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import tools.jackson.databind.ObjectMapper;
@@ -29,26 +29,27 @@ class OdysseyAutoConfigurationTest {
 
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner()
-          .withConfiguration(
-              AutoConfigurations.of(
-                  JacksonCodecAutoConfiguration.class,
-                  SubstrateAutoConfiguration.class,
-                  OdysseyAutoConfiguration.class))
+          .withConfiguration(AutoConfigurations.of(OdysseyAutoConfiguration.class))
+          .withBean(JournalFactory.class, () -> Mockito.mock(JournalFactory.class))
           .withBean(ObjectMapper.class, ObjectMapper::new);
 
   @Test
-  void createsPropertiesBean() {
+  void createsOdysseyBean() {
     contextRunner.run(
         context -> {
-          assertThat(context).hasSingleBean(OdysseyProperties.class);
+          assertThat(context).hasSingleBean(Odyssey.class);
         });
   }
 
   @Test
-  void createsDefaultStreamRegistry() {
-    contextRunner.run(
-        context -> {
-          assertThat(context).hasSingleBean(DefaultOdysseyStreamRegistry.class);
-        });
+  void odysseyBeanCanBeOverridden() {
+    Odyssey custom = Mockito.mock(Odyssey.class);
+    contextRunner
+        .withBean(Odyssey.class, () -> custom)
+        .run(
+            context -> {
+              assertThat(context).hasSingleBean(Odyssey.class);
+              assertThat(context.getBean(Odyssey.class)).isSameAs(custom);
+            });
   }
 }
