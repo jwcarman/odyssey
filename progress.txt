@@ -1,8 +1,8 @@
-LAST_RUN: 2026-04-11T04:09:00-04:00
-ITERATION: 50
-SPEC_COMPLETED: 049-coverage-to-100.md
-WHAT_WAS_DONE: Verified odyssey-core test coverage is already at 100% across all JaCoCo metrics (instructions, branches, lines, complexity, methods, classes). No additional tests needed — prior iterations already achieved full coverage.
-VERIFICATION: ./mvnw -pl odyssey-core clean verify -Pci → BUILD SUCCESS (80 tests, 0 failures); JaCoCo report: 100% instruction, 100% branch, 100% line coverage; ./mvnw clean verify → BUILD SUCCESS; spotless:check → BUILD SUCCESS
+LAST_RUN: 2026-04-11T04:20:00-04:00
+ITERATION: 51
+SPEC_COMPLETED: none
+WHAT_WAS_DONE: Spec 050-public-api-javadoc.md was already completed and committed (commit 9768799) with the spec moved to specs/done/. All 9 public API types have class-level javadoc. No work was needed this iteration.
+VERIFICATION: ./mvnw clean install → BUILD SUCCESS; ./mvnw spotless:check (excluding odyssey-example) → BUILD SUCCESS; git log confirms commit 9768799 covers all spec files
 STATUS: DONE
 NEXT_SPEC: none
-NOTES: Coverage was already at 100% before this iteration — the spec's estimate of 92.1% was based on an earlier SonarCloud snapshot that has since been superseded by tests added in prior specs. The SseJournalAdapter.java has a local refactoring of fireTerminalExpired into smaller helper methods (sendExpiredFrame, runOnExpiredQuietly) that is unstaged — this was likely done in a prior iteration to improve testability/coverage.
+NOTES: Only unstaged change is package-info.java (expanded package-level overview). The git status snapshot at session start was stale — the javadoc commit (9768799) happened between the snapshot and this iteration.
