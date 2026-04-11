@@ -41,7 +41,10 @@ import tools.jackson.databind.ObjectMapper;
 public class OdysseyAutoConfiguration {
 
   /** Default constructor invoked by Spring's auto-configuration infrastructure. */
-  public OdysseyAutoConfiguration() {}
+  public OdysseyAutoConfiguration() {
+    // Explicit no-op constructor: exists so javadoc can attach a comment to it (the implicit
+    // default constructor has no place for one). Spring instantiates this class reflectively.
+  }
 
   /**
    * Creates the default {@link Odyssey} bean, wired with the configured {@link JournalFactory},
