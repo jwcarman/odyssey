@@ -119,8 +119,7 @@ Publishers are typed. Odyssey handles JSON serialization via its own `ObjectMapp
 backend journal only ever sees an already-serialized byte payload.
 
 ```java
-// Long-lived publisher -- hold it for the lifetime of the app. Do NOT close it after a
-// single publish; doing so terminates the stream for every subscriber.
+// Long-lived publisher -- hold it for the lifetime of the app.
 var pub = odyssey.publisher("user:" + userId, OrderEvent.class);
 pub.publish("order.shipped", new OrderEvent(orderId, "shipped"));
 
