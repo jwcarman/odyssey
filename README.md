@@ -193,7 +193,9 @@ odyssey.publisher("orders", OrderEvent.class, cfg -> cfg.retentionTtl(Duration.o
 
 ## Customizers
 
-Configuration uses the Spring Boot customizer pattern:
+Configuration uses customizer lambdas applied per call. There is no global customizer bean
+mechanism — app-wide defaults come from `odyssey.*` properties, and any cross-cutting logic
+you want at every call site should live in a helper method you call explicitly.
 
 ```java
 // Per-call publisher customizer
@@ -202,19 +204,16 @@ odyssey.publisher("orders", OrderEvent.class, cfg -> {
     cfg.entryTtl(Duration.ofHours(2));
 });
 
-// Global customizer bean (applies to all publishers)
-@Bean
-PublisherCustomizer longRetention() {
-    return cfg -> cfg.retentionTtl(Duration.ofHours(1));
-}
-
-// Subscriber customizer
+// Per-call subscriber customizer
 odyssey.subscribe("orders", OrderEvent.class, cfg -> {
     cfg.timeout(Duration.ofMinutes(30));
     cfg.keepAliveInterval(Duration.ofSeconds(15));
     cfg.onCompleted(() -> log.info("Stream completed"));
 });
 ```
+
+The lambda types are `PublisherCustomizer` and `SubscriberCustomizer<T>` — both extend
+`Consumer<...>` so any lambda shape you'd write already works.
 
 ## Terminal State Handling
 

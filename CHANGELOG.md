@@ -4,11 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [0.5.0] - 2026-04-11
+## [0.6.0] - 2026-04-11
 
 This release is a focused simplification of the Odyssey API. The headline: Odyssey does
 one thing and one thing only — it makes `SseEmitter` handling ergonomic in Spring Boot.
 Everything in the previous API that wasn't in service of that goal has been removed.
+
+> **Note:** 0.5.0 was tagged but never published to Maven Central (the release workflow
+> failed in the javadoc stage). 0.6.0 is the first release shipped with this API.
 
 ### Breaking changes
 
@@ -25,19 +28,48 @@ The entire surface is now:
 ```java
 public interface Odyssey {
   <T> OdysseyPublisher<T> publisher(String name, Class<T> type);
-  <T> OdysseyPublisher<T> publisher(String name, Class<T> type, Consumer<PublisherConfig> customizer);
+  <T> OdysseyPublisher<T> publisher(String name, Class<T> type, PublisherCustomizer customizer);
   <T> SseEmitter subscribe(String name, Class<T> type);
-  <T> SseEmitter subscribe(String name, Class<T> type, Consumer<SubscriberConfig<T>> customizer);
+  <T> SseEmitter subscribe(String name, Class<T> type, SubscriberCustomizer<T> customizer);
   <T> SseEmitter resume(String name, Class<T> type, String lastEventId);
-  <T> SseEmitter resume(String name, Class<T> type, String lastEventId, Consumer<SubscriberConfig<T>> customizer);
+  <T> SseEmitter resume(String name, Class<T> type, String lastEventId, SubscriberCustomizer<T> customizer);
   <T> SseEmitter replay(String name, Class<T> type, int count);
-  <T> SseEmitter replay(String name, Class<T> type, int count, Consumer<SubscriberConfig<T>> customizer);
+  <T> SseEmitter replay(String name, Class<T> type, int count, SubscriberCustomizer<T> customizer);
 }
 ```
+
+`PublisherCustomizer` and `SubscriberCustomizer<T>` are named `@FunctionalInterface` types
+that each extend the obvious `Consumer<...>` — lambdas written for prior drafts
+(`cfg -> cfg.ttl(...)`) still compile unchanged; the named types exist purely to make the
+method signatures self-documenting.
 
 Removed: `ephemeral(...)`, `channel(...)`, `broadcast(...)` in all their overloads.
 Removed: the matching `OdysseyProperties.ephemeral` / `.channel` / `.broadcast` nested
 properties.
+
+**Removed global `PublisherCustomizer` / `SubscriberCustomizer` bean mechanism.**
+
+Prior drafts wired `ObjectProvider<PublisherCustomizer>` and
+`ObjectProvider<SubscriberCustomizer>` through `OdysseyAutoConfiguration`, letting apps
+declare `@Bean PublisherCustomizer` for app-wide defaults. That mechanism is gone:
+
+- `OdysseyAutoConfiguration.odyssey(...)` now takes 3 parameters (`JournalFactory`,
+  `ObjectMapper`, `OdysseyProperties`) instead of 5; no `ObjectProvider<...>` wiring.
+- `DefaultOdyssey` constructor is now 3 args (no customizer lists).
+- `PublisherCustomizer` and `SubscriberCustomizer<T>` are still public types, but only
+  as the typed parameter shape in per-call method signatures. Declaring them as Spring
+  beans does nothing.
+
+Rationale: for publishers, the mechanism was entirely redundant with
+`odyssey.default-ttl.*` (TTL is the only thing on `PublisherConfig`). For subscribers,
+only the wildcard-typed form (`SubscriberCustomizer<?>`) could be a global bean, which
+forced an awkward `Consumer<SubscriberConfig<?>>` definition and kept the per-call type
+from being cleanly parameterized. Killing globals lets
+`SubscriberCustomizer<T> extends Consumer<SubscriberConfig<T>>` be fully typed with no
+wildcards or unchecked casts anywhere.
+
+If you had app-wide customizer logic, wrap it in a helper method you call at every
+publisher/subscribe site.
 
 If you want the "ephemeral / channel / broadcast" tiering, define your own `TtlPolicy`
 constants in your app and pass them via the per-call customizer:
@@ -121,7 +153,7 @@ user-supplied name instead of Substrate's internal backend key.
 **Wire-level note:** backend journals created by 0.4.x are not readable by 0.5.0 at the
 same logical names — the on-disk keys changed from `substrate:journal:channel:user:alice`
 to `substrate:journal:user:alice`. There is no migration script; drop and recreate or run
-0.4.x alongside 0.5.0 until your old streams have expired.
+0.4.x alongside 0.6.0 until your old streams have expired.
 
 **`OdysseyProperties` restructured into `defaultTtl` + `sse` nested records.**
 

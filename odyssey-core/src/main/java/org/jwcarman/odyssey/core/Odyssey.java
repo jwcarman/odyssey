@@ -15,7 +15,6 @@
  */
 package org.jwcarman.odyssey.core;
 
-import java.util.function.Consumer;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
@@ -73,8 +72,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  *     cfg -> cfg.ttl(TtlPolicies.LONG_LIVED));
  * }</pre>
  *
- * <p>For app-wide defaults (every publisher gets a specific policy unless a per-call customizer
- * overrides it), define a {@link PublisherCustomizer} Spring bean.
+ * <p>For app-wide defaults, set {@code odyssey.default-ttl.*} in properties. There is no global
+ * customizer bean mechanism -- if you want cross-cutting logic applied at every publisher
+ * construction site, wrap it in a helper method your code calls explicitly.
  *
  * <h2>Producer/consumer split</h2>
  *
@@ -90,57 +90,122 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  *       returned emitter is opaque from then on.
  * </ul>
  *
- * <p>Every method has a second overload that accepts a {@link Consumer} customizer. The customizer
- * mutates a {@link PublisherConfig} or {@link SubscriberConfig} directly; the library owns the
- * builder lifecycle. Application-wide defaults live in {@link PublisherCustomizer} and {@link
- * SubscriberCustomizer} Spring beans, which run before the per-call customizer so callers can still
- * override what they care about.
+ * <p>Every method has a second overload that accepts a {@link PublisherCustomizer} or {@link
+ * SubscriberCustomizer} (both are named {@link java.util.function.Consumer} types so any lambda
+ * already works). The customizer mutates a {@link PublisherConfig} or {@link SubscriberConfig}
+ * directly; the library owns the builder lifecycle.
  *
  * <h2>Reattach / reconnect</h2>
  *
  * <p>Reattach is trivial: call {@link #publisher(String, Class)} with the same name. The first call
  * creates the journal; subsequent calls adopt it. If you want the reattached publisher to use the
- * same TTL policy as the original creator, pass the same customizer both times (or define a {@link
- * PublisherCustomizer} bean so the policy is applied automatically).
+ * same TTL policy as the original creator, pass the same customizer both times.
  */
 public interface Odyssey {
 
   /**
    * Returns a publisher for the given stream name, seeded with the default TTL policy from {@link
-   * org.jwcarman.odyssey.autoconfigure.OdysseyProperties#defaultTtl()}. Any {@link
-   * PublisherCustomizer} Spring beans run after the default, so they can override TTLs app-wide.
+   * org.jwcarman.odyssey.autoconfigure.OdysseyProperties#defaultTtl()}.
    *
    * <p>If no journal exists at {@code name}, one is created with the configured inactivity TTL. If
    * a journal already exists (created by a previous call, possibly in a different process), this
    * method adopts it -- no collision error. Reattach is the same code path as creation.
+   *
+   * @param name the caller-supplied stream name; becomes the backend journal key verbatim
+   * @param type the typed payload class the publisher will accept
+   * @param <T> the typed payload type
+   * @return a new publisher bound to {@code name}
    */
   <T> OdysseyPublisher<T> publisher(String name, Class<T> type);
 
   /**
    * Returns a publisher for the given stream name with a per-call customizer. The customizer runs
-   * after the default TTL seed and any {@link PublisherCustomizer} beans, so it has the final say
-   * on all config fields.
+   * after the default TTL seed, so it has the final say on all config fields.
+   *
+   * @param name the caller-supplied stream name; becomes the backend journal key verbatim
+   * @param type the typed payload class the publisher will accept
+   * @param customizer mutates the {@link PublisherConfig} before the publisher is constructed
+   * @param <T> the typed payload type
+   * @return a new publisher bound to {@code name}
    */
-  <T> OdysseyPublisher<T> publisher(
-      String name, Class<T> type, Consumer<PublisherConfig> customizer);
+  <T> OdysseyPublisher<T> publisher(String name, Class<T> type, PublisherCustomizer customizer);
 
   // ---- Subscriber side (consumer) ----
   // Starting position is in the method name, not the config.
 
-  /** Live tail from the current head -- only new entries are delivered. */
+  /**
+   * Subscribe to the given stream, delivering only entries appended after this call. New entries
+   * are streamed to the returned {@code SseEmitter} by a dedicated virtual-thread writer loop.
+   *
+   * @param name the stream name to subscribe to
+   * @param type the typed payload class that delivered events will be deserialized into
+   * @param <T> the typed payload type
+   * @return an {@code SseEmitter} already driving a writer loop for this subscription
+   */
   <T> SseEmitter subscribe(String name, Class<T> type);
 
-  <T> SseEmitter subscribe(String name, Class<T> type, Consumer<SubscriberConfig<T>> customizer);
+  /**
+   * Subscribe to the given stream with a per-call customizer that mutates the {@link
+   * SubscriberConfig} before the writer loop starts.
+   *
+   * @param name the stream name to subscribe to
+   * @param type the typed payload class that delivered events will be deserialized into
+   * @param customizer mutates the {@link SubscriberConfig} before the writer loop starts
+   * @param <T> the typed payload type
+   * @return an {@code SseEmitter} already driving a writer loop for this subscription
+   */
+  <T> SseEmitter subscribe(String name, Class<T> type, SubscriberCustomizer<T> customizer);
 
-  /** Resume strictly after a known entry id, then continue tailing. */
+  /**
+   * Resume strictly after a known entry id, then continue tailing. The first value delivered is the
+   * entry immediately following {@code lastEventId}, not {@code lastEventId} itself. Use this with
+   * an SSE {@code Last-Event-ID} header to implement seamless client reconnect.
+   *
+   * @param name the stream name to subscribe to
+   * @param type the typed payload class that delivered events will be deserialized into
+   * @param lastEventId the entry id to resume after; typically an SSE {@code Last-Event-ID} header
+   *     value
+   * @param <T> the typed payload type
+   * @return an {@code SseEmitter} already driving a writer loop for this subscription
+   */
   <T> SseEmitter resume(String name, Class<T> type, String lastEventId);
 
+  /**
+   * Resume strictly after a known entry id, with a per-call customizer that mutates the {@link
+   * SubscriberConfig} before the writer loop starts.
+   *
+   * @param name the stream name to subscribe to
+   * @param type the typed payload class that delivered events will be deserialized into
+   * @param lastEventId the entry id to resume after
+   * @param customizer mutates the {@link SubscriberConfig} before the writer loop starts
+   * @param <T> the typed payload type
+   * @return an {@code SseEmitter} already driving a writer loop for this subscription
+   */
   <T> SseEmitter resume(
-      String name, Class<T> type, String lastEventId, Consumer<SubscriberConfig<T>> customizer);
+      String name, Class<T> type, String lastEventId, SubscriberCustomizer<T> customizer);
 
-  /** Replay the last N retained entries, then continue tailing. */
+  /**
+   * Replay the last {@code count} retained entries, then continue tailing. Useful for late-join
+   * clients that want some context before live-tailing.
+   *
+   * @param name the stream name to subscribe to
+   * @param type the typed payload class that delivered events will be deserialized into
+   * @param count how many recent entries to replay before tailing
+   * @param <T> the typed payload type
+   * @return an {@code SseEmitter} already driving a writer loop for this subscription
+   */
   <T> SseEmitter replay(String name, Class<T> type, int count);
 
-  <T> SseEmitter replay(
-      String name, Class<T> type, int count, Consumer<SubscriberConfig<T>> customizer);
+  /**
+   * Replay the last {@code count} retained entries then continue tailing, with a per-call
+   * customizer that mutates the {@link SubscriberConfig} before the writer loop starts.
+   *
+   * @param name the stream name to subscribe to
+   * @param type the typed payload class that delivered events will be deserialized into
+   * @param count how many recent entries to replay before tailing
+   * @param customizer mutates the {@link SubscriberConfig} before the writer loop starts
+   * @param <T> the typed payload type
+   * @return an {@code SseEmitter} already driving a writer loop for this subscription
+   */
+  <T> SseEmitter replay(String name, Class<T> type, int count, SubscriberCustomizer<T> customizer);
 }

@@ -18,16 +18,17 @@ package org.jwcarman.odyssey.core;
 import java.util.function.Consumer;
 
 /**
- * Marker interface for application-wide subscriber defaults. Register a {@code
- * SubscriberCustomizer} as a Spring bean and Odyssey will apply it to every {@code
- * subscribe}/{@code resume}/{@code replay} call before the caller's per-call customizer runs.
+ * Per-call customizer type for {@link Odyssey#subscribe(String, Class, SubscriberCustomizer)} and
+ * its {@code resume}/{@code replay} siblings. Extends {@link Consumer
+ * Consumer&lt;SubscriberConfig&lt;T&gt;&gt;} so every existing lambda shape ({@code cfg ->
+ * cfg.timeout(...)}) still compiles untouched; the named type exists purely to make the method
+ * signature self-documenting.
  *
- * <p>The wildcard-typed {@code Consumer<SubscriberConfig<?>>} is deliberate: a globally-applied
- * customizer cannot know the specific event type {@code T} for every subscription it will be
- * applied to, so it can only set type-agnostic knobs like {@code timeout}, {@code
- * keepAliveInterval}, and the four terminal-state callbacks. Do not attempt to call {@code
- * mapper(...)} on a {@code SubscriberConfig<?>}; the mapper is a per-call concern and should be set
- * via the per-call customizer overload on {@link Odyssey}.
+ * <p>Odyssey does not treat {@code SubscriberCustomizer} beans specially. If you want every
+ * subscription in your app to pick up common defaults, either set {@code odyssey.sse.*} in
+ * properties or wrap the shared logic in a helper method your code calls at every subscribe site.
+ *
+ * @param <T> the typed payload delivered by the subscription
  */
 @FunctionalInterface
-public interface SubscriberCustomizer extends Consumer<SubscriberConfig<?>> {}
+public interface SubscriberCustomizer<T> extends Consumer<SubscriberConfig<T>> {}

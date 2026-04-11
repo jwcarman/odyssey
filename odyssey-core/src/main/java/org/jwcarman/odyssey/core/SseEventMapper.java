@@ -73,7 +73,11 @@ public interface SseEventMapper<T> {
     /** The underlying journal was explicitly deleted. */
     record Deleted() implements TerminalState {}
 
-    /** A backend error terminated the subscription. */
+    /**
+     * A backend error terminated the subscription.
+     *
+     * @param cause the underlying throwable reported by the Substrate subscription
+     */
     record Errored(Throwable cause) implements TerminalState {}
   }
 

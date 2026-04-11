@@ -19,11 +19,11 @@
  *
  * <p>Entry point is {@link org.jwcarman.odyssey.core.Odyssey}, the Spring-managed facade that hands
  * out {@link org.jwcarman.odyssey.core.OdysseyPublisher} instances on the producer side and {@code
- * SseEmitter} instances on the consumer side. Configuration is customizer-driven: pass a {@code
- * Consumer<PublisherConfig>} or {@code Consumer<SubscriberConfig<T>>} to any {@code Odyssey} method
- * and the library owns the lifecycle. Application-wide defaults live in {@link
- * org.jwcarman.odyssey.core.PublisherCustomizer} and {@link
- * org.jwcarman.odyssey.core.SubscriberCustomizer} Spring beans.
+ * SseEmitter} instances on the consumer side. Configuration is customizer-driven: pass a {@link
+ * org.jwcarman.odyssey.core.PublisherCustomizer} or {@link
+ * org.jwcarman.odyssey.core.SubscriberCustomizer} lambda to any {@code Odyssey} method and the
+ * library owns the lifecycle. App-wide defaults come from {@code odyssey.*} properties; there is no
+ * global customizer-bean mechanism.
  *
  * <p>Mappers receive a {@link org.jwcarman.odyssey.core.DeliveredEvent} per value and may
  * optionally emit terminal SSE frames via {@link

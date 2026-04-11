@@ -15,6 +15,8 @@
  */
 package org.jwcarman.odyssey.autoconfigure;
 
+import org.jwcarman.odyssey.core.Odyssey;
+import org.jwcarman.odyssey.core.PublisherCustomizer;
 import org.jwcarman.odyssey.core.TtlPolicy;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -27,7 +29,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *   <li>{@code odyssey.default-ttl.*} -- the default {@link TtlPolicy} applied to every publisher.
  *       Applications that want different TTL policies per stream should define {@link TtlPolicy}
  *       constants in their own code and pass them via the per-call customizer on {@link
- *       org.jwcarman.odyssey.core.Odyssey#publisher(String, Class, java.util.function.Consumer)}.
+ *       Odyssey#publisher(String, Class, PublisherCustomizer)}.
  *   <li>{@code odyssey.sse.*} -- SSE-specific settings ({@code timeout}, {@code keep-alive}).
  * </ul>
  *

@@ -18,22 +18,15 @@ package org.jwcarman.odyssey.core;
 import java.util.function.Consumer;
 
 /**
- * Marker interface for application-wide publisher defaults. Register a {@code PublisherCustomizer}
- * as a Spring bean and Odyssey will apply it to every publisher construction before the caller's
- * per-call customizer runs -- so callers can still override anything the global customizer set.
+ * Per-call customizer type for {@link Odyssey#publisher(String, Class, PublisherCustomizer)}.
+ * Extends {@link Consumer Consumer&lt;PublisherConfig&gt;} so every existing lambda shape ({@code
+ * cfg -> cfg.ttl(...)}) still compiles untouched; the named type exists purely to make the method
+ * signature self-documenting.
  *
- * <p>Resolution order for publisher config:
- *
- * <ol>
- *   <li>Hardcoded defaults (1h inactivity, 1h entry, 5m retention)
- *   <li>Sugared category TTLs (for {@code ephemeral}/{@code channel}/{@code broadcast}) drawn from
- *       {@link org.jwcarman.odyssey.autoconfigure.OdysseyProperties}
- *   <li>All {@code PublisherCustomizer} beans in Spring's order
- *   <li>The caller's per-call {@code Consumer<PublisherConfig>}
- * </ol>
- *
- * <p>Matches Spring Boot's {@code RestClientCustomizer} / {@code WebClientCustomizer} idiom so
- * users who know Spring Boot already know the pattern.
+ * <p>Odyssey does not treat {@code PublisherCustomizer} beans specially. If you want every
+ * publisher in your app to pick up a common policy, either set {@code odyssey.default-ttl.*} in
+ * properties or wrap the shared logic in a helper method your code calls at every publisher
+ * construction site.
  */
 @FunctionalInterface
 public interface PublisherCustomizer extends Consumer<PublisherConfig> {}

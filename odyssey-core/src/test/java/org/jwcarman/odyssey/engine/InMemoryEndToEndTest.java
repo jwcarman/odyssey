@@ -63,7 +63,7 @@ class InMemoryEndToEndTest {
             Duration.ofDays(30),
             Duration.ofDays(30),
             Duration.ofDays(30));
-    odyssey = new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
+    odyssey = new DefaultOdyssey(journalFactory, objectMapper, PROPS);
   }
 
   @Test
@@ -102,8 +102,7 @@ class InMemoryEndToEndTest {
   @Test
   void twoOdysseyInstancesSeeEachOthersEvents() {
     ObjectMapper objectMapper = new ObjectMapper();
-    Odyssey odyssey2 =
-        new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
+    Odyssey odyssey2 = new DefaultOdyssey(journalFactory, objectMapper, PROPS);
 
     var pub1 = odyssey.publisher("shared", OrderEvent.class);
     pub1.publish("from-1", new OrderEvent("o1", "instance1"));

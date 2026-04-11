@@ -23,14 +23,12 @@ import java.time.Duration;
  * outside the customizer -- the library freezes the config into a publisher as soon as the
  * customizer returns.
  *
- * <p>A fresh config is created per publisher construction. For the sugared methods ({@link
- * Odyssey#channel}, {@link Odyssey#broadcast}, {@link Odyssey#ephemeral}), the config is pre-seeded
- * from the matching category's {@link TtlPolicy} on {@link
- * org.jwcarman.odyssey.autoconfigure.OdysseyProperties}. For the raw {@link Odyssey#publisher}
- * method, the config starts at the hardcoded library defaults. In either case, the user's
- * customizer runs last and can override any field.
+ * <p>A fresh config is created on every call to {@link Odyssey#publisher(String, Class)} or {@link
+ * Odyssey#publisher(String, Class, PublisherCustomizer)}, seeded from the default {@link TtlPolicy}
+ * on {@link org.jwcarman.odyssey.autoconfigure.OdysseyProperties#defaultTtl()}. The caller's
+ * per-call customizer (if any) runs after the seed and has the final say on every field.
  *
- * <p>Three TTL knobs correspond to three distinct Substrate lifecycle events:
+ * <p>The three TTL knobs correspond to three distinct Substrate lifecycle events:
  *
  * <ul>
  *   <li>{@link #inactivityTtl(Duration)} -- how long the journal lives without appends before
@@ -45,23 +43,51 @@ import java.time.Duration;
  * </ul>
  *
  * <p>The {@link #ttl(TtlPolicy)} default method is a convenience for replacing all three fields
- * from a record in one call.
+ * from a {@link TtlPolicy} record in one call; use it when you have a named policy constant you
+ * want to apply wholesale, and use the individual setters when you only need to tweak one field.
  */
 public interface PublisherConfig {
 
-  /** Replace all three TTL fields from a {@link TtlPolicy} record. */
+  /**
+   * Replace all three TTL fields from a {@link TtlPolicy} record in a single call. Equivalent to
+   * calling {@link #inactivityTtl(Duration)}, {@link #entryTtl(Duration)}, and {@link
+   * #retentionTtl(Duration)} with the three fields from {@code ttl}.
+   *
+   * @param ttl the policy to apply; all three fields are required (no {@code null} handling)
+   * @return this config, for chaining
+   */
   default PublisherConfig ttl(TtlPolicy ttl) {
     return inactivityTtl(ttl.inactivityTtl())
         .entryTtl(ttl.entryTtl())
         .retentionTtl(ttl.retentionTtl());
   }
 
-  /** Set the journal's inactivity TTL. See class-level docs for the creation-time caveat. */
+  /**
+   * Set the journal's inactivity TTL -- how long the journal lives without new appends before
+   * Substrate expires it. See the class-level docs for the creation-time caveat: this setting is
+   * only honored when the publisher is the journal's original creator.
+   *
+   * @param ttl the inactivity duration
+   * @return this config, for chaining
+   */
   PublisherConfig inactivityTtl(Duration ttl);
 
-  /** Set the default per-entry TTL applied on every {@code publish(...)}. */
+  /**
+   * Set the default per-entry TTL applied on every {@code publish(...)} call on the resulting
+   * publisher. Each published entry expires independently after this duration.
+   *
+   * @param ttl the per-entry duration
+   * @return this config, for chaining
+   */
   PublisherConfig entryTtl(Duration ttl);
 
-  /** Set the retention TTL used by {@link OdysseyPublisher#complete()}. */
+  /**
+   * Set the retention TTL used by {@link OdysseyPublisher#complete()}. After completion, no further
+   * appends are accepted but existing entries remain readable for this duration so late-joining
+   * subscribers can drain the stream before it closes.
+   *
+   * @param ttl the post-completion retention duration
+   * @return this config, for chaining
+   */
   PublisherConfig retentionTtl(Duration ttl);
 }

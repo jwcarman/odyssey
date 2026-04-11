@@ -22,14 +22,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.jwcarman.odyssey.autoconfigure.OdysseyProperties;
 import org.jwcarman.odyssey.autoconfigure.SseProperties;
 import org.jwcarman.odyssey.core.OdysseyPublisher;
-import org.jwcarman.odyssey.core.PublisherCustomizer;
 import org.jwcarman.odyssey.core.SubscriberCustomizer;
 import org.jwcarman.odyssey.core.TtlPolicy;
 import org.jwcarman.substrate.journal.Journal;
@@ -58,8 +56,7 @@ class DefaultOdysseyTest {
   void publisherCreatesJournalWithDefaultTtl() {
     when(journalFactory.create("my-stream", StoredEvent.class, Duration.ofHours(1)))
         .thenReturn(journal);
-    DefaultOdyssey odyssey =
-        new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
+    DefaultOdyssey odyssey = new DefaultOdyssey(journalFactory, objectMapper, PROPS);
 
     OdysseyPublisher<TestEvent> pub = odyssey.publisher("my-stream", TestEvent.class);
 
@@ -73,8 +70,7 @@ class DefaultOdysseyTest {
     when(journalFactory.create(eq("existing"), eq(StoredEvent.class), any(Duration.class)))
         .thenThrow(new JournalAlreadyExistsException("existing"));
     when(journalFactory.connect("existing", StoredEvent.class)).thenReturn(journal);
-    DefaultOdyssey odyssey =
-        new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
+    DefaultOdyssey odyssey = new DefaultOdyssey(journalFactory, objectMapper, PROPS);
 
     OdysseyPublisher<TestEvent> pub = odyssey.publisher("existing", TestEvent.class);
 
@@ -86,8 +82,7 @@ class DefaultOdysseyTest {
   void perCallCustomizerOverridesDefaultTtl() {
     when(journalFactory.create(any(), eq(StoredEvent.class), eq(Duration.ofMinutes(30))))
         .thenReturn(journal);
-    DefaultOdyssey odyssey =
-        new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
+    DefaultOdyssey odyssey = new DefaultOdyssey(journalFactory, objectMapper, PROPS);
 
     odyssey.publisher("tweaked", TestEvent.class, cfg -> cfg.inactivityTtl(Duration.ofMinutes(30)));
 
@@ -100,8 +95,7 @@ class DefaultOdysseyTest {
         new TtlPolicy(Duration.ofMinutes(2), Duration.ofMinutes(2), Duration.ofMinutes(2));
     when(journalFactory.create(any(), eq(StoredEvent.class), eq(Duration.ofMinutes(2))))
         .thenReturn(journal);
-    DefaultOdyssey odyssey =
-        new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
+    DefaultOdyssey odyssey = new DefaultOdyssey(journalFactory, objectMapper, PROPS);
 
     odyssey.publisher("short-lived", TestEvent.class, cfg -> cfg.ttl(custom));
 
@@ -109,25 +103,9 @@ class DefaultOdysseyTest {
   }
 
   @Test
-  void publisherCustomizerBeansRunBeforePerCallCustomizer() {
-    when(journalFactory.create(any(), eq(StoredEvent.class), any(Duration.class)))
-        .thenReturn(journal);
-    PublisherCustomizer globalCustomizer = cfg -> cfg.entryTtl(Duration.ofMinutes(10));
-    DefaultOdyssey odyssey =
-        new DefaultOdyssey(
-            journalFactory, objectMapper, PROPS, List.of(globalCustomizer), List.of());
-
-    OdysseyPublisher<TestEvent> pub =
-        odyssey.publisher("test", TestEvent.class, cfg -> cfg.entryTtl(Duration.ofMinutes(20)));
-
-    assertThat(pub).isNotNull();
-  }
-
-  @Test
   void subscribeReturnsEmitter() {
     when(journalFactory.connect("my-stream", StoredEvent.class)).thenReturn(journal);
-    DefaultOdyssey odyssey =
-        new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
+    DefaultOdyssey odyssey = new DefaultOdyssey(journalFactory, objectMapper, PROPS);
 
     var emitter = odyssey.subscribe("my-stream", TestEvent.class);
 
@@ -137,8 +115,7 @@ class DefaultOdysseyTest {
   @Test
   void resumeReturnsEmitter() {
     when(journalFactory.connect("my-stream", StoredEvent.class)).thenReturn(journal);
-    DefaultOdyssey odyssey =
-        new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
+    DefaultOdyssey odyssey = new DefaultOdyssey(journalFactory, objectMapper, PROPS);
 
     var emitter = odyssey.resume("my-stream", TestEvent.class, "last-id");
 
@@ -148,8 +125,7 @@ class DefaultOdysseyTest {
   @Test
   void replayReturnsEmitter() {
     when(journalFactory.connect("my-stream", StoredEvent.class)).thenReturn(journal);
-    DefaultOdyssey odyssey =
-        new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
+    DefaultOdyssey odyssey = new DefaultOdyssey(journalFactory, objectMapper, PROPS);
 
     var emitter = odyssey.replay("my-stream", TestEvent.class, 10);
 
@@ -157,22 +133,21 @@ class DefaultOdysseyTest {
   }
 
   @Test
-  void subscriberCustomizerBeansAreAppliedOnEverySubscribe() {
+  void perCallSubscriberCustomizerIsAppliedOnEveryStartMethod() {
     when(journalFactory.connect("my-stream", StoredEvent.class)).thenReturn(journal);
 
     AtomicInteger customizerCallCount = new AtomicInteger();
-    SubscriberCustomizer tracking =
+    SubscriberCustomizer<TestEvent> tracking =
         config -> {
           customizerCallCount.incrementAndGet();
           config.keepAliveInterval(Duration.ofSeconds(5));
         };
 
-    DefaultOdyssey odyssey =
-        new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of(tracking));
+    DefaultOdyssey odyssey = new DefaultOdyssey(journalFactory, objectMapper, PROPS);
 
-    odyssey.subscribe("my-stream", TestEvent.class);
-    odyssey.resume("my-stream", TestEvent.class, "id-1");
-    odyssey.replay("my-stream", TestEvent.class, 3);
+    odyssey.subscribe("my-stream", TestEvent.class, tracking);
+    odyssey.resume("my-stream", TestEvent.class, "id-1", tracking);
+    odyssey.replay("my-stream", TestEvent.class, 3, tracking);
 
     assertThat(customizerCallCount).hasValue(3);
   }
@@ -181,8 +156,7 @@ class DefaultOdysseyTest {
   void nameRoundTripsThroughPublisher() {
     when(journalFactory.create(any(), eq(StoredEvent.class), any(Duration.class)))
         .thenReturn(journal);
-    DefaultOdyssey odyssey =
-        new DefaultOdyssey(journalFactory, objectMapper, PROPS, List.of(), List.of());
+    DefaultOdyssey odyssey = new DefaultOdyssey(journalFactory, objectMapper, PROPS);
 
     OdysseyPublisher<TestEvent> pub = odyssey.publisher("user:alice", TestEvent.class);
 

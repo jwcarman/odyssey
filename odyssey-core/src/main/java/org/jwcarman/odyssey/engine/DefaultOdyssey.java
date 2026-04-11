@@ -16,16 +16,12 @@
 package org.jwcarman.odyssey.engine;
 
 import java.time.Duration;
-import java.util.List;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.jwcarman.odyssey.autoconfigure.OdysseyProperties;
 import org.jwcarman.odyssey.core.Odyssey;
 import org.jwcarman.odyssey.core.OdysseyPublisher;
-import org.jwcarman.odyssey.core.PublisherConfig;
 import org.jwcarman.odyssey.core.PublisherCustomizer;
 import org.jwcarman.odyssey.core.SseEventMapper;
-import org.jwcarman.odyssey.core.SubscriberConfig;
 import org.jwcarman.odyssey.core.SubscriberCustomizer;
 import org.jwcarman.odyssey.core.TtlPolicy;
 import org.jwcarman.substrate.BlockingSubscription;
@@ -36,25 +32,29 @@ import org.jwcarman.substrate.journal.JournalFactory;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import tools.jackson.databind.ObjectMapper;
 
+/**
+ * Default {@link Odyssey} implementation. Instantiated by {@link
+ * org.jwcarman.odyssey.autoconfigure.OdysseyAutoConfiguration}; applications should depend on the
+ * {@code Odyssey} interface rather than this class directly.
+ */
 public class DefaultOdyssey implements Odyssey {
 
   private final JournalFactory journalFactory;
   private final ObjectMapper objectMapper;
   private final OdysseyProperties properties;
-  private final List<PublisherCustomizer> publisherCustomizers;
-  private final List<SubscriberCustomizer> subscriberCustomizers;
 
+  /**
+   * Creates a new {@code DefaultOdyssey} wired with the given collaborators.
+   *
+   * @param journalFactory the Substrate journal factory used to create/connect journals
+   * @param objectMapper the Jackson mapper used for typed event serialization
+   * @param properties the Odyssey configuration properties bound from {@code odyssey.*}
+   */
   public DefaultOdyssey(
-      JournalFactory journalFactory,
-      ObjectMapper objectMapper,
-      OdysseyProperties properties,
-      List<PublisherCustomizer> publisherCustomizers,
-      List<SubscriberCustomizer> subscriberCustomizers) {
+      JournalFactory journalFactory, ObjectMapper objectMapper, OdysseyProperties properties) {
     this.journalFactory = journalFactory;
     this.objectMapper = objectMapper;
     this.properties = properties;
-    this.publisherCustomizers = publisherCustomizers;
-    this.subscriberCustomizers = subscriberCustomizers;
   }
 
   @Override
@@ -64,10 +64,9 @@ public class DefaultOdyssey implements Odyssey {
 
   @Override
   public <T> OdysseyPublisher<T> publisher(
-      String name, Class<T> type, Consumer<PublisherConfig> customizer) {
+      String name, Class<T> type, PublisherCustomizer customizer) {
     DefaultPublisherConfig config = new DefaultPublisherConfig();
     config.ttl(properties.defaultTtl());
-    publisherCustomizers.forEach(c -> c.accept(config));
     customizer.accept(config);
 
     TtlPolicy ttl = config.ttl();
@@ -81,8 +80,7 @@ public class DefaultOdyssey implements Odyssey {
   }
 
   @Override
-  public <T> SseEmitter subscribe(
-      String name, Class<T> type, Consumer<SubscriberConfig<T>> customizer) {
+  public <T> SseEmitter subscribe(String name, Class<T> type, SubscriberCustomizer<T> customizer) {
     DefaultSubscriberConfig<T> config = createSubscriberConfig(customizer);
     Journal<StoredEvent> journal = journalFactory.connect(name, StoredEvent.class);
     return startAdapter(name, type, config, journal::subscribe);
@@ -95,7 +93,7 @@ public class DefaultOdyssey implements Odyssey {
 
   @Override
   public <T> SseEmitter resume(
-      String name, Class<T> type, String lastEventId, Consumer<SubscriberConfig<T>> customizer) {
+      String name, Class<T> type, String lastEventId, SubscriberCustomizer<T> customizer) {
     DefaultSubscriberConfig<T> config = createSubscriberConfig(customizer);
     Journal<StoredEvent> journal = journalFactory.connect(name, StoredEvent.class);
     return startAdapter(name, type, config, () -> journal.subscribeAfter(lastEventId));
@@ -108,7 +106,7 @@ public class DefaultOdyssey implements Odyssey {
 
   @Override
   public <T> SseEmitter replay(
-      String name, Class<T> type, int count, Consumer<SubscriberConfig<T>> customizer) {
+      String name, Class<T> type, int count, SubscriberCustomizer<T> customizer) {
     DefaultSubscriberConfig<T> config = createSubscriberConfig(customizer);
     Journal<StoredEvent> journal = journalFactory.connect(name, StoredEvent.class);
     return startAdapter(name, type, config, () -> journal.subscribeLast(count));
@@ -123,12 +121,11 @@ public class DefaultOdyssey implements Odyssey {
   }
 
   private <T> DefaultSubscriberConfig<T> createSubscriberConfig(
-      Consumer<SubscriberConfig<T>> customizer) {
+      SubscriberCustomizer<T> customizer) {
     SseEventMapper<T> defaultMapper = SseEventMapper.defaultMapper(objectMapper);
     DefaultSubscriberConfig<T> config = new DefaultSubscriberConfig<>(defaultMapper);
     config.timeout(properties.sse().timeout());
     config.keepAliveInterval(properties.sse().keepAlive());
-    subscriberCustomizers.forEach(c -> c.accept(config));
     customizer.accept(config);
     return config;
   }

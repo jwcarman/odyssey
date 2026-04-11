@@ -20,12 +20,15 @@ import java.time.Duration;
 /**
  * A grouped set of TTL durations that together describe the lifetime of one Odyssey stream.
  *
- * <p>Used as the per-category default on {@link
- * org.jwcarman.odyssey.autoconfigure.OdysseyProperties} (ephemeral / channel / broadcast) and as
- * the argument to {@link PublisherConfig#ttl(TtlPolicy)} when a caller wants to replace all three
- * TTLs on a publisher config in one operation instead of setting them individually.
+ * <p>Used as the type of {@link org.jwcarman.odyssey.autoconfigure.OdysseyProperties#defaultTtl()}
+ * (the single default TTL policy applied to every publisher) and as the argument to {@link
+ * PublisherConfig#ttl(TtlPolicy)} when a caller wants to replace all three TTLs on a publisher
+ * config in one operation instead of setting them individually. Applications that want several TTL
+ * tiers (e.g., short-lived task streams vs. long-lived broadcast streams) should define their own
+ * {@code TtlPolicy} constants and pass them via the per-call customizer on {@link
+ * Odyssey#publisher(String, Class, PublisherCustomizer)}.
  *
- * <p>The three fields map 1:1 to the three distinct Substrate lifecycle events:
+ * <p>The three fields map 1:1 to three distinct Substrate lifecycle events:
  *
  * <ul>
  *   <li>{@code inactivityTtl} -- how long the journal lives without appends before auto-expiring.
@@ -33,10 +36,15 @@ import java.time.Duration;
  *   <li>{@code entryTtl} -- applied on every {@code journal.append(data, ttl)} call. Each entry
  *       expires independently after this duration.
  *   <li>{@code retentionTtl} -- passed to {@code journal.complete(retentionTtl)} when the
- *       publisher's {@code complete()} method is called. After completion, no further appends are
- *       accepted but existing entries remain readable for this duration before the journal expires
- *       fully.
+ *       publisher's {@link OdysseyPublisher#complete()} method is called. After completion, no
+ *       further appends are accepted but existing entries remain readable for this duration before
+ *       the journal expires fully.
  * </ul>
+ *
+ * <p>{@code TtlPolicy} is a value type and is safe to hold in {@code static final} constants. The
+ * three copy-with helpers ({@link #withInactivityTtl(Duration)}, {@link #withEntryTtl(Duration)},
+ * {@link #withRetentionTtl(Duration)}) let callers derive variants from a base policy without
+ * mutating it.
  *
  * @param inactivityTtl the journal inactivity TTL
  * @param entryTtl the default per-entry TTL
@@ -44,17 +52,34 @@ import java.time.Duration;
  */
 public record TtlPolicy(Duration inactivityTtl, Duration entryTtl, Duration retentionTtl) {
 
-  /** Return a copy with a new {@code inactivityTtl}; the other two fields are preserved. */
+  /**
+   * Returns a copy of this policy with a new {@code inactivityTtl}; the other two fields are
+   * preserved.
+   *
+   * @param ttl the replacement inactivity TTL
+   * @return a new {@code TtlPolicy} with the updated inactivity TTL
+   */
   public TtlPolicy withInactivityTtl(Duration ttl) {
     return new TtlPolicy(ttl, entryTtl, retentionTtl);
   }
 
-  /** Return a copy with a new {@code entryTtl}; the other two fields are preserved. */
+  /**
+   * Returns a copy of this policy with a new {@code entryTtl}; the other two fields are preserved.
+   *
+   * @param ttl the replacement per-entry TTL
+   * @return a new {@code TtlPolicy} with the updated entry TTL
+   */
   public TtlPolicy withEntryTtl(Duration ttl) {
     return new TtlPolicy(inactivityTtl, ttl, retentionTtl);
   }
 
-  /** Return a copy with a new {@code retentionTtl}; the other two fields are preserved. */
+  /**
+   * Returns a copy of this policy with a new {@code retentionTtl}; the other two fields are
+   * preserved.
+   *
+   * @param ttl the replacement retention TTL
+   * @return a new {@code TtlPolicy} with the updated retention TTL
+   */
   public TtlPolicy withRetentionTtl(Duration ttl) {
     return new TtlPolicy(inactivityTtl, entryTtl, ttl);
   }

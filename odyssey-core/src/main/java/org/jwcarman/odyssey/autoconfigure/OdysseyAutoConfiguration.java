@@ -16,11 +16,8 @@
 package org.jwcarman.odyssey.autoconfigure;
 
 import org.jwcarman.odyssey.core.Odyssey;
-import org.jwcarman.odyssey.core.PublisherCustomizer;
-import org.jwcarman.odyssey.core.SubscriberCustomizer;
 import org.jwcarman.odyssey.engine.DefaultOdyssey;
 import org.jwcarman.substrate.journal.JournalFactory;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -34,31 +31,31 @@ import tools.jackson.databind.ObjectMapper;
  * starter modules or Substrate's own auto-configuration).
  *
  * <p>Creates a single {@link Odyssey} bean wired with the configured {@link JournalFactory},
- * Jackson's {@code ObjectMapper}, {@link OdysseyProperties}, and any {@link PublisherCustomizer} /
- * {@link SubscriberCustomizer} beans found in the application context.
- *
- * <p>The {@link #odyssey(JournalFactory, ObjectMapper, OdysseyProperties, ObjectProvider,
- * ObjectProvider)} factory method is annotated with {@code @ConditionalOnMissingBean}, so
- * applications that declare their own {@code Odyssey} bean take precedence.
+ * Jackson's {@code ObjectMapper}, and {@link OdysseyProperties}. The factory method is annotated
+ * with {@code @ConditionalOnMissingBean}, so applications that declare their own {@code Odyssey}
+ * bean take precedence.
  */
 @AutoConfiguration
 @EnableConfigurationProperties(OdysseyProperties.class)
 @PropertySource("classpath:odyssey-defaults.properties")
 public class OdysseyAutoConfiguration {
 
+  /** Default constructor invoked by Spring's auto-configuration infrastructure. */
+  public OdysseyAutoConfiguration() {}
+
+  /**
+   * Creates the default {@link Odyssey} bean, wired with the configured {@link JournalFactory},
+   * Jackson's {@link ObjectMapper}, and the bound {@link OdysseyProperties}.
+   *
+   * @param journalFactory the Substrate journal factory contributed by a backend starter
+   * @param objectMapper the Jackson mapper used for typed event serialization
+   * @param properties the Odyssey configuration properties bound from {@code odyssey.*}
+   * @return the Odyssey facade bean
+   */
   @Bean
   @ConditionalOnMissingBean
   public Odyssey odyssey(
-      JournalFactory journalFactory,
-      ObjectMapper objectMapper,
-      OdysseyProperties properties,
-      ObjectProvider<PublisherCustomizer> publisherCustomizers,
-      ObjectProvider<SubscriberCustomizer> subscriberCustomizers) {
-    return new DefaultOdyssey(
-        journalFactory,
-        objectMapper,
-        properties,
-        publisherCustomizers.orderedStream().toList(),
-        subscriberCustomizers.orderedStream().toList());
+      JournalFactory journalFactory, ObjectMapper objectMapper, OdysseyProperties properties) {
+    return new DefaultOdyssey(journalFactory, objectMapper, properties);
   }
 }

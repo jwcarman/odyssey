@@ -50,17 +50,67 @@ import java.util.function.Consumer;
  */
 public interface SubscriberConfig<T> {
 
+  /**
+   * Set the {@code SseEmitter} timeout. {@link Duration#ZERO} means no timeout (the emitter stays
+   * open indefinitely until the stream terminates or the client disconnects).
+   *
+   * @param timeout the emitter timeout; must not be negative
+   * @return this config, for chaining
+   */
   SubscriberConfig<T> timeout(Duration timeout);
 
+  /**
+   * Set how often to emit an SSE keep-alive comment when no new entries are available. Keep-alive
+   * comments are ignored by SSE clients but keep intermediate proxies from closing idle
+   * connections.
+   *
+   * @param interval the keep-alive interval; must be positive
+   * @return this config, for chaining
+   */
   SubscriberConfig<T> keepAliveInterval(Duration interval);
 
+  /**
+   * Set the mapper that converts each {@link DeliveredEvent} into an SSE frame and handles terminal
+   * state signaling. Defaults to {@link SseEventMapper#defaultMapper} (Jackson JSON + empty
+   * terminal frame).
+   *
+   * @param mapper the mapper to use
+   * @return this config, for chaining
+   */
   SubscriberConfig<T> mapper(SseEventMapper<T> mapper);
 
+  /**
+   * Register a side-effect callback for the {@link SseEventMapper.TerminalState.Completed} state.
+   * The callback fires after any terminal frame emitted by {@link
+   * SseEventMapper#terminal(SseEventMapper.TerminalState)} and before the emitter closes.
+   *
+   * @param action the callback to invoke; exceptions are logged and swallowed
+   * @return this config, for chaining
+   */
   SubscriberConfig<T> onCompleted(Runnable action);
 
+  /**
+   * Register a side-effect callback for the {@link SseEventMapper.TerminalState.Expired} state.
+   *
+   * @param action the callback to invoke; exceptions are logged and swallowed
+   * @return this config, for chaining
+   */
   SubscriberConfig<T> onExpired(Runnable action);
 
+  /**
+   * Register a side-effect callback for the {@link SseEventMapper.TerminalState.Deleted} state.
+   *
+   * @param action the callback to invoke; exceptions are logged and swallowed
+   * @return this config, for chaining
+   */
   SubscriberConfig<T> onDeleted(Runnable action);
 
+  /**
+   * Register a side-effect callback for the {@link SseEventMapper.TerminalState.Errored} state. The
+   * callback receives the backend error that terminated the subscription.
+   *
+   * @param action the callback to invoke; exceptions are logged and swallowed
+   * @return this config, for chaining
+   */
   SubscriberConfig<T> onErrored(Consumer<Throwable> action);
 }
