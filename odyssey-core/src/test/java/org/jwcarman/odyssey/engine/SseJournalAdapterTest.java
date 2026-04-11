@@ -286,9 +286,7 @@ class SseJournalAdapterTest {
   void beginWiresOnErrorCallbackToClose() {
     newAdapter(defaultConfig()).begin();
 
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<java.util.function.Consumer<Throwable>> onError =
-        ArgumentCaptor.forClass(java.util.function.Consumer.class);
+    ArgumentCaptor<java.util.function.Consumer<Throwable>> onError = ArgumentCaptor.captor();
     verify(emitter, timeout(2000)).onError(onError.capture());
 
     onError.getValue().accept(new RuntimeException("client exploded"));

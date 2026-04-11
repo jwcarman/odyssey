@@ -24,9 +24,8 @@ import org.jwcarman.odyssey.core.SseEventMapper;
 
 class DefaultSubscriberConfigTest {
 
-  @SuppressWarnings("unchecked")
   private SseEventMapper<String> newMapper() {
-    return mock(SseEventMapper.class);
+    return mock();
   }
 
   @Test
