@@ -4,6 +4,79 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-04-11
+
+Packaging simplification: Odyssey is now a single published artifact, `odyssey`, that
+auto-configures itself on the classpath. The separate per-backend starter modules are
+gone — use Substrate's own platform modules directly.
+
+### Breaking changes
+
+**Renamed `odyssey-core` → `odyssey`.**
+
+The Maven coordinates change from `org.jwcarman.odyssey:odyssey-core` to
+`org.jwcarman.odyssey:odyssey`. The `-core` suffix implied sibling artifacts (`odyssey-redis`,
+etc.) that no longer exist; the base jar is the entire library. Update your dependency:
+
+```xml
+<!-- Old (0.6.0) -->
+<dependency>
+    <groupId>org.jwcarman.odyssey</groupId>
+    <artifactId>odyssey-core</artifactId>
+    <version>0.6.0</version>
+</dependency>
+
+<!-- New (0.7.0) -->
+<dependency>
+    <groupId>org.jwcarman.odyssey</groupId>
+    <artifactId>odyssey</artifactId>
+    <version>0.7.0</version>
+</dependency>
+```
+
+No Java package names change -- `org.jwcarman.odyssey.core.*`,
+`org.jwcarman.odyssey.autoconfigure.*`, etc. all stay where they are. Only the Maven
+artifactId is different.
+
+**Removed all per-backend starter modules.**
+
+The following artifacts are gone and will not be republished:
+
+- `odyssey-redis-spring-boot-starter`
+- `odyssey-postgresql-spring-boot-starter`
+- `odyssey-hazelcast-spring-boot-starter`
+- `odyssey-nats-spring-boot-starter`
+- `odyssey-inmemory-spring-boot-starter`
+
+Each was a pom-only shell aggregating `odyssey-core` + `substrate-<backend>` +
+`codec-jackson` + `spring-boot-starter-data-<backend>`. [Substrate's own platform modules
+(`substrate-redis`, `substrate-postgresql`, etc.)](https://github.com/jwcarman/substrate)
+already provide full Spring Boot auto-configuration — including per-primitive disable
+flags — so the Odyssey-side starter became a redundant wrapper. Depend on the Substrate
+module directly:
+
+```xml
+<dependency>
+    <groupId>org.jwcarman.odyssey</groupId>
+    <artifactId>odyssey</artifactId>
+    <version>0.7.0</version>
+</dependency>
+<dependency>
+    <groupId>org.jwcarman.substrate</groupId>
+    <artifactId>substrate-redis</artifactId>
+    <version>0.2.0</version>
+</dependency>
+```
+
+The release surface drops from 6 artifacts (`odyssey-core` + 5 starters) to 1 (`odyssey`).
+
+### Documentation
+
+- README Quick Start rewritten around the two-dependency pattern with a per-backend
+  table pointing at Substrate artifacts.
+- `OdysseyAutoConfiguration` javadoc updated to reference the `odyssey` jar and
+  Substrate's platform auto-config modules instead of the now-gone Odyssey starters.
+
 ## [0.6.0] - 2026-04-11
 
 This release is a focused simplification of the Odyssey API. The headline: Odyssey does

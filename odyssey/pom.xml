@@ -24,12 +24,12 @@
     <parent>
         <groupId>org.jwcarman.odyssey</groupId>
         <artifactId>odyssey-parent</artifactId>
-        <version>0.6.0-SNAPSHOT</version>
+        <version>0.7.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>odyssey-core</artifactId>
-    <name>Odyssey Core</name>
-    <description>Public API and domain model</description>
+    <artifactId>odyssey</artifactId>
+    <name>Odyssey</name>
+    <description>Clustered, persistent, resumable Server-Sent Events for Spring Boot</description>
 
     <dependencies>
         <dependency>

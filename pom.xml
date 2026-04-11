@@ -30,7 +30,7 @@
 
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-parent</artifactId>
-    <version>0.6.0-SNAPSHOT</version>
+    <version>0.7.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Odyssey Parent</name>
@@ -88,12 +88,7 @@
     </properties>
 
     <modules>
-        <module>odyssey-core</module>
-        <module>odyssey-redis-spring-boot-starter</module>
-        <module>odyssey-postgresql-spring-boot-starter</module>
-        <module>odyssey-hazelcast-spring-boot-starter</module>
-        <module>odyssey-nats-spring-boot-starter</module>
-        <module>odyssey-inmemory-spring-boot-starter</module>
+        <module>odyssey</module>
         <module>odyssey-example</module>
     </modules>
 

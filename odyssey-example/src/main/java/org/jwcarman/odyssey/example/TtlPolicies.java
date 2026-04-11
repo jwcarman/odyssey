@@ -20,22 +20,21 @@ import org.jwcarman.odyssey.core.TtlPolicy;
 
 /**
  * Named {@link TtlPolicy} constants for the example app's three stream lifetimes. This is the
- * application-level "I know what shapes of streams I have" layer that Odyssey deliberately
- * does not provide -- each app picks its own TTL tiers and gives them meaningful names.
+ * application-level "I know what shapes of streams I have" layer that Odyssey deliberately does not
+ * provide -- each app picks its own TTL tiers and gives them meaningful names.
  */
 final class TtlPolicies {
 
   /**
-   * Short-lived request/response streams (per-task progress streams, MCP tool calls, etc.).
-   * 5 minutes covers reasonable client reconnect windows; beyond that, the task is presumed
-   * orphaned.
+   * Short-lived request/response streams (per-task progress streams, MCP tool calls, etc.). 5
+   * minutes covers reasonable client reconnect windows; beyond that, the task is presumed orphaned.
    */
   static final TtlPolicy EPHEMERAL =
       new TtlPolicy(Duration.ofMinutes(5), Duration.ofMinutes(5), Duration.ofMinutes(5));
 
   /**
-   * Per-user or per-entity notification streams. 1 hour of inactivity TTL so users who
-   * reconnect within an hour pick up where they left off.
+   * Per-user or per-entity notification streams. 1 hour of inactivity TTL so users who reconnect
+   * within an hour pick up where they left off.
    */
   static final TtlPolicy CHANNEL =
       new TtlPolicy(Duration.ofHours(1), Duration.ofHours(1), Duration.ofHours(1));

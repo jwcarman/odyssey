@@ -26,9 +26,9 @@ import org.springframework.context.annotation.PropertySource;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Spring Boot auto-configuration for Odyssey. Triggered by the presence of {@code odyssey-core} on
- * the classpath plus a {@link JournalFactory} bean (usually contributed by one of the backend
- * starter modules or Substrate's own auto-configuration).
+ * Spring Boot auto-configuration for Odyssey. Triggered by the presence of the {@code odyssey} jar
+ * on the classpath plus a {@link JournalFactory} bean (contributed by one of Substrate's
+ * platform-specific auto-configuration modules, e.g. {@code substrate-redis}).
  *
  * <p>Creates a single {@link Odyssey} bean wired with the configured {@link JournalFactory},
  * Jackson's {@code ObjectMapper}, and {@link OdysseyProperties}. The factory method is annotated

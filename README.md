@@ -4,7 +4,7 @@
 [![CodeQL](https://github.com/jwcarman/odyssey/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/jwcarman/odyssey/actions/workflows/github-code-scanning/codeql)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Java](https://img.shields.io/badge/dynamic/xml?url=https://raw.githubusercontent.com/jwcarman/odyssey/main/pom.xml&query=//*[local-name()='java.version']/text()&label=Java&color=orange)](https://openjdk.org/)
-[![Maven Central](https://img.shields.io/maven-central/v/org.jwcarman.odyssey/odyssey-core)](https://central.sonatype.com/artifact/org.jwcarman.odyssey/odyssey-core)
+[![Maven Central](https://img.shields.io/maven-central/v/org.jwcarman.odyssey/odyssey)](https://central.sonatype.com/artifact/org.jwcarman.odyssey/odyssey)
 
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=jwcarman_odyssey&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=jwcarman_odyssey)
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=jwcarman_odyssey&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=jwcarman_odyssey)
@@ -39,32 +39,42 @@ The name **Odyssey** is a nod to **SSE** (**S**erver-**S**ent **E**vents) hidden
 
 ## Quick Start
 
-### 1. Add the dependency
+### 1. Add the dependencies
 
-Pick a starter for your infrastructure:
+Two dependencies: `odyssey` itself, plus one of [Substrate](https://github.com/jwcarman/substrate)'s
+platform modules for the backend you want. Each Substrate module auto-configures a
+`JournalFactory` bean, which Odyssey picks up automatically.
 
 **Redis** (most common):
 ```xml
 <dependency>
     <groupId>org.jwcarman.odyssey</groupId>
-    <artifactId>odyssey-redis-spring-boot-starter</artifactId>
-    <version>0.5.0</version>
+    <artifactId>odyssey</artifactId>
+    <version>0.7.0</version>
 </dependency>
-```
-
-**In-memory** (no infrastructure, great for development):
-```xml
 <dependency>
-    <groupId>org.jwcarman.odyssey</groupId>
-    <artifactId>odyssey-inmemory-spring-boot-starter</artifactId>
-    <version>0.5.0</version>
+    <groupId>org.jwcarman.substrate</groupId>
+    <artifactId>substrate-redis</artifactId>
+    <version>0.2.0</version>
 </dependency>
 ```
 
-Other starters: `odyssey-postgresql-spring-boot-starter`,
-`odyssey-hazelcast-spring-boot-starter`, `odyssey-nats-spring-boot-starter`.
+Swap `substrate-redis` for whichever backend you want:
 
-Each starter includes everything you need -- one dependency.
+| Backend | Substrate artifact |
+|---------|--------------------|
+| Redis | `substrate-redis` |
+| PostgreSQL | `substrate-postgresql` |
+| Hazelcast | `substrate-hazelcast` |
+| NATS | `substrate-nats` |
+| Cassandra | `substrate-cassandra` |
+| MongoDB | `substrate-mongodb` |
+| DynamoDB | `substrate-dynamodb` |
+| RabbitMQ | `substrate-rabbitmq` |
+
+See the [Substrate documentation](https://github.com/jwcarman/substrate) for per-backend
+configuration properties (host, credentials, etc.) and for instructions on disabling
+individual Substrate primitives you don't need.
 
 ### 2. Use it
 
@@ -278,21 +288,12 @@ Each subscriber gets one virtual writer thread that polls a
 
 ## Backend Support
 
-Odyssey uses [Substrate](https://github.com/jwcarman/substrate) for distributed
-storage and notifications. Pick a starter that matches your infrastructure:
-
-| Starter | Backend |
-|---------|---------|
-| `odyssey-redis-spring-boot-starter` | Redis (Streams + Pub/Sub) |
-| `odyssey-postgresql-spring-boot-starter` | PostgreSQL (table + LISTEN/NOTIFY) |
-| `odyssey-hazelcast-spring-boot-starter` | Hazelcast (Ringbuffer + ITopic) |
-| `odyssey-nats-spring-boot-starter` | NATS (JetStream + Core) |
-| `odyssey-inmemory-spring-boot-starter` | In-memory (no infrastructure) |
-
-For advanced use cases, you can mix and match Substrate modules directly.
-See the [Substrate documentation](https://github.com/jwcarman/substrate) for
-details on all available backends (Cassandra, DynamoDB, MongoDB, RabbitMQ, SNS,
-and more).
+Odyssey only needs a Spring-managed `JournalFactory` bean on the classpath.
+[Substrate](https://github.com/jwcarman/substrate) auto-configures one per platform
+module; drop any of the following onto the classpath alongside `odyssey` and Odyssey
+picks it up automatically. See the table in the [Quick Start](#1-add-the-dependencies)
+section for available backends, or the [Substrate
+documentation](https://github.com/jwcarman/substrate) for per-backend configuration.
 
 ## Configuration
 
@@ -362,7 +363,7 @@ IDE integration.
 
 ### Testing
 
-- Unit tests: `*Test.java` (run by Surefire). `odyssey-core` is at 100% line, branch,
+- Unit tests: `*Test.java` (run by Surefire). `odyssey` is at 100% line, branch,
   method, and class coverage -- please keep it that way when adding new code.
 - Backend-specific behavior is exercised in-memory via `InMemoryEndToEndTest`, which
   covers the cross-instance cluster case with a shared `InMemoryJournalSpi`.

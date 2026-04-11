@@ -46,8 +46,7 @@ public class BroadcastController {
     // would terminate it for every subscriber. We apply our "BROADCAST" TTL policy via
     // the per-call customizer; Odyssey doesn't have opinions about what broadcast means.
     var pub =
-        odyssey.publisher(
-            STREAM_NAME, Announcement.class, cfg -> cfg.ttl(TtlPolicies.BROADCAST));
+        odyssey.publisher(STREAM_NAME, Announcement.class, cfg -> cfg.ttl(TtlPolicies.BROADCAST));
     String id = pub.publish("message", new Announcement(body.get("message")));
     return Map.of("id", id);
   }
