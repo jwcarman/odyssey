@@ -496,6 +496,38 @@ class SseJournalAdapterTest {
   }
 
   @Test
+  void swallowsRuntimeExceptionFromEmitterCompleteWhenContainerAlreadyClosed() throws Exception {
+    CountDownLatch latch = new CountDownLatch(1);
+    DefaultSubscriberConfig<TestData> config = defaultConfig();
+    config.onCompleted(latch::countDown);
+
+    when(source.isActive()).thenReturn(true);
+    when(source.next(any(Duration.class))).thenReturn(new NextResult.Completed<>());
+    doThrow(new IllegalStateException("AsyncContext already terminal")).when(emitter).complete();
+
+    newAdapter(config).begin();
+
+    assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
+  }
+
+  @Test
+  void swallowsRuntimeExceptionFromEmitterCompleteWithErrorWhenContainerAlreadyClosed()
+      throws Exception {
+    DefaultSubscriberConfig<TestData> config = defaultConfig();
+    RuntimeException unexpected = new RuntimeException("subscription exploded");
+
+    when(source.isActive()).thenReturn(true);
+    when(source.next(any(Duration.class))).thenThrow(unexpected);
+    doThrow(new IllegalStateException("AsyncContext already terminal"))
+        .when(emitter)
+        .completeWithError(unexpected);
+
+    newAdapter(config).begin();
+
+    verify(emitter, timeout(2000)).completeWithError(unexpected);
+  }
+
+  @Test
   void writerLoopHandlesMidStreamJournalExpiredException() throws Exception {
     CountDownLatch latch = new CountDownLatch(1);
     DefaultSubscriberConfig<TestData> config = defaultConfig();
