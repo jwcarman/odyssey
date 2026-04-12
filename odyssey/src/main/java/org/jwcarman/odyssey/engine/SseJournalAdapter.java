@@ -172,10 +172,14 @@ class SseJournalAdapter<T> {
       erroredCause = unexpected;
     }
 
-    if (erroredCause != null) {
-      emitter.completeWithError(erroredCause);
-    } else {
-      emitter.complete();
+    try {
+      if (erroredCause != null) {
+        emitter.completeWithError(erroredCause);
+      } else {
+        emitter.complete();
+      }
+    } catch (RuntimeException e) {
+      log.debug("[{}] Emitter already closed by container", streamName, e);
     }
   }
 
