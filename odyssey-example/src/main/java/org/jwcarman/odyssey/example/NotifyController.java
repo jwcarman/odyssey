@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -54,8 +55,10 @@ public class NotifyController {
   @GetMapping(value = "/{userId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   public SseEmitter subscribe(
       @PathVariable String userId,
-      @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
+      @RequestHeader(value = "Last-Event-ID", required = false) String lastEventIdHeader,
+      @RequestParam(value = "lastEventId", required = false) String lastEventIdParam) {
     String name = streamName(userId);
+    String lastEventId = lastEventIdHeader != null ? lastEventIdHeader : lastEventIdParam;
     if (lastEventId != null) {
       return odyssey.resume(name, Notification.class, lastEventId);
     }
