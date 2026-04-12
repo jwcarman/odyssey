@@ -30,9 +30,11 @@ import org.jwcarman.odyssey.core.TtlPolicy;
 import org.jwcarman.substrate.BlockingSubscription;
 import org.jwcarman.substrate.NextResult;
 import org.jwcarman.substrate.core.journal.DefaultJournalFactory;
+import org.jwcarman.substrate.core.journal.JournalLimits;
 import org.jwcarman.substrate.core.lifecycle.ShutdownCoordinator;
 import org.jwcarman.substrate.core.memory.journal.InMemoryJournalSpi;
 import org.jwcarman.substrate.core.memory.notifier.InMemoryNotifier;
+import org.jwcarman.substrate.core.notifier.DefaultNotifier;
 import org.jwcarman.substrate.journal.Journal;
 import org.jwcarman.substrate.journal.JournalEntry;
 import org.jwcarman.substrate.journal.JournalFactory;
@@ -53,17 +55,14 @@ class InMemoryEndToEndTest {
   @BeforeEach
   void setUp() {
     ObjectMapper objectMapper = new ObjectMapper();
-    InMemoryJournalSpi journalSpi = new InMemoryJournalSpi(100);
-    InMemoryNotifier notifier = new InMemoryNotifier();
+    JacksonCodecFactory codecFactory = new JacksonCodecFactory(objectMapper);
+    DefaultNotifier notifier = new DefaultNotifier(new InMemoryNotifier(), codecFactory);
     journalFactory =
         new DefaultJournalFactory(
-            journalSpi,
-            new JacksonCodecFactory(objectMapper),
+            new InMemoryJournalSpi(100),
+            codecFactory,
             notifier,
-            1024,
-            Duration.ofDays(30),
-            Duration.ofDays(30),
-            Duration.ofDays(30),
+            JournalLimits.defaults(),
             new ShutdownCoordinator());
     odyssey = new DefaultOdyssey(journalFactory, objectMapper, PROPS);
   }
