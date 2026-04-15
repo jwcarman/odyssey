@@ -18,6 +18,7 @@ package org.jwcarman.odyssey.autoconfigure;
 import org.jwcarman.odyssey.core.Odyssey;
 import org.jwcarman.odyssey.core.TtlPolicy;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 /**
  * Configuration properties for Odyssey, bound under the {@code odyssey} prefix.
@@ -36,4 +37,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param sse SSE-specific settings (emitter timeout and keep-alive interval)
  */
 @ConfigurationProperties(prefix = "odyssey")
-public record OdysseyProperties(TtlPolicy defaultTtl, SseProperties sse) {}
+public record OdysseyProperties(
+    @NestedConfigurationProperty TtlPolicy defaultTtl,
+    @NestedConfigurationProperty SseProperties sse) {}

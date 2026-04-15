@@ -43,7 +43,7 @@
             <dependency>
                 <groupId>org.jwcarman.substrate</groupId>
                 <artifactId>substrate-bom</artifactId>
-                <version>0.6.0-SNAPSHOT</version>
+                <version>0.6.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -59,6 +59,15 @@
         <dependency>
             <groupId>org.jwcarman.substrate</groupId>
             <artifactId>substrate-redis</artifactId>
+        </dependency>
+        <!--
+          substrate-crypto wires a PayloadTransformer that encrypts journal payloads at rest.
+          It's a no-op by default; set substrate.crypto.shared-key in application.yml to
+          turn on AES-GCM encryption. See the comment in application.yml for details.
+        -->
+        <dependency>
+            <groupId>org.jwcarman.substrate</groupId>
+            <artifactId>substrate-crypto</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
