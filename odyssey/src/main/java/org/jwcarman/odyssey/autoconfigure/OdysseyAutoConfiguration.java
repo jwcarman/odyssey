@@ -40,9 +40,6 @@ import tools.jackson.databind.ObjectMapper;
 @PropertySource("classpath:odyssey-defaults.properties")
 public class OdysseyAutoConfiguration {
 
-  /** Default constructor; Spring instantiates this auto-configuration reflectively. */
-  public OdysseyAutoConfiguration() {}
-
   /**
    * Creates the default {@link Odyssey} bean, wired with the configured {@link JournalFactory},
    * Jackson's {@link ObjectMapper}, and the bound {@link OdysseyProperties}.
