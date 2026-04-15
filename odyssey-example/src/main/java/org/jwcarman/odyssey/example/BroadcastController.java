@@ -16,7 +16,6 @@
 package org.jwcarman.odyssey.example;
 
 import java.util.Map;
-import org.jwcarman.odyssey.core.Odyssey;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,24 +30,17 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/broadcast")
 public class BroadcastController {
 
-  private static final String STREAM_NAME = "announcements";
+  public record Announcement(String message) {}
 
-  record Announcement(String message) {}
+  private final Streams streams;
 
-  private final Odyssey odyssey;
-
-  public BroadcastController(Odyssey odyssey) {
-    this.odyssey = odyssey;
+  public BroadcastController(Streams streams) {
+    this.streams = streams;
   }
 
   @PostMapping
   public Map<String, String> publish(@RequestBody Map<String, String> body) {
-    // Long-lived broadcast stream. No try-with-resources: closing a long-lived stream
-    // would terminate it for every subscriber. We apply our "BROADCAST" TTL policy via
-    // the per-call customizer; Odyssey doesn't have opinions about what broadcast means.
-    var pub =
-        odyssey.publisher(STREAM_NAME, Announcement.class, cfg -> cfg.ttl(TtlPolicies.BROADCAST));
-    String id = pub.publish("message", new Announcement(body.get("message")));
+    String id = streams.announcements().publish("message", new Announcement(body.get("message")));
     return Map.of("id", id);
   }
 
@@ -56,13 +48,8 @@ public class BroadcastController {
   public SseEmitter subscribe(
       @RequestHeader(value = "Last-Event-ID", required = false) String lastEventIdHeader,
       @RequestParam(value = "lastEventId", required = false) String lastEventIdParam) {
-    // Prefer the SSE-standard header, but also accept a query parameter so JS clients
-    // that manually close + reopen the EventSource can pass their tracked id back in
-    // (EventSource's only auto-set Last-Event-ID behaviour is on its own built-in reconnect).
     String lastEventId = lastEventIdHeader != null ? lastEventIdHeader : lastEventIdParam;
-    if (lastEventId != null) {
-      return odyssey.resume(STREAM_NAME, Announcement.class, lastEventId);
-    }
-    return odyssey.subscribe(STREAM_NAME, Announcement.class);
+    var s = streams.announcements();
+    return lastEventId != null ? s.resume(lastEventId) : s.subscribe();
   }
 }

@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Breaking changes
+
+**Replaced the `Odyssey` facade's publisher/subscriber methods with a single `stream(...)` factory returning `OdysseyStream<T>`.**
+
+Name and TTL are now properties of the stream itself, carried on an `OdysseyStream<T>` handle instead of being restated at every call site. Publish, subscribe, resume, replay, complete, and delete are methods on the handle.
+
+The following are removed from `Odyssey`: `publisher(String, Class)`, `publisher(String, Class, PublisherCustomizer)`, `subscribe(String, Class)`, `subscribe(String, Class, SubscriberCustomizer)`, `resume(String, Class, String)`, `resume(String, Class, String, SubscriberCustomizer)`, `replay(String, Class, int)`, `replay(String, Class, int, SubscriberCustomizer)`.
+
+Also deleted: `OdysseyPublisher`, `PublisherCustomizer`, `PublisherConfig`.
+
+Migration:
+
+```java
+// Old
+OdysseyPublisher<Announcement> pub =
+    odyssey.publisher("announcements", Announcement.class, cfg -> cfg.ttl(BROADCAST));
+pub.publish("message", new Announcement("hi"));
+SseEmitter e = odyssey.subscribe("announcements", Announcement.class);
+
+// New
+OdysseyStream<Announcement> s =
+    odyssey.stream("announcements", Announcement.class, BROADCAST);
+s.publish("message", new Announcement("hi"));
+SseEmitter e = s.subscribe();
+```
+
+### Changed
+
+- **Broker-style stream creation.** `stream(...)` is get-or-create. First caller establishes the stream's TTL at the backend; later callers (same process or otherwise) silently adopt the existing stream and their TTL argument is ignored. Matches Kafka / ActiveMQ / NATS JetStream conventions.
+- Bumped `substrate.version` to `0.6.0-SNAPSHOT`, which brings the strict `create` / `connect` / `*NotFoundException` contract. Odyssey's get-or-create semantics on top of that contract mean callers never see `JournalNotFoundException` — streams always exist by the time any publish or subscribe operation runs.
+
 ## [0.7.0] - 2026-04-11
 
 Packaging simplification: Odyssey is now a single published artifact, `odyssey`, that

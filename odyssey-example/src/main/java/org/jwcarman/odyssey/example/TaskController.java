@@ -17,8 +17,7 @@ package org.jwcarman.odyssey.example;
 
 import java.util.Map;
 import java.util.UUID;
-import org.jwcarman.odyssey.core.Odyssey;
-import org.jwcarman.odyssey.core.OdysseyPublisher;
+import org.jwcarman.odyssey.core.OdysseyStream;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,54 +33,45 @@ public class TaskController {
 
   private static final String PROGRESS_EVENT = "progress";
 
-  record TaskProgress(int percent, String status) {}
+  public record TaskProgress(int percent, String status) {}
 
-  private final Odyssey odyssey;
+  private final Streams streams;
 
-  public TaskController(Odyssey odyssey) {
-    this.odyssey = odyssey;
+  public TaskController(Streams streams) {
+    this.streams = streams;
   }
 
   @PostMapping
   public Map<String, String> startTask() {
-    // Ephemeral tasks get an app-generated UUID as their stream name. Odyssey doesn't
-    // generate this for us -- it's our name to pick. We apply our own "EPHEMERAL" TTL
-    // policy via the customizer.
-    OdysseyPublisher<TaskProgress> pub =
-        odyssey.publisher(
-            UUID.randomUUID().toString(),
-            TaskProgress.class,
-            cfg -> cfg.ttl(TtlPolicies.EPHEMERAL));
-    String name = pub.name();
+    String taskId = UUID.randomUUID().toString();
+    OdysseyStream<TaskProgress> s = streams.taskProgress(taskId);
 
     Thread.ofVirtual()
         .start(
             () -> {
               try {
-                pub.publish(PROGRESS_EVENT, new TaskProgress(0, "Starting..."));
+                s.publish(PROGRESS_EVENT, new TaskProgress(0, "Starting..."));
                 Thread.sleep(1500);
-                pub.publish(PROGRESS_EVENT, new TaskProgress(33, "Processing..."));
+                s.publish(PROGRESS_EVENT, new TaskProgress(33, "Processing..."));
                 Thread.sleep(1500);
-                pub.publish(PROGRESS_EVENT, new TaskProgress(66, "Almost done..."));
+                s.publish(PROGRESS_EVENT, new TaskProgress(66, "Almost done..."));
                 Thread.sleep(1500);
-                pub.publish("complete", new TaskProgress(100, "Done!"));
+                s.publish("complete", new TaskProgress(100, "Done!"));
               } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
               } finally {
-                pub.complete();
+                s.complete();
               }
             });
 
-    return Map.of("streamName", name);
+    return Map.of("streamName", taskId);
   }
 
   @GetMapping(value = "/{streamName}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   public SseEmitter subscribe(
       @PathVariable String streamName,
       @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
-    if (lastEventId != null) {
-      return odyssey.resume(streamName, TaskProgress.class, lastEventId);
-    }
-    return odyssey.subscribe(streamName, TaskProgress.class);
+    OdysseyStream<TaskProgress> s = streams.taskProgress(streamName);
+    return lastEventId != null ? s.resume(lastEventId) : s.subscribe();
   }
 }

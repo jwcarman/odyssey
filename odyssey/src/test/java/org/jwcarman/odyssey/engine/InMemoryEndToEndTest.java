@@ -26,6 +26,7 @@ import org.jwcarman.codec.jackson.JacksonCodecFactory;
 import org.jwcarman.odyssey.autoconfigure.OdysseyProperties;
 import org.jwcarman.odyssey.autoconfigure.SseProperties;
 import org.jwcarman.odyssey.core.Odyssey;
+import org.jwcarman.odyssey.core.OdysseyStream;
 import org.jwcarman.odyssey.core.TtlPolicy;
 import org.jwcarman.substrate.BlockingSubscription;
 import org.jwcarman.substrate.NextResult;
@@ -35,6 +36,7 @@ import org.jwcarman.substrate.core.lifecycle.ShutdownCoordinator;
 import org.jwcarman.substrate.core.memory.journal.InMemoryJournalSpi;
 import org.jwcarman.substrate.core.memory.notifier.InMemoryNotifier;
 import org.jwcarman.substrate.core.notifier.DefaultNotifier;
+import org.jwcarman.substrate.core.transform.PayloadTransformer;
 import org.jwcarman.substrate.journal.Journal;
 import org.jwcarman.substrate.journal.JournalEntry;
 import org.jwcarman.substrate.journal.JournalFactory;
@@ -61,6 +63,7 @@ class InMemoryEndToEndTest {
         new DefaultJournalFactory(
             new InMemoryJournalSpi(100),
             codecFactory,
+            PayloadTransformer.IDENTITY,
             notifier,
             JournalLimits.defaults(),
             new ShutdownCoordinator());
@@ -69,13 +72,13 @@ class InMemoryEndToEndTest {
 
   @Test
   void publishAndReadThroughJournal() {
-    var pub = odyssey.publisher("orders", OrderEvent.class);
-    pub.publish("order.created", new OrderEvent("o1", "created"));
-    String id = pub.publish("order.shipped", new OrderEvent("o1", "shipped"));
+    OdysseyStream<OrderEvent> s = odyssey.stream("orders", OrderEvent.class);
+    s.publish("order.created", new OrderEvent("o1", "created"));
+    String id = s.publish("order.shipped", new OrderEvent("o1", "shipped"));
 
     Journal<StoredEvent> journal = journalFactory.connect("orders", StoredEvent.class);
     BlockingSubscription<JournalEntry<StoredEvent>> sub = journal.subscribeAfter(id);
-    pub.publish("order.delivered", new OrderEvent("o1", "delivered"));
+    s.publish("order.delivered", new OrderEvent("o1", "delivered"));
 
     NextResult<JournalEntry<StoredEvent>> result = sub.next(Duration.ofSeconds(2));
     assertThat(result).isInstanceOf(NextResult.Value.class);
@@ -87,16 +90,16 @@ class InMemoryEndToEndTest {
 
   @Test
   void nameRoundTripsWithoutPrefix() {
-    var pub = odyssey.publisher("user:123", OrderEvent.class);
-    assertThat(pub.name()).isEqualTo("user:123");
+    OdysseyStream<OrderEvent> s = odyssey.stream("user:123", OrderEvent.class);
+    assertThat(s.name()).isEqualTo("user:123");
   }
 
   @Test
   void subscribeReturnsValidEmitter() {
-    var pub = odyssey.publisher("test", OrderEvent.class);
-    pub.publish("test", new OrderEvent("o1", "ok"));
+    OdysseyStream<OrderEvent> s = odyssey.stream("test", OrderEvent.class);
+    s.publish("test", new OrderEvent("o1", "ok"));
 
-    var emitter = odyssey.subscribe(pub.name(), OrderEvent.class);
+    var emitter = s.subscribe();
     assertThat(emitter).isNotNull();
   }
 
@@ -105,11 +108,11 @@ class InMemoryEndToEndTest {
     ObjectMapper objectMapper = new ObjectMapper();
     Odyssey odyssey2 = new DefaultOdyssey(journalFactory, objectMapper, PROPS);
 
-    var pub1 = odyssey.publisher("shared", OrderEvent.class);
-    pub1.publish("from-1", new OrderEvent("o1", "instance1"));
+    OdysseyStream<OrderEvent> s1 = odyssey.stream("shared", OrderEvent.class);
+    s1.publish("from-1", new OrderEvent("o1", "instance1"));
 
-    var pub2 = odyssey2.publisher("shared", OrderEvent.class);
-    pub2.publish("from-2", new OrderEvent("o2", "instance2"));
+    OdysseyStream<OrderEvent> s2 = odyssey2.stream("shared", OrderEvent.class);
+    s2.publish("from-2", new OrderEvent("o2", "instance2"));
 
     Journal<StoredEvent> journal = journalFactory.connect("shared", StoredEvent.class);
     BlockingSubscription<JournalEntry<StoredEvent>> sub = journal.subscribeLast(10);
@@ -121,23 +124,24 @@ class InMemoryEndToEndTest {
       }
     }
     sub.cancel();
-    pub1.complete();
-    pub2.complete();
+    s1.complete();
+    // s2 wraps the same underlying journal; completing s1 already finalized it, so don't
+    // re-complete s2 here.
 
     assertThat(eventTypes).containsExactly("from-1", "from-2");
   }
 
   @Test
   void deleteRemovesJournal() {
-    var pub = odyssey.publisher("delete-test", OrderEvent.class);
-    pub.publish("test", new OrderEvent("o1", "created"));
+    OdysseyStream<OrderEvent> s = odyssey.stream("delete-test", OrderEvent.class);
+    s.publish("test", new OrderEvent("o1", "created"));
 
     Journal<StoredEvent> journal = journalFactory.connect("delete-test", StoredEvent.class);
     BlockingSubscription<JournalEntry<StoredEvent>> sub = journal.subscribeLast(10);
     NextResult<JournalEntry<StoredEvent>> first = sub.next(Duration.ofSeconds(1));
     assertThat(first).isInstanceOf(NextResult.Value.class);
 
-    pub.delete();
+    s.delete();
 
     NextResult<JournalEntry<StoredEvent>> result = sub.next(Duration.ofSeconds(2));
     assertThat(result).isInstanceOfAny(NextResult.Deleted.class, NextResult.Expired.class);
@@ -146,8 +150,8 @@ class InMemoryEndToEndTest {
 
   @Test
   void publishWithoutEventType() {
-    var pub = odyssey.publisher("no-type", OrderEvent.class);
-    String id = pub.publish(new OrderEvent("o1", "created"));
+    OdysseyStream<OrderEvent> s = odyssey.stream("no-type", OrderEvent.class);
+    String id = s.publish(new OrderEvent("o1", "created"));
     assertThat(id).isNotNull();
 
     Journal<StoredEvent> journal = journalFactory.connect("no-type", StoredEvent.class);
@@ -160,14 +164,11 @@ class InMemoryEndToEndTest {
   }
 
   @Test
-  void publisherKeyRoundTripsThroughConnect() {
-    // Regression: publisher.name() must round-trip back to the same underlying journal via
-    // the journal factory. Previously the publisher returned Substrate's internal backend
-    // key which would get double-prefixed on connect, landing on a different journal.
-    var pub = odyssey.publisher("round-trip-test", OrderEvent.class);
-    pub.publish("created", new OrderEvent("o1", "created"));
+  void streamNameRoundTripsThroughConnect() {
+    OdysseyStream<OrderEvent> s = odyssey.stream("round-trip-test", OrderEvent.class);
+    s.publish("created", new OrderEvent("o1", "created"));
 
-    Journal<StoredEvent> sameJournal = journalFactory.connect(pub.name(), StoredEvent.class);
+    Journal<StoredEvent> sameJournal = journalFactory.connect(s.name(), StoredEvent.class);
     BlockingSubscription<JournalEntry<StoredEvent>> sub = sameJournal.subscribeLast(1);
     NextResult<JournalEntry<StoredEvent>> result = sub.next(Duration.ofSeconds(2));
     assertThat(result).isInstanceOf(NextResult.Value.class);
@@ -177,13 +178,12 @@ class InMemoryEndToEndTest {
   }
 
   @Test
-  void perCallCustomizerAppliesShortTtlPolicy() {
+  void explicitTtlIsAppliedOnCreate() {
     TtlPolicy shortLived =
         new TtlPolicy(Duration.ofMinutes(1), Duration.ofMinutes(1), Duration.ofSeconds(10));
-    var pub =
-        odyssey.publisher(
-            java.util.UUID.randomUUID().toString(), OrderEvent.class, cfg -> cfg.ttl(shortLived));
-    String id = pub.publish("created", new OrderEvent("o1", "created"));
+    OdysseyStream<OrderEvent> s =
+        odyssey.stream(java.util.UUID.randomUUID().toString(), OrderEvent.class, shortLived);
+    String id = s.publish("created", new OrderEvent("o1", "created"));
     assertThat(id).isNotNull();
   }
 }

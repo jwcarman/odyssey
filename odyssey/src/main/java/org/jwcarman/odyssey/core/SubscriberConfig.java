@@ -80,7 +80,7 @@ public interface SubscriberConfig<T> {
   SubscriberConfig<T> mapper(SseEventMapper<T> mapper);
 
   /**
-   * Register a side-effect callback for the {@link SseEventMapper.TerminalState.Completed} state.
+   * Register a side effect callback for the {@link SseEventMapper.TerminalState.Completed} state.
    * The callback fires after any terminal frame emitted by {@link
    * SseEventMapper#terminal(SseEventMapper.TerminalState)} and before the emitter closes.
    *
@@ -90,7 +90,7 @@ public interface SubscriberConfig<T> {
   SubscriberConfig<T> onCompleted(Runnable action);
 
   /**
-   * Register a side-effect callback for the {@link SseEventMapper.TerminalState.Expired} state.
+   * Register a side effect callback for the {@link SseEventMapper.TerminalState.Expired} state.
    *
    * @param action the callback to invoke; exceptions are logged and swallowed
    * @return this config, for chaining
@@ -98,7 +98,7 @@ public interface SubscriberConfig<T> {
   SubscriberConfig<T> onExpired(Runnable action);
 
   /**
-   * Register a side-effect callback for the {@link SseEventMapper.TerminalState.Deleted} state.
+   * Register a side effect callback for the {@link SseEventMapper.TerminalState.Deleted} state.
    *
    * @param action the callback to invoke; exceptions are logged and swallowed
    * @return this config, for chaining
@@ -106,7 +106,7 @@ public interface SubscriberConfig<T> {
   SubscriberConfig<T> onDeleted(Runnable action);
 
   /**
-   * Register a side-effect callback for the {@link SseEventMapper.TerminalState.Errored} state. The
+   * Register a side effect callback for the {@link SseEventMapper.TerminalState.Errored} state. The
    * callback receives the backend error that terminated the subscription.
    *
    * @param action the callback to invoke; exceptions are logged and swallowed
@@ -115,7 +115,7 @@ public interface SubscriberConfig<T> {
   SubscriberConfig<T> onErrored(Consumer<Throwable> action);
 
   /**
-   * Register a side-effect callback for the {@link SseEventMapper.TerminalState.Cancelled} state.
+   * Register a side effect callback for the {@link SseEventMapper.TerminalState.Cancelled} state.
    * Fires when the subscription is torn down locally (Spring context shutdown, Substrate shutdown
    * coordinator, or an explicit source cancel) rather than because the journal itself reached a
    * terminal state.

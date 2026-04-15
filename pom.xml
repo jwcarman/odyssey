@@ -64,7 +64,7 @@
         <java.version>25</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spotless.version>3.4.0</spotless.version>
-        <substrate.version>0.3.0</substrate.version>
+        <substrate.version>0.6.0-SNAPSHOT</substrate.version>
         <codec.version>0.1.0</codec.version>
         <jacocoArgLine></jacocoArgLine>
 

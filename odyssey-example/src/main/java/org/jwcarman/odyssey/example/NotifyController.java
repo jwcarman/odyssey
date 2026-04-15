@@ -16,7 +16,6 @@
 package org.jwcarman.odyssey.example;
 
 import java.util.Map;
-import org.jwcarman.odyssey.core.Odyssey;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,23 +31,19 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/notify")
 public class NotifyController {
 
-  record Notification(String message) {}
+  public record Notification(String message) {}
 
-  private final Odyssey odyssey;
+  private final Streams streams;
 
-  public NotifyController(Odyssey odyssey) {
-    this.odyssey = odyssey;
+  public NotifyController(Streams streams) {
+    this.streams = streams;
   }
 
   @PostMapping("/{userId}")
   public Map<String, String> publish(
       @PathVariable String userId, @RequestBody Map<String, String> body) {
-    // Long-lived per-user channel stream. No try-with-resources -- closing would
-    // terminate the stream for every subscriber. We apply our "CHANNEL" TTL policy.
-    var pub =
-        odyssey.publisher(
-            streamName(userId), Notification.class, cfg -> cfg.ttl(TtlPolicies.CHANNEL));
-    String id = pub.publish("notification", new Notification(body.get("message")));
+    String id =
+        streams.userChannel(userId).publish("notification", new Notification(body.get("message")));
     return Map.of("id", id);
   }
 
@@ -57,15 +52,8 @@ public class NotifyController {
       @PathVariable String userId,
       @RequestHeader(value = "Last-Event-ID", required = false) String lastEventIdHeader,
       @RequestParam(value = "lastEventId", required = false) String lastEventIdParam) {
-    String name = streamName(userId);
     String lastEventId = lastEventIdHeader != null ? lastEventIdHeader : lastEventIdParam;
-    if (lastEventId != null) {
-      return odyssey.resume(name, Notification.class, lastEventId);
-    }
-    return odyssey.subscribe(name, Notification.class);
-  }
-
-  private static String streamName(String userId) {
-    return "user:" + userId;
+    var s = streams.userChannel(userId);
+    return lastEventId != null ? s.resume(lastEventId) : s.subscribe();
   }
 }
