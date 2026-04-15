@@ -147,6 +147,13 @@ public interface SubscriberConfig<T> {
    */
   @FunctionalInterface
   interface SubscribeHook {
+    /**
+     * Invoked once per subscription after the SSE connection opens. Implementations typically call
+     * {@link SseEmitter#send(Object)}, which is allowed to throw {@link IOException}.
+     *
+     * @param emitter the SSE emitter driving this subscription
+     * @throws IOException if writing to the emitter fails (treated as a client disconnect)
+     */
     void accept(SseEmitter emitter) throws IOException;
   }
 }

@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-04-15
+
 ### Breaking changes
 
 **Replaced the `Odyssey` facade's publisher/subscriber methods with a single `stream(...)` factory returning `OdysseyStream<T>`.**
@@ -30,10 +32,21 @@ s.publish("message", new Announcement("hi"));
 SseEmitter e = s.subscribe();
 ```
 
+### Added
+
+- `SubscriberConfig.onSubscribe(SubscribeHook)` — hook invoked once per subscription after the SSE connection opens and before any journal events flow. Callers can emit a synthetic first event (e.g., an instance-identifier header in a multi-host deployment). `SubscribeHook.accept(SseEmitter)` is allowed to throw `IOException` so `emitter.send(...)` doesn't need a try/catch.
+- IDE property completion for `odyssey.default-ttl.*` and `odyssey.sse.*` via `@NestedConfigurationProperty` on `OdysseyProperties`'s record components. The configuration-metadata JSON now exposes the five leaf keys with their types and descriptions.
+- Example application cluster mode: `docker-compose.yml` ships a `cluster` profile with Traefik as a reverse proxy and scaled example instances. `docker compose --profile cluster up --scale example=N` brings up Redis plus N stateless instances behind a single load-balanced endpoint, with per-stream "served by" badges on the demo page that make cross-instance publish/subscribe visible.
+- Example application now depends on `substrate-crypto`, so enabling AES-GCM encryption-at-rest for journal payloads is a two-property change in `application.properties` with no code edits.
+
 ### Changed
 
 - **Broker-style stream creation.** `stream(...)` is get-or-create. First caller establishes the stream's TTL at the backend; later callers (same process or otherwise) silently adopt the existing stream and their TTL argument is ignored. Matches Kafka / ActiveMQ / NATS JetStream conventions.
-- Bumped `substrate.version` to `0.6.0-SNAPSHOT`, which brings the strict `create` / `connect` / `*NotFoundException` contract. Odyssey's get-or-create semantics on top of that contract mean callers never see `JournalNotFoundException` — streams always exist by the time any publish or subscribe operation runs.
+- Example application `application.yml` converted to `application.properties` (flat keys).
+
+### Requirements
+
+- Bumped `substrate.version` to `0.6.0`, which brings the strict `create` / `connect` / `*NotFoundException` contract. Odyssey's get-or-create semantics on top of that contract mean callers never see `JournalNotFoundException` — streams always exist by the time any publish or subscribe operation runs.
 
 ## [0.7.0] - 2026-04-11
 

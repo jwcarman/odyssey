@@ -35,6 +35,13 @@ public class DefaultOdyssey implements Odyssey {
   private final ObjectMapper objectMapper;
   private final OdysseyProperties properties;
 
+  /**
+   * Creates a new {@code DefaultOdyssey} wired with the given collaborators.
+   *
+   * @param journalFactory the Substrate journal factory used to create/connect journals
+   * @param objectMapper the Jackson mapper used for typed event serialization
+   * @param properties the Odyssey configuration properties bound from {@code odyssey.*}
+   */
   public DefaultOdyssey(
       JournalFactory journalFactory, ObjectMapper objectMapper, OdysseyProperties properties) {
     this.journalFactory = journalFactory;

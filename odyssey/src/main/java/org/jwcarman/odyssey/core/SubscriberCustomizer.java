@@ -18,8 +18,8 @@ package org.jwcarman.odyssey.core;
 import java.util.function.Consumer;
 
 /**
- * Per-call customizer type for {@link Odyssey#subscribe(String, Class, SubscriberCustomizer)} and
- * its {@code resume}/{@code replay} siblings. Extends {@link Consumer
+ * Per-call customizer type for {@link OdysseyStream#subscribe(SubscriberCustomizer)} and its {@code
+ * resume}/{@code replay} siblings. Extends {@link Consumer
  * Consumer&lt;SubscriberConfig&lt;T&gt;&gt;} so every existing lambda shape ({@code cfg ->
  * cfg.timeout(...)}) still compiles untouched; the named type exists purely to make the method
  * signature self-documenting.

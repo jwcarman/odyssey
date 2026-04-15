@@ -34,7 +34,7 @@ import java.util.Map;
  *
  * @param id the monotonic entry id assigned by Substrate (usable as an SSE {@code Last-Event-ID})
  * @param streamName the stream name this event belongs to -- identical to the name the subscriber
- *     used when calling {@link Odyssey#subscribe(String, Class)}, so mappers can round-trip it into
+ *     used when calling {@link Odyssey#stream(String, Class)}, so mappers can round-trip it into
  *     reconnect tokens, log messages, etc.
  * @param timestamp the instant the entry was appended
  * @param eventType the user-supplied event type (becomes the SSE {@code event:} name), or {@code

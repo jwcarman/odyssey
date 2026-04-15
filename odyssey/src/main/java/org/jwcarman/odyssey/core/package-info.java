@@ -18,12 +18,12 @@
  * framework authors building on top of Odyssey.
  *
  * <p>Entry point is {@link org.jwcarman.odyssey.core.Odyssey}, the Spring-managed facade that hands
- * out {@link org.jwcarman.odyssey.core.OdysseyPublisher} instances on the producer side and {@code
- * SseEmitter} instances on the consumer side. Configuration is customizer-driven: pass a {@link
- * org.jwcarman.odyssey.core.PublisherCustomizer} or {@link
- * org.jwcarman.odyssey.core.SubscriberCustomizer} lambda to any {@code Odyssey} method and the
- * library owns the lifecycle. App-wide defaults come from {@code odyssey.*} properties; there is no
- * global customizer-bean mechanism.
+ * out {@link org.jwcarman.odyssey.core.OdysseyStream} handles. Each handle carries a stream's name,
+ * element type, and TTL policy, and exposes publish, subscribe, resume, replay, complete, and
+ * delete as methods. Per-subscription configuration is customizer-driven: pass a {@link
+ * org.jwcarman.odyssey.core.SubscriberCustomizer} lambda to any subscribe/resume/replay call and
+ * the library owns the lifecycle. App-wide defaults come from {@code odyssey.*} properties; there
+ * is no global customizer-bean mechanism.
  *
  * <p>Mappers receive a {@link org.jwcarman.odyssey.core.DeliveredEvent} per value and may
  * optionally emit terminal SSE frames via {@link

@@ -21,12 +21,11 @@ import java.time.Duration;
  * A grouped set of TTL durations that together describe the lifetime of one Odyssey stream.
  *
  * <p>Used as the type of {@link org.jwcarman.odyssey.autoconfigure.OdysseyProperties#defaultTtl()}
- * (the single default TTL policy applied to every publisher) and as the argument to {@link
- * PublisherConfig#ttl(TtlPolicy)} when a caller wants to replace all three TTLs on a publisher
- * config in one operation instead of setting them individually. Applications that want several TTL
- * tiers (e.g., short-lived task streams vs. long-lived broadcast streams) should define their own
- * {@code TtlPolicy} constants and pass them via the per-call customizer on {@link
- * Odyssey#publisher(String, Class, PublisherCustomizer)}.
+ * (the default TTL policy applied when {@link Odyssey#stream(String, Class)} creates a new stream)
+ * and as the third argument to {@link Odyssey#stream(String, Class, TtlPolicy)} when the caller
+ * wants to apply a specific policy. Applications that want several TTL tiers (e.g., short-lived
+ * task streams vs. long-lived broadcast streams) should define their own {@code TtlPolicy}
+ * constants and pass them to {@code stream(...)}.
  *
  * <p>The three fields map 1:1 to three distinct Substrate lifecycle events:
  *
@@ -36,9 +35,9 @@ import java.time.Duration;
  *   <li>{@code entryTtl} -- applied on every {@code journal.append(data, ttl)} call. Each entry
  *       expires independently after this duration.
  *   <li>{@code retentionTtl} -- passed to {@code journal.complete(retentionTtl)} when the
- *       publisher's {@link OdysseyPublisher#complete()} method is called. After completion, no
- *       further appends are accepted but existing entries remain readable for this duration before
- *       the journal expires fully.
+ *       publisher's {@link OdysseyStream#complete()} method is called. After completion, no further
+ *       appends are accepted but existing entries remain readable for this duration before the
+ *       journal expires fully.
  * </ul>
  *
  * <p>{@code TtlPolicy} is a value type and is safe to hold in {@code static final} constants. The
@@ -48,7 +47,7 @@ import java.time.Duration;
  *
  * @param inactivityTtl the journal inactivity TTL
  * @param entryTtl the default per-entry TTL
- * @param retentionTtl the retention TTL used by {@link OdysseyPublisher#complete()}
+ * @param retentionTtl the retention TTL used by {@link OdysseyStream#complete()}
  */
 public record TtlPolicy(Duration inactivityTtl, Duration entryTtl, Duration retentionTtl) {
 
