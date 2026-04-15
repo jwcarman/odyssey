@@ -511,8 +511,7 @@ class SseJournalAdapterTest {
   }
 
   @Test
-  void swallowsRuntimeExceptionFromEmitterCompleteWithErrorWhenContainerAlreadyClosed()
-      throws Exception {
+  void swallowsRuntimeExceptionFromEmitterCompleteWithErrorWhenContainerAlreadyClosed() {
     DefaultSubscriberConfig<TestData> config = defaultConfig();
     RuntimeException unexpected = new RuntimeException("subscription exploded");
 
