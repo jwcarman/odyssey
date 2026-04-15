@@ -496,10 +496,8 @@ class SseJournalAdapterTest {
   }
 
   @Test
-  void swallowsRuntimeExceptionFromEmitterCompleteWhenContainerAlreadyClosed() throws Exception {
-    CountDownLatch latch = new CountDownLatch(1);
+  void swallowsRuntimeExceptionFromEmitterCompleteWhenContainerAlreadyClosed() {
     DefaultSubscriberConfig<TestData> config = defaultConfig();
-    config.onCompleted(latch::countDown);
 
     when(source.isActive()).thenReturn(true);
     when(source.next(any(Duration.class))).thenReturn(new NextResult.Completed<>());
@@ -507,7 +505,10 @@ class SseJournalAdapterTest {
 
     newAdapter(config).begin();
 
-    assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
+    // Wait for the writer loop to actually invoke emitter.complete() before Mockito verifies
+    // stub usage; the onCompleted runnable fires strictly before this call, so latching on
+    // it would race the virtual-thread finish on slow CI runners.
+    verify(emitter, timeout(2000)).complete();
   }
 
   @Test
