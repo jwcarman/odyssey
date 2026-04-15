@@ -29,7 +29,7 @@ class DefaultSubscriberConfigTest {
   }
 
   @Test
-  void defaultsAreNoops() {
+  void defaultsAreNoops() throws java.io.IOException {
     DefaultSubscriberConfig<String> config = new DefaultSubscriberConfig<>(newMapper());
 
     // Default timeout and keep-alive are present.
@@ -43,6 +43,9 @@ class DefaultSubscriberConfigTest {
     config.onDeleted().run();
     config.onErrored().accept(new RuntimeException("should be swallowed by default noop"));
     config.onCancelled().run();
+    config
+        .onSubscribe()
+        .accept(mock(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.class));
   }
 
   @Test
@@ -115,5 +118,14 @@ class DefaultSubscriberConfigTest {
 
     assertThat(config.onCancelled(action)).isSameAs(config);
     assertThat(config.onCancelled()).isSameAs(action);
+  }
+
+  @Test
+  void onSubscribeSetterReturnsThisAndPersists() {
+    DefaultSubscriberConfig<String> config = new DefaultSubscriberConfig<>(newMapper());
+    org.jwcarman.odyssey.core.SubscriberConfig.SubscribeHook action = emitter -> {};
+
+    assertThat(config.onSubscribe(action)).isSameAs(config);
+    assertThat(config.onSubscribe()).isSameAs(action);
   }
 }
