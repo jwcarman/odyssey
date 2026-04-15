@@ -333,18 +333,16 @@ any instance can subscribe, no sticky sessions required.
 
 ### Dev mode (single instance)
 
-Start Redis in the background and run the app from your IDE or Maven:
+Just run the app -- Spring Boot's `spring-boot-docker-compose` integration reads
+`odyssey-example/docker-compose.yml` and starts Redis for you, then binds
+`spring.data.redis.*` to the running container:
 
 ```bash
-# Start Redis in the background
-cd odyssey-example
-docker compose up -d
-
-# In another terminal: run the example
 ./mvnw -pl odyssey-example spring-boot:run
 ```
 
 Open http://localhost:8080 to interact with broadcast, channel, and ephemeral streams.
+Redis shuts down automatically when the app stops.
 
 ### Cluster mode (multiple instances behind Traefik)
 
@@ -385,6 +383,20 @@ docker compose --profile cluster up --scale example=1   # back to one
 ```
 
 Traefik picks up the change from Docker's event stream.
+
+### Encryption at rest
+
+The example depends on `substrate-crypto`, so turning on AES-GCM encryption of journal
+payloads is a two-line property change (no code):
+
+```properties
+substrate.crypto.shared-key=<base64-encoded 16- or 32-byte key>
+substrate.crypto.shared-kid=example-v1
+```
+
+See the commented block in `odyssey-example/src/main/resources/application.properties`
+for details and how to generate a key. In production, source the key from a secret
+manager via Spring's property layering -- don't commit it to source control.
 
 ## Building
 
