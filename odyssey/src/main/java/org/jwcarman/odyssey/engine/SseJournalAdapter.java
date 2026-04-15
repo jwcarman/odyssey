@@ -112,6 +112,10 @@ class SseJournalAdapter<T> {
     Throwable erroredCause = null;
     try {
       sendComment("connected");
+      config.onSubscribe().accept(emitter);
+
+      // The onSubscribe hook and every subsequent emitter.send() path throw IOException;
+      // both are caught by the "Client disconnected" branch below.
 
       boolean running = true;
       while (running && source.isActive()) {

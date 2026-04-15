@@ -33,6 +33,7 @@
         .status { font-size: 0.85rem; color: #888; margin-bottom: 0.5rem; }
         .status.connected { color: #16a34a; }
         .status.disconnected { color: #dc2626; }
+        .host { font-family: monospace; color: #9333ea; }
     </style>
 </head>
 <body>
@@ -45,6 +46,7 @@
         <div class="meta">
             <span><span class="label">connection #</span> <span id="broadcast-conn">0</span></span>
             <span><span class="label">last id</span> <span id="broadcast-lastid">—</span></span>
+            <span><span class="label">served by</span> <span id="broadcast-host" class="host">—</span></span>
         </div>
         <div class="controls">
             <button class="subscribe" onclick="broadcastSubscribe()">Subscribe</button>
@@ -62,6 +64,7 @@
         <div class="meta">
             <span><span class="label">connection #</span> <span id="notify-conn">0</span></span>
             <span><span class="label">last id</span> <span id="notify-lastid">—</span></span>
+            <span><span class="label">served by</span> <span id="notify-host" class="host">—</span></span>
         </div>
         <div class="controls">
             <input id="notify-user" type="text" placeholder="User ID" value="alice" />
@@ -77,6 +80,10 @@
     <div class="section">
         <h2>Ephemeral Task</h2>
         <div id="task-status" class="status disconnected">Idle</div>
+        <div class="meta">
+            <span><span class="label">started by</span> <span id="task-starter" class="host">—</span></span>
+            <span><span class="label">served by</span> <span id="task-host" class="host">—</span></span>
+        </div>
         <div class="controls">
             <button class="start" onclick="taskStart()">Start Task</button>
         </div>
@@ -153,6 +160,11 @@
                 appendInfo('broadcast-log', '--- connected (#' + broadcastConn + ') ---');
             };
 
+            broadcastSource.addEventListener('whoami', function(e) {
+                setMeta('broadcast-host', e.data);
+                appendInfo('broadcast-log', '--- served by ' + e.data + ' ---');
+            });
+
             broadcastSource.addEventListener('message', function(e) {
                 broadcastLastId = e.lastEventId;
                 setMeta('broadcast-lastid', e.lastEventId);
@@ -182,7 +194,11 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: msg })
-            });
+            })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    appendInfo('broadcast-log', '--- published via ' + data.servedBy + ' (id=' + data.id + ') ---');
+                });
             document.getElementById('broadcast-msg').value = '';
         }
 
@@ -206,6 +222,11 @@
                 setStatus('notify-status', 'Connected as ' + userId + ' (#' + notifyConn + ')', true);
                 appendInfo('notify-log', '--- connected (#' + notifyConn + ') ---');
             };
+
+            notifySource.addEventListener('whoami', function(e) {
+                setMeta('notify-host', e.data);
+                appendInfo('notify-log', '--- served by ' + e.data + ' ---');
+            });
 
             notifySource.addEventListener('notification', function(e) {
                 notifyLastId = e.lastEventId;
@@ -237,7 +258,11 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: msg })
-            });
+            })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    appendInfo('notify-log', '--- published via ' + data.servedBy + ' (id=' + data.id + ') ---');
+                });
             document.getElementById('notify-msg').value = '';
         }
 
@@ -251,13 +276,19 @@
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
                     const streamName = data.streamName;
-                    appendInfo('task-log', '--- stream: ' + streamName + ' ---');
+                    setMeta('task-starter', data.servedBy);
+                    appendInfo('task-log', '--- started on ' + data.servedBy + ', stream: ' + streamName + ' ---');
                     const source = new EventSource('/api/task/' + encodeURIComponent(streamName) + '/stream');
 
                     source.onopen = function() {
                         setStatus('task-status', 'Running...', true);
                         appendInfo('task-log', '--- connected ---');
                     };
+
+                    source.addEventListener('whoami', function(e) {
+                        setMeta('task-host', e.data);
+                        appendInfo('task-log', '--- served by ' + e.data + ' ---');
+                    });
 
                     source.addEventListener('progress', function(e) {
                         appendLog('task-log', 'progress', e.lastEventId, e.data);

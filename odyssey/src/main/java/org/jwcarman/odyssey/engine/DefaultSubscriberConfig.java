@@ -30,6 +30,7 @@ class DefaultSubscriberConfig<T> implements SubscriberConfig<T> {
   private Runnable onDeleted = () -> {};
   private Consumer<Throwable> onErrored = t -> {};
   private Runnable onCancelled = () -> {};
+  private SubscriberConfig.SubscribeHook onSubscribe = e -> {};
 
   DefaultSubscriberConfig(SseEventMapper<T> defaultMapper) {
     this.mapper = defaultMapper;
@@ -81,6 +82,16 @@ class DefaultSubscriberConfig<T> implements SubscriberConfig<T> {
   public SubscriberConfig<T> onCancelled(Runnable action) {
     this.onCancelled = action;
     return this;
+  }
+
+  @Override
+  public SubscriberConfig<T> onSubscribe(SubscriberConfig.SubscribeHook action) {
+    this.onSubscribe = action;
+    return this;
+  }
+
+  SubscriberConfig.SubscribeHook onSubscribe() {
+    return onSubscribe;
   }
 
   Duration timeout() {

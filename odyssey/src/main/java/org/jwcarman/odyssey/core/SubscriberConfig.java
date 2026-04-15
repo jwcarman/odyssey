@@ -15,8 +15,10 @@
  */
 package org.jwcarman.odyssey.core;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.function.Consumer;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * Mutable configuration handed to a subscriber customizer lambda. Setters return {@code this} for
@@ -124,4 +126,27 @@ public interface SubscriberConfig<T> {
    * @return this config, for chaining
    */
   SubscriberConfig<T> onCancelled(Runnable action);
+
+  /**
+   * Register a hook that runs once per subscription, after the writer loop opens the SSE connection
+   * and before any journal events are delivered. The hook receives the underlying {@link
+   * SseEmitter} so it can write a synthetic first event (e.g., an instance identifier in a
+   * multi-host deployment, a schema version, or any other per-subscription header). Exceptions
+   * thrown by the hook terminate the subscription with an error, the same as any other writer
+   * failure.
+   *
+   * @param action the hook to invoke; receives the SSE emitter
+   * @return this config, for chaining
+   */
+  SubscriberConfig<T> onSubscribe(SubscribeHook action);
+
+  /**
+   * Callback invoked once per subscription, after the SSE connection opens and before any journal
+   * events are delivered. Allowed to throw {@link IOException} from {@link SseEmitter#send(Object)}
+   * directly — the adapter handles it as a client-disconnect.
+   */
+  @FunctionalInterface
+  interface SubscribeHook {
+    void accept(SseEmitter emitter) throws IOException;
+  }
 }

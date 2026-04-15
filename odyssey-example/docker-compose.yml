@@ -14,8 +14,47 @@
 # limitations under the License.
 #
 
+# Two modes:
+#   docker compose up                          -> just Redis (dev mode; run the app from your IDE)
+#   docker compose --profile cluster up        -> Redis + Traefik + N example instances
+#     docker compose --profile cluster up --scale example=3
+#
+# The "cluster" profile spins up Traefik as a reverse proxy on :80 and any number of
+# stateless example instances. Traefik discovers new instances via Docker labels as
+# they come up and removes them as they go down. No registration code in the app.
+
 services:
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+
+  traefik:
+    profiles: ["cluster"]
+    image: traefik:v3
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"              # exposes dashboard on :8080 (demo only)
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"                            # the public entry point -- hit this from the browser
+      - "8080:8080"                        # Traefik dashboard
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+  example:
+    profiles: ["cluster"]
+    image: odyssey-example:local           # built by: ./mvnw -pl odyssey-example spring-boot:build-image
+    environment:
+      SPRING_DATA_REDIS_HOST: redis
+    depends_on:
+      - redis
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.odyssey.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.odyssey.entrypoints=web"
+      - "traefik.http.services.odyssey.loadbalancer.server.port=8080"
+      # Enable SSE-friendly streaming (no response buffering).
+      - "traefik.http.services.odyssey.loadbalancer.passhostheader=true"

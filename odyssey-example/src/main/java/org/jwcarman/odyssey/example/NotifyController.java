@@ -16,6 +16,7 @@
 package org.jwcarman.odyssey.example;
 
 import java.util.Map;
+import org.jwcarman.odyssey.core.SubscriberCustomizer;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,9 +35,11 @@ public class NotifyController {
   public record Notification(String message) {}
 
   private final Streams streams;
+  private final HostnameProvider hostname;
 
-  public NotifyController(Streams streams) {
+  public NotifyController(Streams streams, HostnameProvider hostname) {
     this.streams = streams;
+    this.hostname = hostname;
   }
 
   @PostMapping("/{userId}")
@@ -44,7 +47,7 @@ public class NotifyController {
       @PathVariable String userId, @RequestBody Map<String, String> body) {
     String id =
         streams.userChannel(userId).publish("notification", new Notification(body.get("message")));
-    return Map.of("id", id);
+    return Map.of("id", id, "servedBy", hostname.get());
   }
 
   @GetMapping(value = "/{userId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -54,6 +57,13 @@ public class NotifyController {
       @RequestParam(value = "lastEventId", required = false) String lastEventIdParam) {
     String lastEventId = lastEventIdHeader != null ? lastEventIdHeader : lastEventIdParam;
     var s = streams.userChannel(userId);
-    return lastEventId != null ? s.resume(lastEventId) : s.subscribe();
+    SubscriberCustomizer<Notification> whoami = whoamiCustomizer();
+    return lastEventId != null ? s.resume(lastEventId, whoami) : s.subscribe(whoami);
+  }
+
+  private SubscriberCustomizer<Notification> whoamiCustomizer() {
+    return cfg ->
+        cfg.onSubscribe(
+            emitter -> emitter.send(SseEmitter.event().name("whoami").data(hostname.get())));
   }
 }

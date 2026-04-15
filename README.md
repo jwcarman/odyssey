@@ -30,8 +30,8 @@ The name **Odyssey** is a nod to **SSE** (**S**erver-**S**ent **E**vents) hidden
 
 - Zero reactive types -- virtual threads throughout
 - Typed domain events -- work with your own `T`, not framework types
-- Customizer-based configuration following Spring Boot idioms
-- Producer/consumer split -- publishers and subscribers are independent
+- Single `OdysseyStream<T>` handle for publish, subscribe, resume, replay, complete, delete
+- Broker-style semantics: streams are implicitly created on first reference
 - Rich terminal-state signaling (completed, expired, deleted, errored)
 - Automatic reconnect with replay (`resume`, `replay`)
 - Pluggable storage and notification backends via Substrate
@@ -82,19 +82,17 @@ individual Substrate primitives you don't need.
 @RestController
 public class OrderStreamController {
 
-    private final Odyssey odyssey;
-    private final OdysseyPublisher<OrderEvent> orderStream;
+    private final OdysseyStream<OrderEvent> orders;
 
     public OrderStreamController(Odyssey odyssey) {
-        this.odyssey = odyssey;
-        // Long-lived publisher: one per app lifetime, not one per request.
-        this.orderStream = odyssey.publisher("orders", OrderEvent.class);
+        // Long-lived handle: one per app lifetime, not one per request.
+        this.orders = odyssey.stream("orders", OrderEvent.class);
     }
 
     @PostMapping("/orders")
     public OrderResponse createOrder(@RequestBody CreateOrder cmd) {
         Order order = orderService.create(cmd);
-        orderStream.publish("order.created", OrderEvent.created(order));
+        orders.publish("order.created", OrderEvent.created(order));
         return OrderResponse.from(order);
     }
 
@@ -102,10 +100,8 @@ public class OrderStreamController {
     public SseEmitter streamOrders(
             @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
         return lastEventId != null
-            ? odyssey.resume("orders", OrderEvent.class, lastEventId,
-                cfg -> cfg.timeout(Duration.ofMinutes(30)))
-            : odyssey.subscribe("orders", OrderEvent.class,
-                cfg -> cfg.timeout(Duration.ofMinutes(30)));
+            ? orders.resume(lastEventId, cfg -> cfg.timeout(Duration.ofMinutes(30)))
+            : orders.subscribe(cfg -> cfg.timeout(Duration.ofMinutes(30)));
     }
 }
 ```
@@ -113,60 +109,51 @@ public class OrderStreamController {
 That's it. No boilerplate, no thread management, no Redis commands. Odyssey handles
 subscriber coordination, keep-alive heartbeats, reconnect replay, and cleanup.
 
-## Publishing
+## The `OdysseyStream<T>` handle
 
-Publishers are typed. Odyssey handles JSON serialization via its own `ObjectMapper`, so the
-backend journal only ever sees an already-serialized byte payload.
-
-```java
-// Long-lived publisher -- hold it for the lifetime of the app.
-var pub = odyssey.publisher("user:" + userId, OrderEvent.class);
-pub.publish("order.shipped", new OrderEvent(orderId, "shipped"));
-
-// Without an event type (SSE event: field omitted -- useful for MCP)
-pub.publish(new OrderEvent(orderId, "shipped"));
-
-// Short-lived publisher -- create per request, finalize with complete() when done so
-// late-joining subscribers see a terminal Completed state rather than an idle stream.
-String streamName = UUID.randomUUID().toString();
-var pub = odyssey.publisher(streamName, TaskProgress.class,
-    cfg -> cfg.ttl(TtlPolicies.EPHEMERAL));
-try {
-    pub.publish("progress", new TaskProgress(25));
-    pub.publish("progress", new TaskProgress(50));
-    pub.publish("done",     new TaskProgress(100));
-} finally {
-    pub.complete();
-}
-```
-
-`OdysseyPublisher` is intentionally **not** `AutoCloseable` -- there are no local resources
-to release on GC, and making it `AutoCloseable` would encourage try-with-resources which
-terminates the underlying stream as a side effect. Explicit `complete()` is the only way
-to finalize a stream.
-
-## Subscribing
-
-Subscribers get an `SseEmitter` directly -- there is no user-visible subscriber type:
+`Odyssey.stream(name, type, ttl)` returns a typed handle that carries the stream's name,
+element type, and TTL policy. Every operation on the stream is a method on the handle:
 
 ```java
-// Live tail from current head
-SseEmitter emitter = odyssey.subscribe(key, OrderEvent.class);
+OdysseyStream<OrderEvent> s = odyssey.stream("orders", OrderEvent.class, BROADCAST);
 
-// Resume after a known event ID
-SseEmitter emitter = odyssey.resume(key, OrderEvent.class, lastEventId);
+// Publish
+String id = s.publish("order.shipped", new OrderEvent(orderId, "shipped"));
+s.publish(new OrderEvent(orderId, "shipped"));      // no event type (useful for MCP)
 
-// Replay last N entries, then continue tailing
-SseEmitter emitter = odyssey.replay(key, OrderEvent.class, 10);
+// Subscribe -- three starting positions, encoded in the method name
+SseEmitter tail   = s.subscribe();
+SseEmitter after  = s.resume(lastEventId);
+SseEmitter replay = s.replay(10);
+
+// Finalize
+s.complete();   // no more appends; entries readable for retentionTtl
+s.delete();     // entries gone immediately; subscribers receive Deleted terminal state
+
+String name = s.name();   // round-trips back to the same handle
 ```
+
+Streams are **get-or-create**. The first caller for a given name in the backend creates
+the stream with the supplied TTL; later callers (this process or any other) silently
+adopt the existing stream and their TTL argument is ignored. This matches Kafka,
+ActiveMQ, and NATS JetStream conventions: producers and consumers don't configure
+retention on every operation.
+
+Type is caller-asserted -- Odyssey doesn't persist or enforce type identity. Passing a
+different `Class<T>` for the same name produces deserialization errors at publish or
+subscribe time, not declaration-time errors.
+
+Handles are not cached by Odyssey. Each `stream(...)` call returns a fresh handle;
+callers that want to reuse one (typical for long-lived streams in a `@Component`) should
+hold onto it themselves.
 
 ## TTL Policies
 
-Odyssey is deliberately unopinionated about stream lifetimes. There is one
-`Odyssey.publisher(name, type)` method plus a customizer overload, and exactly one
-default `TtlPolicy` configured via `odyssey.default-ttl.*`. If you want
-"ephemeral / channel / broadcast" tiering, define your own `TtlPolicy` constants in your
-app and pass them via the per-call customizer:
+Odyssey is deliberately unopinionated about stream lifetimes. There is one default
+`TtlPolicy` configured via `odyssey.default-ttl.*` and used when `stream(name, type)` is
+called without an explicit policy. If you want "ephemeral / channel / broadcast"
+tiering, define your own `TtlPolicy` constants in your app and pass the one you want to
+`stream(...)`:
 
 ```java
 public final class TtlPolicies {
@@ -179,12 +166,10 @@ public final class TtlPolicies {
 }
 
 // Long-lived broadcast
-var pub = odyssey.publisher("announcements", Announcement.class,
-    cfg -> cfg.ttl(TtlPolicies.BROADCAST));
+var announcements = odyssey.stream("announcements", Announcement.class, BROADCAST);
 
 // Per-request ephemeral
-var pub = odyssey.publisher(UUID.randomUUID().toString(), TaskProgress.class,
-    cfg -> cfg.ttl(TtlPolicies.EPHEMERAL));
+var progress = odyssey.stream(UUID.randomUUID().toString(), TaskProgress.class, EPHEMERAL);
 ```
 
 Each `TtlPolicy` has three fields: `inactivityTtl` (journal auto-expires if no appends for
@@ -193,36 +178,59 @@ this long), `entryTtl` (per-entry TTL applied on every `publish`), and `retentio
 match -- a broadcast stream might want short `entryTtl` but long `retentionTtl` so
 late-joining subscribers can still see recent history after `complete()`.
 
-The three setters on `PublisherConfig` can also be called individually for partial
-overrides:
+Remember that TTL is **fixed at the first `stream(...)` call for a given name in the
+backend**. Later calls with a different TTL silently adopt the existing policy.
+
+### The idiomatic wrapper: a `Streams` factory
+
+Most apps shouldn't sprinkle `odyssey.stream(...)` calls and raw TTL constants across
+controllers. Centralize the name conventions and TTL tiers in one typed factory:
 
 ```java
-odyssey.publisher("orders", OrderEvent.class, cfg -> cfg.retentionTtl(Duration.ofHours(24)));
+@Component
+public class Streams {
+    private final Odyssey odyssey;
+
+    public Streams(Odyssey odyssey) { this.odyssey = odyssey; }
+
+    public OdysseyStream<Announcement> announcements() {
+        return odyssey.stream("announcements", Announcement.class, TtlPolicies.BROADCAST);
+    }
+    public OdysseyStream<Notification> userChannel(String userId) {
+        return odyssey.stream("user:" + userId, Notification.class, TtlPolicies.CHANNEL);
+    }
+    public OdysseyStream<TaskProgress> taskProgress(String taskId) {
+        return odyssey.stream(taskId, TaskProgress.class, TtlPolicies.EPHEMERAL);
+    }
+}
 ```
 
-## Customizers
-
-Configuration uses customizer lambdas applied per call. There is no global customizer bean
-mechanism — app-wide defaults come from `odyssey.*` properties, and any cross-cutting logic
-you want at every call site should live in a helper method you call explicitly.
+Controllers inject `Streams` and never touch names, types, or TTL directly:
 
 ```java
-// Per-call publisher customizer
-odyssey.publisher("orders", OrderEvent.class, cfg -> {
-    cfg.inactivityTtl(Duration.ofHours(2));
-    cfg.entryTtl(Duration.ofHours(2));
-});
+var id = streams.announcements().publish("message", new Announcement("hi"));
+SseEmitter e = streams.userChannel(userId).subscribe();
+```
 
-// Per-call subscriber customizer
-odyssey.subscribe("orders", OrderEvent.class, cfg -> {
+## Subscriber customizers
+
+Per-call configuration for subscribers lives on `SubscriberCustomizer<T>` lambdas passed
+as the second argument to `subscribe` / `resume` / `replay`:
+
+```java
+SseEmitter e = orders.subscribe(cfg -> {
     cfg.timeout(Duration.ofMinutes(30));
     cfg.keepAliveInterval(Duration.ofSeconds(15));
-    cfg.onCompleted(() -> log.info("Stream completed"));
+    cfg.onCompleted(() -> metrics.count("stream.completed"));
+    cfg.onSubscribe(emitter ->
+        emitter.send(SseEmitter.event().name("hello").data(hostname)));
 });
 ```
 
-The lambda types are `PublisherCustomizer` and `SubscriberCustomizer<T>` — both extend
-`Consumer<...>` so any lambda shape you'd write already works.
+`onSubscribe` runs once per subscription, right after the SSE connection opens and before
+any journal events flow -- useful for emitting a synthetic first event like an instance
+identifier for load-balanced deployments (see the [Example Application](#example-application)
+multi-host demo below).
 
 ## Terminal State Handling
 
@@ -262,7 +270,7 @@ SseEventMapper<OrderEvent> mapper = new SseEventMapper<>() {
 Callers can also attach side-effect-only terminal callbacks via the subscriber config:
 
 ```java
-odyssey.subscribe(key, OrderEvent.class, cfg -> {
+orders.subscribe(cfg -> {
     cfg.onCompleted(() -> metrics.count("stream.completed"));
     cfg.onExpired(() -> metrics.count("stream.expired"));
     cfg.onDeleted(() -> metrics.count("stream.deleted"));
@@ -317,19 +325,66 @@ Backend-specific properties (storage, connection, etc.) are configured via
 ## Example Application
 
 The [`odyssey-example`](odyssey-example) module is a complete Spring Boot application
-with a static HTML page demonstrating three common TTL tiers (ephemeral tasks, per-user
-notifications, and broadcast announcements) all built on the single
-`odyssey.publisher(name, type, customizer)` entry point. To run it:
+with a static HTML page demonstrating three TTL tiers (ephemeral tasks, per-user
+notifications, and broadcast announcements) all built on `odyssey.stream(name, type, ttl)`.
+It ships in two runnable shapes: a single-instance dev mode for local iteration, and a
+multi-instance cluster mode that shows Odyssey's real payoff — any instance can publish,
+any instance can subscribe, no sticky sessions required.
+
+### Dev mode (single instance)
+
+Start Redis in the background and run the app from your IDE or Maven:
 
 ```bash
-# Start Redis (required for the example)
-docker run -d -p 6379:6379 redis:7
+# Start Redis in the background
+cd odyssey-example
+docker compose up -d
 
-# Run the example
+# In another terminal: run the example
 ./mvnw -pl odyssey-example spring-boot:run
 ```
 
 Open http://localhost:8080 to interact with broadcast, channel, and ephemeral streams.
+
+### Cluster mode (multiple instances behind Traefik)
+
+This mode spins up Redis plus Traefik (reverse proxy) plus any number of example
+instances. Traefik auto-discovers instances as they come up via Docker labels, so you
+can scale up and down at will.
+
+```bash
+# Build the app image (uses Spring Boot buildpacks — no Dockerfile)
+./mvnw -pl odyssey-example spring-boot:build-image
+
+# Bring up Redis, Traefik, and three example instances
+cd odyssey-example
+docker compose --profile cluster up --scale example=3
+```
+
+- Open http://localhost/ — Traefik round-robins requests across the instances.
+- Open http://localhost:8080/ — Traefik dashboard showing the routing table and health.
+
+Each section of the demo page shows:
+
+- **served by** — which instance is handling that SSE stream (delivered as a `whoami`
+  event right after the connection opens; differs per stream because each GET may land
+  on a different instance).
+- **started by** (ephemeral tasks only) — which instance received the `POST /api/task`
+  and is running the progress-publisher loop.
+- **published via X** (broadcast / notify logs) — which instance handled each `POST`.
+
+You can watch `started by` and `served by` differ on a single task: one instance kicked
+off the publisher loop, a different instance is tailing the SSE stream. The journal lives
+in Redis, so neither instance needs to know about the other. That's the multi-host story.
+
+Scale up or down at runtime:
+
+```bash
+docker compose --profile cluster up --scale example=5   # now five
+docker compose --profile cluster up --scale example=1   # back to one
+```
+
+Traefik picks up the change from Docker's event stream.
 
 ## Building
 

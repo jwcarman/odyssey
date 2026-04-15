@@ -16,6 +16,7 @@
 package org.jwcarman.odyssey.example;
 
 import java.util.Map;
+import org.jwcarman.odyssey.core.SubscriberCustomizer;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,15 +34,17 @@ public class BroadcastController {
   public record Announcement(String message) {}
 
   private final Streams streams;
+  private final HostnameProvider hostname;
 
-  public BroadcastController(Streams streams) {
+  public BroadcastController(Streams streams, HostnameProvider hostname) {
     this.streams = streams;
+    this.hostname = hostname;
   }
 
   @PostMapping
   public Map<String, String> publish(@RequestBody Map<String, String> body) {
     String id = streams.announcements().publish("message", new Announcement(body.get("message")));
-    return Map.of("id", id);
+    return Map.of("id", id, "servedBy", hostname.get());
   }
 
   @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -50,6 +53,13 @@ public class BroadcastController {
       @RequestParam(value = "lastEventId", required = false) String lastEventIdParam) {
     String lastEventId = lastEventIdHeader != null ? lastEventIdHeader : lastEventIdParam;
     var s = streams.announcements();
-    return lastEventId != null ? s.resume(lastEventId) : s.subscribe();
+    SubscriberCustomizer<Announcement> whoami = whoamiCustomizer();
+    return lastEventId != null ? s.resume(lastEventId, whoami) : s.subscribe(whoami);
+  }
+
+  private SubscriberCustomizer<Announcement> whoamiCustomizer() {
+    return cfg ->
+        cfg.onSubscribe(
+            emitter -> emitter.send(SseEmitter.event().name("whoami").data(hostname.get())));
   }
 }

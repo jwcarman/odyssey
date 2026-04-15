@@ -18,6 +18,7 @@ package org.jwcarman.odyssey.example;
 import java.util.Map;
 import java.util.UUID;
 import org.jwcarman.odyssey.core.OdysseyStream;
+import org.jwcarman.odyssey.core.SubscriberCustomizer;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,9 +37,11 @@ public class TaskController {
   public record TaskProgress(int percent, String status) {}
 
   private final Streams streams;
+  private final HostnameProvider hostname;
 
-  public TaskController(Streams streams) {
+  public TaskController(Streams streams, HostnameProvider hostname) {
     this.streams = streams;
+    this.hostname = hostname;
   }
 
   @PostMapping
@@ -64,7 +67,7 @@ public class TaskController {
               }
             });
 
-    return Map.of("streamName", taskId);
+    return Map.of("streamName", taskId, "servedBy", hostname.get());
   }
 
   @GetMapping(value = "/{streamName}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -72,6 +75,13 @@ public class TaskController {
       @PathVariable String streamName,
       @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
     OdysseyStream<TaskProgress> s = streams.taskProgress(streamName);
-    return lastEventId != null ? s.resume(lastEventId) : s.subscribe();
+    SubscriberCustomizer<TaskProgress> whoami = whoamiCustomizer();
+    return lastEventId != null ? s.resume(lastEventId, whoami) : s.subscribe(whoami);
+  }
+
+  private SubscriberCustomizer<TaskProgress> whoamiCustomizer() {
+    return cfg ->
+        cfg.onSubscribe(
+            emitter -> emitter.send(SseEmitter.event().name("whoami").data(hostname.get())));
   }
 }
