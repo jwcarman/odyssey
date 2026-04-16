@@ -50,12 +50,12 @@ platform modules for the backend you want. Each Substrate module auto-configures
 <dependency>
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey</artifactId>
-    <version>0.9.0</version>
+    <version>0.10.0</version>
 </dependency>
 <dependency>
     <groupId>org.jwcarman.substrate</groupId>
     <artifactId>substrate-redis</artifactId>
-    <version>0.6.0</version>
+    <version>0.7.0</version>
 </dependency>
 ```
 

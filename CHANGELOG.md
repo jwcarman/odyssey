@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-04-16
+
+### Added
+
+- GraalVM native-image hints. `OdysseyRuntimeHints` registers binding reflection hints for the internal `StoredEvent` wire envelope, wired via `META-INF/spring/aot.factories`. Applications that native-compile against odyssey no longer see `MissingReflectionRegistrationError` on SSE emit or consume. User event payload types continue to flow through Spring's Jackson hints and do not need to be registered with odyssey.
+
+### Documentation
+
+- Added `docs/native-image-hints.md` covering AOT coverage analysis (Spring AOT vs. explicit hints), the package-placement trade-off for the registrar, and verification steps for native-image builds.
+
+### Requirements
+
+- Bumped `substrate.version` to `0.7.0`, which ships its own native-image hints for substrate's internal types.
+
 ## [0.9.0] - 2026-04-15
 
 ### Breaking changes
