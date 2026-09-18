@@ -64,8 +64,8 @@
         <java.version>25</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spotless.version>3.4.0</spotless.version>
-        <substrate.version>0.7.0</substrate.version>
-        <codec.version>0.1.0</codec.version>
+        <substrate.version>0.9.0</substrate.version>
+        <codec.version>0.9.0</codec.version>
         <jacocoArgLine></jacocoArgLine>
 
         <!-- Publishing plugin versions -->
@@ -94,17 +94,22 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Before substrate's, because substrate brings codec-core in transitively at its
+                 own version; importing the whole codec BOM first keeps codec-core and
+                 codec-jackson on the same version instead of pinning one of the two. -->
+            <dependency>
+                <groupId>org.jwcarman.codec</groupId>
+                <artifactId>codec-bom</artifactId>
+                <version>${codec.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.jwcarman.substrate</groupId>
                 <artifactId>substrate-bom</artifactId>
                 <version>${substrate.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.jwcarman.codec</groupId>
-                <artifactId>codec-jackson</artifactId>
-                <version>${codec.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
