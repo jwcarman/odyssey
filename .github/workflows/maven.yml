@@ -32,4 +32,12 @@ jobs:
     - name: Build with Maven
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      run: mvn -Pci -B verify sonar:sonar
+      # Analysed only when there is a token to analyse with. Dependabot-triggered workflows
+      # cannot see repository secrets, and a token can quietly expire between pushes; neither
+      # is a reason to fail a build whose tests have already passed.
+      run: |
+        if [ -n "$SONAR_TOKEN" ]; then
+          mvn -Pci -B verify sonar:sonar
+        else
+          mvn -Pci -B verify
+        fi
