@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-22
+
+### Changed
+
+- Odyssey no longer inherits from `spring-boot-starter-parent`; it imports
+  `spring-boot-dependencies` as a BOM instead, which is Spring Boot's documented
+  alternative. The published pom therefore no longer carries that parent, so
+  resolving odyssey does not drag Boot's parent chain along with it. Consumers pin
+  their own Boot version as before.
+
 ### Requirements
 
 - Spring Boot 4.1.1 (was 4.0.5), matching substrate 0.10.0. Odyssey's own surface is
