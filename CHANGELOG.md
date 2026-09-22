@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file.
 
 ### Requirements
 
+- Spring Boot 4.1.1 (was 4.0.5), matching substrate 0.10.0. Odyssey's own surface is
+  small -- `spring-webmvc` for SSE emitters and Jackson for the wire envelope -- and
+  needed no changes; the full suite passes unchanged.
 - codec 0.10.0 (was 0.9.0) and substrate 0.10.0 (was 0.9.0). These move together by
   necessity: codec 0.10.0 drops the `spi` package segment, and substrate 0.9.0's
   bytecode carries 73 references to `org/jwcarman/codec/spi`, so codec 0.10.0 against
