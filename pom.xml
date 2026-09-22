@@ -191,6 +191,15 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${compiler.plugin.version}</version>
                 <configuration>
+                    <!--
+                        Spring resolves @RequestParam / @PathVariable / constructor injection by
+                        parameter name, which is only in the bytecode when javac is given
+                        -parameters. spring-boot-starter-parent set this; without it a controller
+                        fails at request time with "Name for argument of type [java.lang.String]
+                        not specified, and parameter name information not available via
+                        reflection", and nothing catches it at build time.
+                    -->
+                    <parameters>true</parameters>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.springframework.boot</groupId>
