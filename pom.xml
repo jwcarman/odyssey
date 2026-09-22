@@ -21,13 +21,21 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.1.1</version>
-        <relativePath/>
-    </parent>
+    <!--
+        This project deliberately does NOT inherit from spring-boot-starter-parent.
 
+        Spring Boot's documented alternative is to import spring-boot-dependencies as a BOM, which
+        gives the same managed versions without taking the parent slot. That matters here for two
+        reasons. It frees odyssey-example to inherit from odyssey-parent like any other module,
+        instead of parenting itself to spring-boot-starter-parent and drifting — which it had:
+        Boot 4.0.5 against the project's 4.1.1, its own 0.8.0-SNAPSHOT version, and a substrate-bom
+        four minor versions stale. And it keeps the Boot version in one property rather than one
+        per module.
+
+        The cost is that everything the starter parent used to supply must be declared here: the
+        compiler release, and explicit versions for the core plugins it used to manage. Adding a
+        plugin to this build means giving it a version.
+    -->
     <groupId>org.jwcarman.odyssey</groupId>
     <artifactId>odyssey-parent</artifactId>
     <version>0.11.0-SNAPSHOT</version>
@@ -61,9 +69,16 @@
     </scm>
 
     <properties>
-        <java.version>25</java.version>
+        <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring-boot.version>4.1.1</spring-boot.version>
         <spotless.version>3.4.0</spotless.version>
+        <!-- Core plugin versions. Managed by spring-boot-starter-parent until this project
+             stopped inheriting it; keep them explicit. -->
+        <compiler.plugin.version>3.16.0</compiler.plugin.version>
+        <surefire.plugin.version>3.5.6</surefire.plugin.version>
+        <failsafe.plugin.version>3.5.6</failsafe.plugin.version>
+        <dependency.plugin.version>3.11.0</dependency.plugin.version>
         <substrate.version>0.10.0</substrate.version>
         <codec.version>0.10.0</codec.version>
         <jacocoArgLine></jacocoArgLine>
@@ -97,6 +112,13 @@
             <!-- Before substrate's, because substrate brings codec-core in transitively at its
                  own version; importing the whole codec BOM first keeps codec-core and
                  codec-jackson on the same version instead of pinning one of the two. -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.jwcarman.codec</groupId>
                 <artifactId>codec-bom</artifactId>
@@ -132,10 +154,22 @@
     </dependencies>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <!-- The example module repackages itself into a runnable jar. Its version came
+                     from spring-boot-starter-parent before this project stopped inheriting it. -->
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
+                <version>${dependency.plugin.version}</version>
                 <executions>
                     <execution>
                         <goals>
@@ -147,6 +181,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <version>${surefire.plugin.version}</version>
                 <configuration>
                     <argLine>@{jacocoArgLine} -javaagent:"${org.mockito:mockito-core:jar}" -javaagent:"${net.bytebuddy:byte-buddy-agent:jar}" -Xshare:off</argLine>
                 </configuration>
@@ -154,6 +189,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+                <version>${failsafe.plugin.version}</version>
                 <executions>
                     <execution>
                         <goals>
@@ -169,6 +205,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>${compiler.plugin.version}</version>
                 <configuration>
                     <annotationProcessorPaths>
                         <path>

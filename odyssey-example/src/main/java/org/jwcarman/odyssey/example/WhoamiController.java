@@ -21,8 +21,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Returns the hostname of the JVM serving the request, so demo pages can show which
- * load-balanced instance handled a given call.
+ * Returns the hostname of the JVM serving the request, so demo pages can show which load-balanced
+ * instance handled a given call.
  */
 @RestController
 @RequestMapping("/api/whoami")
