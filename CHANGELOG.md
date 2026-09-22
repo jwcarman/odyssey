@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Requirements
+
+- codec 0.10.0 (was 0.9.0) and substrate 0.10.0 (was 0.9.0). These move together by
+  necessity: codec 0.10.0 drops the `spi` package segment, and substrate 0.9.0's
+  bytecode carries 73 references to `org/jwcarman/codec/spi`, so codec 0.10.0 against
+  substrate 0.9.0 fails at class-load time with
+  `NoClassDefFoundError: org/jwcarman/codec/spi/CodecFactory`. Odyssey's own sources
+  needed no change — the one codec type it uses, `JacksonCodecFactory`, is in
+  `org.jwcarman.codec.jackson`, which did not move.
+- substrate 0.10.0 also stops `substrate-bom` re-exporting Spring Boot's managed
+  versions. Odyssey imports `codec-bom` before `substrate-bom` to keep codec-core and
+  codec-jackson on one version; that ordering is no longer load-bearing, since the
+  substrate BOM now manages only substrate's own modules. It is harmless to keep.
+
 ## [0.10.0] - 2026-04-16
 
 ### Added
