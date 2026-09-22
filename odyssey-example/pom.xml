@@ -48,6 +48,16 @@
             <artifactId>odyssey</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!--
+          codec 0.10.0 moved the codec auto-configurations out of the provider modules into
+          codec-autoconfigure. codec-jackson now ships the factory only, so without this the
+          application starts with no CodecFactory bean — and substrate's JournalFactory is
+          @ConditionalOnBean(CodecFactory), so the failure surfaces as a missing JournalFactory.
+        -->
+        <dependency>
+            <groupId>org.jwcarman.codec</groupId>
+            <artifactId>codec-autoconfigure</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.jwcarman.substrate</groupId>
             <artifactId>substrate-redis</artifactId>
