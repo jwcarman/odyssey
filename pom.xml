@@ -76,8 +76,8 @@
         <!-- Core plugin versions. Managed by spring-boot-starter-parent until this project
              stopped inheriting it; keep them explicit. -->
         <compiler.plugin.version>3.16.0</compiler.plugin.version>
-        <surefire.plugin.version>3.5.6</surefire.plugin.version>
-        <failsafe.plugin.version>3.5.6</failsafe.plugin.version>
+        <surefire.plugin.version>3.6.0</surefire.plugin.version>
+        <failsafe.plugin.version>3.6.0</failsafe.plugin.version>
         <dependency.plugin.version>3.11.0</dependency.plugin.version>
         <substrate.version>0.10.0</substrate.version>
         <codec.version>0.10.0</codec.version>
@@ -90,7 +90,7 @@
         <sonatype.plugin.version>0.11.0</sonatype.plugin.version>
         <license.plugin.version>5.0.0</license.plugin.version>
         <jacoco.plugin.version>0.8.15</jacoco.plugin.version>
-        <sonar.plugin.version>5.7.0.6970</sonar.plugin.version>
+        <sonar.plugin.version>5.8.0.7211</sonar.plugin.version>
 
         <!-- License Header Configuration -->
         <license.owner>James Carman</license.owner>
