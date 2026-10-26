@@ -71,7 +71,7 @@
     <properties>
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring-boot.version>4.1.1</spring-boot.version>
+        <spring-boot.version>4.1.2</spring-boot.version>
         <spotless.version>3.10.2</spotless.version>
         <!-- Core plugin versions. Managed by spring-boot-starter-parent until this project
              stopped inheriting it; keep them explicit. -->
