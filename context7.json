@@ -1,0 +1,17 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Odyssey (resumable Server-Sent Events for Spring Boot)",
+  "description": "Odyssey (org.jwcarman.odyssey) gives Spring Boot 4 clustered, persistent, resumable Server-Sent Events: one OdysseyStream<T> handle to publish, subscribe, resume and replay typed events, on virtual threads, with storage on Redis, PostgreSQL, Hazelcast, NATS or Cassandra through Substrate.",
+  "folders": [
+    "docs"
+  ],
+  "excludeFolders": [
+    "docs/plans",
+    "specs"
+  ],
+  "rules": [
+    "Add org.jwcarman.odyssey:odyssey plus exactly one Substrate backend module (such as org.jwcarman.substrate:substrate-redis); it auto-configures the JournalFactory Odyssey uses.",
+    "Odyssey uses virtual threads and no reactive types: do not wrap its streams in Reactor or WebFlux types.",
+    "Check https://github.com/jwcarman/odyssey/blob/main/CHANGELOG.md against the Odyssey version in use: entries under Unreleased are not in any release yet."
+  ]
+}
